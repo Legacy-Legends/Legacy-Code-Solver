@@ -362,6 +362,11 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   }, []);
 
   const hasActiveFilter = Boolean(selectedNode || selectedEdge);
+  const viewW = dimensions.width || 960;
+  const viewH = dimensions.height || 640;
+
+  // Precompute 5x5 sub-grid coordinates for the 140x140 world-space dot tile (28px spacing)
+  const subGridCoords = [0, 28, 56, 84, 112];
 
   return (
     <div
@@ -384,9 +389,49 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
         width="100%"
         height="100%"
         className="absolute inset-0"
-        viewBox={`0 0 ${dimensions.width || 960} ${dimensions.height || 640}`}
+        viewBox={`0 0 ${viewW} ${viewH}`}
       >
         <defs>
+          {/* Deep-space parallax dot grid (moves at 0.45x pan speed for spatial depth) */}
+          <pattern
+            id="spatial-dots-parallax"
+            width="24"
+            height="24"
+            patternUnits="userSpaceOnUse"
+            patternTransform={`translate(${viewW / 2 + pan.x * 0.45}, ${
+              viewH / 2 + pan.y * 0.45
+            }) scale(${0.65 + zoom * 0.35})`}
+          >
+            <circle cx="12" cy="12" r="1.05" fill="#CFCAC0" opacity="0.7" />
+          </pattern>
+
+          {/* Primary world-space dot grid (28px minor dots + 140px major spatial coordinate dots) */}
+          <pattern
+            id="spatial-dots-world"
+            width="140"
+            height="140"
+            patternUnits="userSpaceOnUse"
+            patternTransform={`translate(${viewW / 2 + pan.x}, ${
+              viewH / 2 + pan.y
+            }) scale(${zoom})`}
+          >
+            {subGridCoords.map((gx) =>
+              subGridCoords.map((gy) => {
+                const isMajor = gx === 0 && gy === 0;
+                return (
+                  <circle
+                    key={`${gx}-${gy}`}
+                    cx={gx}
+                    cy={gy}
+                    r={isMajor ? 2.15 : 1.35}
+                    fill={isMajor ? '#8A8375' : '#BDB7AA'}
+                    opacity={isMajor ? 0.85 : 0.75}
+                  />
+                );
+              })
+            )}
+          </pattern>
+
           {/* Default subtle slate arrowhead */}
           <marker
             id="arrow-default"
@@ -427,9 +472,23 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
           </marker>
         </defs>
 
+        {/* Spatial Dot Grid Layers */}
+        <rect
+          width="100%"
+          height="100%"
+          fill="url(#spatial-dots-parallax)"
+          className="pointer-events-none"
+        />
+        <rect
+          width="100%"
+          height="100%"
+          fill="url(#spatial-dots-world)"
+          className="pointer-events-none"
+        />
+
         <g
-          transform={`translate(${(dimensions.width || 960) / 2 + pan.x}, ${
-            (dimensions.height || 640) / 2 + pan.y
+          transform={`translate(${viewW / 2 + pan.x}, ${
+            viewH / 2 + pan.y
           }) scale(${zoom})`}
         >
           {/* 1. Directed Dependency Edges */}

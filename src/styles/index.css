@@ -16,6 +16,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Spatial dot-grid background for canvas surfaces */
+.spatial-dot-canvas {
+  background-color: #F7F5F0;
+  background-image:
+    radial-gradient(#948E80 1.45px, transparent 1.45px),
+    radial-gradient(#CCC7BC 1px, transparent 1px);
+  background-size: 112px 112px, 28px 28px;
+  background-position: 0 0, 14px 14px;
+}
+
 /* Restrained frosted glass for floating controls */
 .glass-card {
   background: rgba(255, 255, 255, 0.94);

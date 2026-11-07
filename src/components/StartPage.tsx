@@ -13,7 +13,7 @@ export const StartPage: React.FC<StartPageProps> = ({
   onOpenWorkspace,
 }) => {
   return (
-    <div className="flex min-h-screen flex-col bg-[#F7F5F0] text-[#111827] font-sans antialiased">
+    <div className="spatial-dot-canvas flex min-h-screen flex-col text-[#111827] font-sans antialiased">
       {/* Minimal Header */}
       <header className="border-b border-[#E4E2DA] bg-white px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-2.5">

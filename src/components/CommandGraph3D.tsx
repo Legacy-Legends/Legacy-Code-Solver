@@ -146,6 +146,42 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
         pointLight.position.set(0, 0, 100);
         scene.add(pointLight);
 
+        // 3D volumetric grid of dots in space
+        const dotPositions: number[] = [];
+        const dotColors: number[] = [];
+        const gridStep = 55;
+        const gridExtent = 330;
+        for (let x = -gridExtent; x <= gridExtent; x += gridStep) {
+          for (let y = -gridExtent; y <= gridExtent; y += gridStep) {
+            for (let z = -gridExtent; z <= gridExtent; z += gridStep) {
+              // Keep a hollow inner sphere near the graph center clear of dense dots,
+              // while creating a full 3D spatial lattice of dots around and on the reference plane
+              const dist = Math.hypot(x, y, z);
+              const isReferencePlane = y === -110;
+              if (isReferencePlane || (dist >= 140 && dist <= 480 && (Math.abs(x + y + z) % 110 === 0))) {
+                dotPositions.push(x, y, z);
+                if (isReferencePlane && x % 110 === 0 && z % 110 === 0) {
+                  dotColors.push(0.38, 0.45, 0.65);
+                } else {
+                  dotColors.push(0.22, 0.28, 0.42);
+                }
+              }
+            }
+          }
+        }
+        const dotGeo = new THREE.BufferGeometry();
+        dotGeo.setAttribute('position', new THREE.Float32BufferAttribute(dotPositions, 3));
+        dotGeo.setAttribute('color', new THREE.Float32BufferAttribute(dotColors, 3));
+        const dotMat = new THREE.PointsMaterial({
+          size: 2.2,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.65,
+          depthWrite: false,
+        });
+        const spatialDots = new THREE.Points(dotGeo, dotMat);
+        scene.add(spatialDots);
+
         (scene as unknown as { __lightsAdded?: boolean }).__lightsAdded = true;
       }
     } catch {
