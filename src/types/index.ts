@@ -37,6 +37,9 @@ export interface GraphEdge {
   target: string | GraphNode;
   type: EdgeType;
   weight: number;
+  callSiteLine?: number;
+  callSiteCode?: string;
+  explanation?: string;
 }
 
 export interface GraphData {
@@ -45,3 +48,50 @@ export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
 }
+
+/**
+ * EVIDENCE & IMPACT CONTRACTS
+ */
+
+export interface SourceLineContext {
+  line: number;
+  text: string;
+  isCallSite: boolean;
+}
+
+export interface SourceEvidence {
+  edgeId: string;
+  callerId: string;
+  callerName: string;
+  callerPath: string;
+  calleeId: string;
+  calleeName: string;
+  calleePath: string;
+  lineNumber: number;
+  statement: string;
+  surroundingCode: SourceLineContext[];
+  relationship: string;
+  explanation: string;
+  inferred?: boolean;
+}
+
+export interface DependentItem {
+  node: GraphNode;
+  edge: GraphEdge;
+  callSiteLine?: number;
+  explanation?: string;
+  depth: 1 | 2; // 1 = direct, 2 = indirect
+  pathIds: string[]; // sequence of node ids in dependency path from dependent to target
+  evidence?: SourceEvidence;
+}
+
+export interface ImpactAnalysis {
+  targetNode: GraphNode;
+  directDependents: DependentItem[];
+  indirectDependents: DependentItem[];
+  totalAffected: number;
+  isolatedPathNodeIds?: string[];
+  timestamp: string;
+}
+
+export type DataSourceMode = 'sample' | 'enterprise' | 'live';

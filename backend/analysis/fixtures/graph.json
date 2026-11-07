@@ -1,0 +1,1608 @@
+{
+  "nodes": [
+    {
+      "id": "com.legacy.auth.AuthCache",
+      "type": "class",
+      "name": "AuthCache",
+      "path": "src/main/java/com/legacy/auth/AuthCache.java",
+      "loc": 464,
+      "complexity": 15,
+      "fan_in": 2,
+      "fan_out": 1,
+      "centrality": 0.0245545142960756,
+      "in_cycle": true,
+      "vuln_count": 2,
+      "churn": 28,
+      "health": 49,
+      "module_id": "module-000",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.auth.AuthClient",
+      "type": "class",
+      "name": "AuthClient",
+      "path": "src/main/java/com/legacy/auth/AuthClient.java",
+      "loc": 609,
+      "complexity": 13,
+      "fan_in": 1,
+      "fan_out": 2,
+      "centrality": 0.014013786109892607,
+      "in_cycle": true,
+      "vuln_count": 2,
+      "churn": 45,
+      "health": 49,
+      "module_id": "module-000",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.auth.AuthController",
+      "type": "class",
+      "name": "AuthController",
+      "path": "src/main/java/com/legacy/auth/AuthController.java",
+      "loc": 149,
+      "complexity": 2,
+      "fan_in": 2,
+      "fan_out": 1,
+      "centrality": 0.009327893142571172,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 47,
+      "health": 71,
+      "module_id": "module-000",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.auth.AuthHandler",
+      "type": "class",
+      "name": "AuthHandler",
+      "path": "src/main/java/com/legacy/auth/AuthHandler.java",
+      "loc": 467,
+      "complexity": 22,
+      "fan_in": 2,
+      "fan_out": 1,
+      "centrality": 0.020363441500225753,
+      "in_cycle": false,
+      "vuln_count": 0,
+      "churn": 17,
+      "health": 71,
+      "module_id": "module-001",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.auth.AuthJob",
+      "type": "class",
+      "name": "AuthJob",
+      "path": "src/main/java/com/legacy/auth/AuthJob.java",
+      "loc": 255,
+      "complexity": 22,
+      "fan_in": 0,
+      "fan_out": 2,
+      "centrality": 0.0044950647723733216,
+      "in_cycle": false,
+      "vuln_count": 0,
+      "churn": 6,
+      "health": 73,
+      "module_id": "module-000",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.auth.AuthMapper",
+      "type": "class",
+      "name": "AuthMapper",
+      "path": "src/main/java/com/legacy/auth/AuthMapper.java",
+      "loc": 273,
+      "complexity": 33,
+      "fan_in": 3,
+      "fan_out": 3,
+      "centrality": 0.03173810913862084,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 38,
+      "health": 37,
+      "module_id": "module-000",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.auth.AuthPolicy",
+      "type": "class",
+      "name": "AuthPolicy",
+      "path": "src/main/java/com/legacy/auth/AuthPolicy.java",
+      "loc": 319,
+      "complexity": 1,
+      "fan_in": 0,
+      "fan_out": 1,
+      "centrality": 0.0044950647723733216,
+      "in_cycle": false,
+      "vuln_count": 0,
+      "churn": 48,
+      "health": 90,
+      "module_id": "module-002",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.auth.AuthRepository",
+      "type": "class",
+      "name": "AuthRepository",
+      "path": "src/main/java/com/legacy/auth/AuthRepository.java",
+      "loc": 593,
+      "complexity": 6,
+      "fan_in": 3,
+      "fan_out": 2,
+      "centrality": 0.025899463816213473,
+      "in_cycle": true,
+      "vuln_count": 1,
+      "churn": 37,
+      "health": 66,
+      "module_id": "module-000",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.auth.AuthService",
+      "type": "class",
+      "name": "AuthService",
+      "path": "src/main/java/com/legacy/auth/AuthService.java",
+      "loc": 285,
+      "complexity": 15,
+      "fan_in": 1,
+      "fan_out": 1,
+      "centrality": 0.012423773943151832,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 8,
+      "health": 63,
+      "module_id": "module-000",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.auth.AuthValidator",
+      "type": "class",
+      "name": "AuthValidator",
+      "path": "src/main/java/com/legacy/auth/AuthValidator.java",
+      "loc": 67,
+      "complexity": 2,
+      "fan_in": 2,
+      "fan_out": 3,
+      "centrality": 0.015397931565406812,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 5,
+      "health": 79,
+      "module_id": "module-000",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.billing.BillingCache",
+      "type": "class",
+      "name": "BillingCache",
+      "path": "src/main/java/com/legacy/billing/BillingCache.java",
+      "loc": 116,
+      "complexity": 15,
+      "fan_in": 3,
+      "fan_out": 2,
+      "centrality": 0.04848687830354617,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 55,
+      "health": 55,
+      "module_id": "module-002",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.billing.BillingClient",
+      "type": "class",
+      "name": "BillingClient",
+      "path": "src/main/java/com/legacy/billing/BillingClient.java",
+      "loc": 81,
+      "complexity": 15,
+      "fan_in": 3,
+      "fan_out": 3,
+      "centrality": 0.02395607762331163,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 49,
+      "health": 55,
+      "module_id": "module-003",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.billing.BillingController",
+      "type": "class",
+      "name": "BillingController",
+      "path": "src/main/java/com/legacy/billing/BillingController.java",
+      "loc": 424,
+      "complexity": 7,
+      "fan_in": 3,
+      "fan_out": 3,
+      "centrality": 0.022150614473826713,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 22,
+      "health": 73,
+      "module_id": "module-003",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.billing.BillingHandler",
+      "type": "class",
+      "name": "BillingHandler",
+      "path": "src/main/java/com/legacy/billing/BillingHandler.java",
+      "loc": 201,
+      "complexity": 24,
+      "fan_in": 3,
+      "fan_out": 1,
+      "centrality": 0.012487715667884253,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 22,
+      "health": 47,
+      "module_id": "module-003",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.billing.BillingJob",
+      "type": "class",
+      "name": "BillingJob",
+      "path": "src/main/java/com/legacy/billing/BillingJob.java",
+      "loc": 308,
+      "complexity": 42,
+      "fan_in": 1,
+      "fan_out": 1,
+      "centrality": 0.0066743387704413055,
+      "in_cycle": false,
+      "vuln_count": 2,
+      "churn": 4,
+      "health": 54,
+      "module_id": "module-002",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.billing.BillingMapper",
+      "type": "class",
+      "name": "BillingMapper",
+      "path": "src/main/java/com/legacy/billing/BillingMapper.java",
+      "loc": 405,
+      "complexity": 37,
+      "fan_in": 0,
+      "fan_out": 4,
+      "centrality": 0.0044950647723733216,
+      "in_cycle": false,
+      "vuln_count": 0,
+      "churn": 12,
+      "health": 61,
+      "module_id": "module-003",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.billing.BillingPolicy",
+      "type": "class",
+      "name": "BillingPolicy",
+      "path": "src/main/java/com/legacy/billing/BillingPolicy.java",
+      "loc": 424,
+      "complexity": 18,
+      "fan_in": 3,
+      "fan_out": 2,
+      "centrality": 0.02629849486774352,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 29,
+      "health": 55,
+      "module_id": "module-003",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.billing.BillingRepository",
+      "type": "class",
+      "name": "BillingRepository",
+      "path": "src/main/java/com/legacy/billing/BillingRepository.java",
+      "loc": 584,
+      "complexity": 8,
+      "fan_in": 2,
+      "fan_out": 2,
+      "centrality": 0.0463836242261486,
+      "in_cycle": true,
+      "vuln_count": 1,
+      "churn": 59,
+      "health": 60,
+      "module_id": "module-002",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.billing.BillingService",
+      "type": "class",
+      "name": "BillingService",
+      "path": "src/main/java/com/legacy/billing/BillingService.java",
+      "loc": 305,
+      "complexity": 3,
+      "fan_in": 3,
+      "fan_out": 1,
+      "centrality": 0.04472304207378053,
+      "in_cycle": true,
+      "vuln_count": 1,
+      "churn": 46,
+      "health": 66,
+      "module_id": "module-002",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.billing.BillingValidator",
+      "type": "class",
+      "name": "BillingValidator",
+      "path": "src/main/java/com/legacy/billing/BillingValidator.java",
+      "loc": 115,
+      "complexity": 36,
+      "fan_in": 1,
+      "fan_out": 2,
+      "centrality": 0.00576866645951893,
+      "in_cycle": false,
+      "vuln_count": 2,
+      "churn": 18,
+      "health": 51,
+      "module_id": "module-003",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.inventory.InventoryCache",
+      "type": "class",
+      "name": "InventoryCache",
+      "path": "src/main/java/com/legacy/inventory/InventoryCache.java",
+      "loc": 152,
+      "complexity": 35,
+      "fan_in": 1,
+      "fan_out": 3,
+      "centrality": 0.015065976765637784,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 48,
+      "health": 35,
+      "module_id": "module-001",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.inventory.InventoryClient",
+      "type": "class",
+      "name": "InventoryClient",
+      "path": "src/main/java/com/legacy/inventory/InventoryClient.java",
+      "loc": 292,
+      "complexity": 36,
+      "fan_in": 0,
+      "fan_out": 3,
+      "centrality": 0.0044950647723733216,
+      "in_cycle": false,
+      "vuln_count": 0,
+      "churn": 55,
+      "health": 55,
+      "module_id": "module-001",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.inventory.InventoryController",
+      "type": "class",
+      "name": "InventoryController",
+      "path": "src/main/java/com/legacy/inventory/InventoryController.java",
+      "loc": 443,
+      "complexity": 24,
+      "fan_in": 3,
+      "fan_out": 4,
+      "centrality": 0.04560001247169175,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 14,
+      "health": 47,
+      "module_id": "module-001",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.inventory.InventoryHandler",
+      "type": "class",
+      "name": "InventoryHandler",
+      "path": "src/main/java/com/legacy/inventory/InventoryHandler.java",
+      "loc": 196,
+      "complexity": 30,
+      "fan_in": 3,
+      "fan_out": 0,
+      "centrality": 0.013606247129517728,
+      "in_cycle": false,
+      "vuln_count": 0,
+      "churn": 0,
+      "health": 65,
+      "module_id": "module-001",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.inventory.InventoryJob",
+      "type": "class",
+      "name": "InventoryJob",
+      "path": "src/main/java/com/legacy/inventory/InventoryJob.java",
+      "loc": 547,
+      "complexity": 12,
+      "fan_in": 1,
+      "fan_out": 2,
+      "centrality": 0.007340860378253114,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 32,
+      "health": 63,
+      "module_id": "module-001",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.inventory.InventoryMapper",
+      "type": "class",
+      "name": "InventoryMapper",
+      "path": "src/main/java/com/legacy/inventory/InventoryMapper.java",
+      "loc": 425,
+      "complexity": 39,
+      "fan_in": 4,
+      "fan_out": 0,
+      "centrality": 0.030911149429657052,
+      "in_cycle": false,
+      "vuln_count": 2,
+      "churn": 29,
+      "health": 49,
+      "module_id": "module-001",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.inventory.InventoryPolicy",
+      "type": "class",
+      "name": "InventoryPolicy",
+      "path": "src/main/java/com/legacy/inventory/InventoryPolicy.java",
+      "loc": 383,
+      "complexity": 8,
+      "fan_in": 1,
+      "fan_out": 1,
+      "centrality": 0.022113251427814094,
+      "in_cycle": true,
+      "vuln_count": 1,
+      "churn": 18,
+      "health": 67,
+      "module_id": "module-001",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.inventory.InventoryRepository",
+      "type": "class",
+      "name": "InventoryRepository",
+      "path": "src/main/java/com/legacy/inventory/InventoryRepository.java",
+      "loc": 147,
+      "complexity": 10,
+      "fan_in": 3,
+      "fan_out": 1,
+      "centrality": 0.024571513093126062,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 40,
+      "health": 64,
+      "module_id": "module-004",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.inventory.InventoryService",
+      "type": "class",
+      "name": "InventoryService",
+      "path": "src/main/java/com/legacy/inventory/InventoryService.java",
+      "loc": 556,
+      "complexity": 32,
+      "fan_in": 2,
+      "fan_out": 1,
+      "centrality": 0.009292303790607085,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 5,
+      "health": 44,
+      "module_id": "module-001",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.inventory.InventoryValidator",
+      "type": "class",
+      "name": "InventoryValidator",
+      "path": "src/main/java/com/legacy/inventory/InventoryValidator.java",
+      "loc": 467,
+      "complexity": 39,
+      "fan_in": 1,
+      "fan_out": 2,
+      "centrality": 0.011542339434549631,
+      "in_cycle": false,
+      "vuln_count": 1,
+      "churn": 4,
+      "health": 59,
+      "module_id": "module-001",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsCache",
+      "type": "class",
+      "name": "NotificationsCache",
+      "path": "src/main/java/com/legacy/notifications/NotificationsCache.java",
+      "loc": 115,
+      "complexity": 6,
+      "fan_in": 2,
+      "fan_out": 2,
+      "centrality": 0.025717750407031413,
+      "in_cycle": true,
+      "vuln_count": 1,
+      "churn": 46,
+      "health": 64,
+      "module_id": "module-004",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsClient",
+      "type": "class",
+      "name": "NotificationsClient",
+      "path": "src/main/java/com/legacy/notifications/NotificationsClient.java",
+      "loc": 280,
+      "complexity": 4,
+      "fan_in": 0,
+      "fan_out": 0,
+      "centrality": 0.0044950647723733216,
+      "in_cycle": false,
+      "vuln_count": 2,
+      "churn": 15,
+      "health": 87,
+      "module_id": "module-005",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsController",
+      "type": "class",
+      "name": "NotificationsController",
+      "path": "src/main/java/com/legacy/notifications/NotificationsController.java",
+      "loc": 340,
+      "complexity": 41,
+      "fan_in": 1,
+      "fan_out": 1,
+      "centrality": 0.006142546102845902,
+      "in_cycle": true,
+      "vuln_count": 2,
+      "churn": 32,
+      "health": 29,
+      "module_id": "module-006",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsHandler",
+      "type": "class",
+      "name": "NotificationsHandler",
+      "path": "src/main/java/com/legacy/notifications/NotificationsHandler.java",
+      "loc": 166,
+      "complexity": 31,
+      "fan_in": 2,
+      "fan_out": 4,
+      "centrality": 0.019857570313218553,
+      "in_cycle": true,
+      "vuln_count": 2,
+      "churn": 60,
+      "health": 23,
+      "module_id": "module-004",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsJob",
+      "type": "class",
+      "name": "NotificationsJob",
+      "path": "src/main/java/com/legacy/notifications/NotificationsJob.java",
+      "loc": 204,
+      "complexity": 17,
+      "fan_in": 1,
+      "fan_out": 3,
+      "centrality": 0.02365539700132715,
+      "in_cycle": true,
+      "vuln_count": 2,
+      "churn": 33,
+      "health": 45,
+      "module_id": "module-004",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsMapper",
+      "type": "class",
+      "name": "NotificationsMapper",
+      "path": "src/main/java/com/legacy/notifications/NotificationsMapper.java",
+      "loc": 149,
+      "complexity": 24,
+      "fan_in": 4,
+      "fan_out": 0,
+      "centrality": 0.019320236597559538,
+      "in_cycle": false,
+      "vuln_count": 0,
+      "churn": 56,
+      "health": 62,
+      "module_id": "module-004",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsPolicy",
+      "type": "class",
+      "name": "NotificationsPolicy",
+      "path": "src/main/java/com/legacy/notifications/NotificationsPolicy.java",
+      "loc": 105,
+      "complexity": 35,
+      "fan_in": 2,
+      "fan_out": 0,
+      "centrality": 0.019612288943307486,
+      "in_cycle": false,
+      "vuln_count": 0,
+      "churn": 49,
+      "health": 55,
+      "module_id": "module-004",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsRepository",
+      "type": "class",
+      "name": "NotificationsRepository",
+      "path": "src/main/java/com/legacy/notifications/NotificationsRepository.java",
+      "loc": 587,
+      "complexity": 34,
+      "fan_in": 3,
+      "fan_out": 4,
+      "centrality": 0.02713498662349337,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 58,
+      "health": 33,
+      "module_id": "module-004",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsService",
+      "type": "class",
+      "name": "NotificationsService",
+      "path": "src/main/java/com/legacy/notifications/NotificationsService.java",
+      "loc": 238,
+      "complexity": 10,
+      "fan_in": 3,
+      "fan_out": 2,
+      "centrality": 0.028394218418076583,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 23,
+      "health": 68,
+      "module_id": "module-006",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsValidator",
+      "type": "class",
+      "name": "NotificationsValidator",
+      "path": "src/main/java/com/legacy/notifications/NotificationsValidator.java",
+      "loc": 648,
+      "complexity": 21,
+      "fan_in": 0,
+      "fan_out": 1,
+      "centrality": 0.0044950647723733216,
+      "in_cycle": false,
+      "vuln_count": 0,
+      "churn": 31,
+      "health": 70,
+      "module_id": "module-004",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.orders.OrdersCache",
+      "type": "class",
+      "name": "OrdersCache",
+      "path": "src/main/java/com/legacy/orders/OrdersCache.java",
+      "loc": 252,
+      "complexity": 42,
+      "fan_in": 3,
+      "fan_out": 3,
+      "centrality": 0.03915304783057544,
+      "in_cycle": true,
+      "vuln_count": 1,
+      "churn": 31,
+      "health": 34,
+      "module_id": "module-006",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.orders.OrdersClient",
+      "type": "class",
+      "name": "OrdersClient",
+      "path": "src/main/java/com/legacy/orders/OrdersClient.java",
+      "loc": 251,
+      "complexity": 37,
+      "fan_in": 3,
+      "fan_out": 3,
+      "centrality": 0.02050926778292092,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 56,
+      "health": 35,
+      "module_id": "module-006",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.orders.OrdersController",
+      "type": "class",
+      "name": "OrdersController",
+      "path": "src/main/java/com/legacy/orders/OrdersController.java",
+      "loc": 210,
+      "complexity": 35,
+      "fan_in": 1,
+      "fan_out": 3,
+      "centrality": 0.005719537175089943,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 46,
+      "health": 36,
+      "module_id": "module-006",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.orders.OrdersHandler",
+      "type": "class",
+      "name": "OrdersHandler",
+      "path": "src/main/java/com/legacy/orders/OrdersHandler.java",
+      "loc": 287,
+      "complexity": 36,
+      "fan_in": 4,
+      "fan_out": 2,
+      "centrality": 0.0419271817942618,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 34,
+      "health": 38,
+      "module_id": "module-006",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.orders.OrdersJob",
+      "type": "class",
+      "name": "OrdersJob",
+      "path": "src/main/java/com/legacy/orders/OrdersJob.java",
+      "loc": 633,
+      "complexity": 28,
+      "fan_in": 3,
+      "fan_out": 1,
+      "centrality": 0.02482186359818175,
+      "in_cycle": true,
+      "vuln_count": 2,
+      "churn": 57,
+      "health": 26,
+      "module_id": "module-006",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.orders.OrdersMapper",
+      "type": "class",
+      "name": "OrdersMapper",
+      "path": "src/main/java/com/legacy/orders/OrdersMapper.java",
+      "loc": 358,
+      "complexity": 26,
+      "fan_in": 4,
+      "fan_out": 1,
+      "centrality": 0.035687794988130336,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 17,
+      "health": 45,
+      "module_id": "module-006",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.orders.OrdersPolicy",
+      "type": "class",
+      "name": "OrdersPolicy",
+      "path": "src/main/java/com/legacy/orders/OrdersPolicy.java",
+      "loc": 504,
+      "complexity": 10,
+      "fan_in": 0,
+      "fan_out": 4,
+      "centrality": 0.0044950647723733216,
+      "in_cycle": false,
+      "vuln_count": 0,
+      "churn": 16,
+      "health": 87,
+      "module_id": "module-006",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.orders.OrdersRepository",
+      "type": "class",
+      "name": "OrdersRepository",
+      "path": "src/main/java/com/legacy/orders/OrdersRepository.java",
+      "loc": 605,
+      "complexity": 15,
+      "fan_in": 2,
+      "fan_out": 5,
+      "centrality": 0.02737055954401487,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 43,
+      "health": 52,
+      "module_id": "module-006",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.orders.OrdersService",
+      "type": "class",
+      "name": "OrdersService",
+      "path": "src/main/java/com/legacy/orders/OrdersService.java",
+      "loc": 202,
+      "complexity": 30,
+      "fan_in": 2,
+      "fan_out": 5,
+      "centrality": 0.006124671058881179,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 24,
+      "health": 36,
+      "module_id": "module-006",
+      "domain_tag": "",
+      "domain_inferred": false
+    },
+    {
+      "id": "com.legacy.orders.OrdersValidator",
+      "type": "class",
+      "name": "OrdersValidator",
+      "path": "src/main/java/com/legacy/orders/OrdersValidator.java",
+      "loc": 92,
+      "complexity": 15,
+      "fan_in": 3,
+      "fan_out": 1,
+      "centrality": 0.026693608515256415,
+      "in_cycle": true,
+      "vuln_count": 0,
+      "churn": 52,
+      "health": 55,
+      "module_id": "module-006",
+      "domain_tag": "",
+      "domain_inferred": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "com.legacy.auth.AuthCache",
+      "target": "com.legacy.auth.AuthMapper",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.auth.AuthClient",
+      "target": "com.legacy.auth.AuthMapper",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.auth.AuthClient",
+      "target": "com.legacy.auth.AuthRepository",
+      "type": "implements",
+      "weight": 3.0
+    },
+    {
+      "source": "com.legacy.auth.AuthController",
+      "target": "com.legacy.auth.AuthService",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.auth.AuthHandler",
+      "target": "com.legacy.inventory.InventoryMapper",
+      "type": "calls",
+      "weight": 7.0
+    },
+    {
+      "source": "com.legacy.auth.AuthJob",
+      "target": "com.legacy.auth.AuthRepository",
+      "type": "imports",
+      "weight": 2.0
+    },
+    {
+      "source": "com.legacy.auth.AuthJob",
+      "target": "com.legacy.auth.AuthValidator",
+      "type": "implements",
+      "weight": 2.0
+    },
+    {
+      "source": "com.legacy.auth.AuthMapper",
+      "target": "com.legacy.auth.AuthHandler",
+      "type": "extends",
+      "weight": 3.0
+    },
+    {
+      "source": "com.legacy.auth.AuthMapper",
+      "target": "com.legacy.auth.AuthValidator",
+      "type": "implements",
+      "weight": 2.0
+    },
+    {
+      "source": "com.legacy.auth.AuthMapper",
+      "target": "com.legacy.notifications.NotificationsMapper",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.auth.AuthPolicy",
+      "target": "com.legacy.billing.BillingCache",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "source": "com.legacy.auth.AuthRepository",
+      "target": "com.legacy.auth.AuthCache",
+      "type": "extends",
+      "weight": 6.0
+    },
+    {
+      "source": "com.legacy.auth.AuthRepository",
+      "target": "com.legacy.auth.AuthController",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.auth.AuthService",
+      "target": "com.legacy.auth.AuthRepository",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.auth.AuthValidator",
+      "target": "com.legacy.auth.AuthCache",
+      "type": "implements",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.auth.AuthValidator",
+      "target": "com.legacy.auth.AuthClient",
+      "type": "imports",
+      "weight": 8.0
+    },
+    {
+      "source": "com.legacy.auth.AuthValidator",
+      "target": "com.legacy.auth.AuthHandler",
+      "type": "calls",
+      "weight": 2.0
+    },
+    {
+      "source": "com.legacy.billing.BillingCache",
+      "target": "com.legacy.billing.BillingPolicy",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.billing.BillingCache",
+      "target": "com.legacy.billing.BillingService",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "source": "com.legacy.billing.BillingClient",
+      "target": "com.legacy.auth.AuthMapper",
+      "type": "implements",
+      "weight": 2.0
+    },
+    {
+      "source": "com.legacy.billing.BillingClient",
+      "target": "com.legacy.billing.BillingController",
+      "type": "calls",
+      "weight": 7.0
+    },
+    {
+      "source": "com.legacy.billing.BillingClient",
+      "target": "com.legacy.billing.BillingHandler",
+      "type": "implements",
+      "weight": 3.0
+    },
+    {
+      "source": "com.legacy.billing.BillingController",
+      "target": "com.legacy.billing.BillingHandler",
+      "type": "extends",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.billing.BillingController",
+      "target": "com.legacy.billing.BillingPolicy",
+      "type": "implements",
+      "weight": 5.0
+    },
+    {
+      "source": "com.legacy.billing.BillingController",
+      "target": "com.legacy.billing.BillingService",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.billing.BillingHandler",
+      "target": "com.legacy.billing.BillingClient",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "source": "com.legacy.billing.BillingJob",
+      "target": "com.legacy.billing.BillingCache",
+      "type": "imports",
+      "weight": 8.0
+    },
+    {
+      "source": "com.legacy.billing.BillingMapper",
+      "target": "com.legacy.billing.BillingController",
+      "type": "imports",
+      "weight": 4.0
+    },
+    {
+      "source": "com.legacy.billing.BillingMapper",
+      "target": "com.legacy.billing.BillingHandler",
+      "type": "implements",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.billing.BillingMapper",
+      "target": "com.legacy.billing.BillingPolicy",
+      "type": "calls",
+      "weight": 7.0
+    },
+    {
+      "source": "com.legacy.billing.BillingMapper",
+      "target": "com.legacy.billing.BillingValidator",
+      "type": "implements",
+      "weight": 6.0
+    },
+    {
+      "source": "com.legacy.billing.BillingPolicy",
+      "target": "com.legacy.billing.BillingService",
+      "type": "implements",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.billing.BillingPolicy",
+      "target": "com.legacy.notifications.NotificationsJob",
+      "type": "extends",
+      "weight": 6.0
+    },
+    {
+      "source": "com.legacy.billing.BillingRepository",
+      "target": "com.legacy.billing.BillingCache",
+      "type": "implements",
+      "weight": 7.0
+    },
+    {
+      "source": "com.legacy.billing.BillingRepository",
+      "target": "com.legacy.billing.BillingController",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.billing.BillingService",
+      "target": "com.legacy.billing.BillingRepository",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.billing.BillingValidator",
+      "target": "com.legacy.billing.BillingClient",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "source": "com.legacy.billing.BillingValidator",
+      "target": "com.legacy.billing.BillingJob",
+      "type": "implements",
+      "weight": 4.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryCache",
+      "target": "com.legacy.inventory.InventoryController",
+      "type": "implements",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryCache",
+      "target": "com.legacy.inventory.InventoryJob",
+      "type": "calls",
+      "weight": 2.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryCache",
+      "target": "com.legacy.orders.OrdersJob",
+      "type": "extends",
+      "weight": 6.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryClient",
+      "target": "com.legacy.inventory.InventoryHandler",
+      "type": "calls",
+      "weight": 2.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryClient",
+      "target": "com.legacy.inventory.InventoryMapper",
+      "type": "extends",
+      "weight": 4.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryClient",
+      "target": "com.legacy.inventory.InventoryService",
+      "type": "implements",
+      "weight": 3.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryController",
+      "target": "com.legacy.inventory.InventoryCache",
+      "type": "calls",
+      "weight": 3.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryController",
+      "target": "com.legacy.inventory.InventoryPolicy",
+      "type": "extends",
+      "weight": 5.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryController",
+      "target": "com.legacy.inventory.InventoryService",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryController",
+      "target": "com.legacy.inventory.InventoryValidator",
+      "type": "calls",
+      "weight": 2.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryJob",
+      "target": "com.legacy.inventory.InventoryHandler",
+      "type": "implements",
+      "weight": 8.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryJob",
+      "target": "com.legacy.inventory.InventoryRepository",
+      "type": "implements",
+      "weight": 2.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryPolicy",
+      "target": "com.legacy.inventory.InventoryController",
+      "type": "extends",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryRepository",
+      "target": "com.legacy.inventory.InventoryController",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryService",
+      "target": "com.legacy.inventory.InventoryRepository",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryValidator",
+      "target": "com.legacy.inventory.InventoryHandler",
+      "type": "calls",
+      "weight": 3.0
+    },
+    {
+      "source": "com.legacy.inventory.InventoryValidator",
+      "target": "com.legacy.inventory.InventoryMapper",
+      "type": "imports",
+      "weight": 6.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsCache",
+      "target": "com.legacy.inventory.InventoryRepository",
+      "type": "extends",
+      "weight": 7.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsCache",
+      "target": "com.legacy.notifications.NotificationsService",
+      "type": "calls",
+      "weight": 7.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsController",
+      "target": "com.legacy.notifications.NotificationsService",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsHandler",
+      "target": "com.legacy.auth.AuthController",
+      "type": "implements",
+      "weight": 2.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsHandler",
+      "target": "com.legacy.notifications.NotificationsMapper",
+      "type": "imports",
+      "weight": 4.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsHandler",
+      "target": "com.legacy.notifications.NotificationsPolicy",
+      "type": "calls",
+      "weight": 6.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsHandler",
+      "target": "com.legacy.notifications.NotificationsRepository",
+      "type": "implements",
+      "weight": 8.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsJob",
+      "target": "com.legacy.notifications.NotificationsCache",
+      "type": "imports",
+      "weight": 4.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsJob",
+      "target": "com.legacy.notifications.NotificationsMapper",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsJob",
+      "target": "com.legacy.notifications.NotificationsPolicy",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsRepository",
+      "target": "com.legacy.notifications.NotificationsCache",
+      "type": "implements",
+      "weight": 8.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsRepository",
+      "target": "com.legacy.notifications.NotificationsController",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsRepository",
+      "target": "com.legacy.notifications.NotificationsHandler",
+      "type": "extends",
+      "weight": 2.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsRepository",
+      "target": "com.legacy.notifications.NotificationsMapper",
+      "type": "calls",
+      "weight": 3.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsService",
+      "target": "com.legacy.notifications.NotificationsHandler",
+      "type": "extends",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsService",
+      "target": "com.legacy.notifications.NotificationsRepository",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.notifications.NotificationsValidator",
+      "target": "com.legacy.notifications.NotificationsRepository",
+      "type": "extends",
+      "weight": 7.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersCache",
+      "target": "com.legacy.orders.OrdersClient",
+      "type": "implements",
+      "weight": 4.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersCache",
+      "target": "com.legacy.orders.OrdersHandler",
+      "type": "implements",
+      "weight": 7.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersCache",
+      "target": "com.legacy.orders.OrdersJob",
+      "type": "extends",
+      "weight": 5.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersClient",
+      "target": "com.legacy.billing.BillingRepository",
+      "type": "calls",
+      "weight": 4.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersClient",
+      "target": "com.legacy.notifications.NotificationsService",
+      "type": "extends",
+      "weight": 8.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersClient",
+      "target": "com.legacy.orders.OrdersMapper",
+      "type": "implements",
+      "weight": 6.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersController",
+      "target": "com.legacy.orders.OrdersCache",
+      "type": "extends",
+      "weight": 7.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersController",
+      "target": "com.legacy.orders.OrdersMapper",
+      "type": "imports",
+      "weight": 4.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersController",
+      "target": "com.legacy.orders.OrdersService",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersHandler",
+      "target": "com.legacy.orders.OrdersMapper",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersHandler",
+      "target": "com.legacy.orders.OrdersValidator",
+      "type": "implements",
+      "weight": 3.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersJob",
+      "target": "com.legacy.orders.OrdersHandler",
+      "type": "extends",
+      "weight": 8.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersMapper",
+      "target": "com.legacy.orders.OrdersCache",
+      "type": "extends",
+      "weight": 8.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersPolicy",
+      "target": "com.legacy.inventory.InventoryMapper",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersPolicy",
+      "target": "com.legacy.orders.OrdersClient",
+      "type": "extends",
+      "weight": 2.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersPolicy",
+      "target": "com.legacy.orders.OrdersHandler",
+      "type": "calls",
+      "weight": 7.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersPolicy",
+      "target": "com.legacy.orders.OrdersJob",
+      "type": "extends",
+      "weight": 8.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersRepository",
+      "target": "com.legacy.billing.BillingClient",
+      "type": "extends",
+      "weight": 5.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersRepository",
+      "target": "com.legacy.orders.OrdersClient",
+      "type": "calls",
+      "weight": 6.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersRepository",
+      "target": "com.legacy.orders.OrdersController",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersRepository",
+      "target": "com.legacy.orders.OrdersService",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersRepository",
+      "target": "com.legacy.orders.OrdersValidator",
+      "type": "calls",
+      "weight": 6.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersService",
+      "target": "com.legacy.orders.OrdersCache",
+      "type": "imports",
+      "weight": 8.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersService",
+      "target": "com.legacy.orders.OrdersHandler",
+      "type": "calls",
+      "weight": 3.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersService",
+      "target": "com.legacy.orders.OrdersMapper",
+      "type": "imports",
+      "weight": 8.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersService",
+      "target": "com.legacy.orders.OrdersRepository",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersService",
+      "target": "com.legacy.orders.OrdersValidator",
+      "type": "extends",
+      "weight": 8.0
+    },
+    {
+      "source": "com.legacy.orders.OrdersValidator",
+      "target": "com.legacy.orders.OrdersRepository",
+      "type": "implements",
+      "weight": 3.0
+    }
+  ],
+  "modules": [
+    {
+      "id": "module-000",
+      "name": "Module 1",
+      "node_ids": [
+        "com.legacy.auth.AuthCache",
+        "com.legacy.auth.AuthClient",
+        "com.legacy.auth.AuthController",
+        "com.legacy.auth.AuthJob",
+        "com.legacy.auth.AuthMapper",
+        "com.legacy.auth.AuthRepository",
+        "com.legacy.auth.AuthService",
+        "com.legacy.auth.AuthValidator"
+      ],
+      "health": 61
+    },
+    {
+      "id": "module-001",
+      "name": "Module 2",
+      "node_ids": [
+        "com.legacy.auth.AuthHandler",
+        "com.legacy.inventory.InventoryCache",
+        "com.legacy.inventory.InventoryClient",
+        "com.legacy.inventory.InventoryController",
+        "com.legacy.inventory.InventoryHandler",
+        "com.legacy.inventory.InventoryJob",
+        "com.legacy.inventory.InventoryMapper",
+        "com.legacy.inventory.InventoryPolicy",
+        "com.legacy.inventory.InventoryService",
+        "com.legacy.inventory.InventoryValidator"
+      ],
+      "health": 56
+    },
+    {
+      "id": "module-002",
+      "name": "Module 3",
+      "node_ids": [
+        "com.legacy.auth.AuthPolicy",
+        "com.legacy.billing.BillingCache",
+        "com.legacy.billing.BillingJob",
+        "com.legacy.billing.BillingRepository",
+        "com.legacy.billing.BillingService"
+      ],
+      "health": 65
+    },
+    {
+      "id": "module-003",
+      "name": "Module 4",
+      "node_ids": [
+        "com.legacy.billing.BillingClient",
+        "com.legacy.billing.BillingController",
+        "com.legacy.billing.BillingHandler",
+        "com.legacy.billing.BillingMapper",
+        "com.legacy.billing.BillingPolicy",
+        "com.legacy.billing.BillingValidator"
+      ],
+      "health": 57
+    },
+    {
+      "id": "module-004",
+      "name": "Module 5",
+      "node_ids": [
+        "com.legacy.inventory.InventoryRepository",
+        "com.legacy.notifications.NotificationsCache",
+        "com.legacy.notifications.NotificationsHandler",
+        "com.legacy.notifications.NotificationsJob",
+        "com.legacy.notifications.NotificationsMapper",
+        "com.legacy.notifications.NotificationsPolicy",
+        "com.legacy.notifications.NotificationsRepository",
+        "com.legacy.notifications.NotificationsValidator"
+      ],
+      "health": 52
+    },
+    {
+      "id": "module-005",
+      "name": "Module 6",
+      "node_ids": [
+        "com.legacy.notifications.NotificationsClient"
+      ],
+      "health": 87
+    },
+    {
+      "id": "module-006",
+      "name": "Module 7",
+      "node_ids": [
+        "com.legacy.notifications.NotificationsController",
+        "com.legacy.notifications.NotificationsService",
+        "com.legacy.orders.OrdersCache",
+        "com.legacy.orders.OrdersClient",
+        "com.legacy.orders.OrdersController",
+        "com.legacy.orders.OrdersHandler",
+        "com.legacy.orders.OrdersJob",
+        "com.legacy.orders.OrdersMapper",
+        "com.legacy.orders.OrdersPolicy",
+        "com.legacy.orders.OrdersRepository",
+        "com.legacy.orders.OrdersService",
+        "com.legacy.orders.OrdersValidator"
+      ],
+      "health": 45
+    }
+  ],
+  "overall_health": 55
+}

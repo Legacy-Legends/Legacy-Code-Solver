@@ -1,0 +1,216 @@
+{
+  "$defs": {
+    "Edge": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "imports",
+            "calls",
+            "extends",
+            "implements"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "weight": {
+          "default": 1.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Weight",
+          "type": "number"
+        }
+      },
+      "required": [
+        "source",
+        "target",
+        "type"
+      ],
+      "title": "Edge",
+      "type": "object"
+    },
+    "Module": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "node_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Node Ids",
+          "type": "array"
+        },
+        "health": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Health",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "node_ids",
+        "health"
+      ],
+      "title": "Module",
+      "type": "object"
+    },
+    "Node": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "default": "class",
+          "enum": [
+            "class",
+            "module",
+            "external"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "loc": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Loc",
+          "type": "integer"
+        },
+        "complexity": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Complexity",
+          "type": "integer"
+        },
+        "fan_in": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Fan In",
+          "type": "integer"
+        },
+        "fan_out": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Fan Out",
+          "type": "integer"
+        },
+        "centrality": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Centrality",
+          "type": "number"
+        },
+        "in_cycle": {
+          "default": false,
+          "title": "In Cycle",
+          "type": "boolean"
+        },
+        "vuln_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Vuln Count",
+          "type": "integer"
+        },
+        "churn": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Churn",
+          "type": "integer"
+        },
+        "health": {
+          "default": 100,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Health",
+          "type": "integer"
+        },
+        "module_id": {
+          "default": "",
+          "title": "Module Id",
+          "type": "string"
+        },
+        "domain_tag": {
+          "default": "",
+          "title": "Domain Tag",
+          "type": "string"
+        },
+        "domain_inferred": {
+          "default": false,
+          "title": "Domain Inferred",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "path"
+      ],
+      "title": "Node",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/Node"
+      },
+      "title": "Nodes",
+      "type": "array"
+    },
+    "edges": {
+      "items": {
+        "$ref": "#/$defs/Edge"
+      },
+      "title": "Edges",
+      "type": "array"
+    },
+    "modules": {
+      "items": {
+        "$ref": "#/$defs/Module"
+      },
+      "title": "Modules",
+      "type": "array"
+    },
+    "overall_health": {
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Overall Health",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "nodes",
+    "edges",
+    "modules",
+    "overall_health"
+  ],
+  "title": "Graph",
+  "type": "object"
+}
