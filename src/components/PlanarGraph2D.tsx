@@ -35,7 +35,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  // Measure container size
+  // Measure container dimensions
   useEffect(() => {
     if (!containerRef.current) return;
     const updateSize = () => {
@@ -81,18 +81,18 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     return map;
   }, [selectedNode, impactAnalysis, selectedPathNodeIds, nodes]);
 
-  // Framed layout coordinates: Guaranteed centered, readable, non-colliding
+  // Framed layout coordinates on parchment
   const positionedNodes = useMemo(() => {
     const cx = dimensions.width / 2;
     const cy = dimensions.height / 2;
 
-    // Small sample project (4 nodes: Checkout -> Session -> Auth + Logger)
+    // Small sample project: generous horizontal spacing, no clipping
     if (nodes.length <= 6) {
       const positions: Record<string, { x: number; y: number }> = {
-        'sample-checkout': { x: cx - 280, y: cy - 40 },
+        'sample-checkout': { x: cx - 290, y: cy - 40 },
         'sample-session': { x: cx, y: cy - 40 },
-        'sample-auth': { x: cx + 280, y: cy - 40 },
-        'sample-logger': { x: cx, y: cy + 150 },
+        'sample-auth': { x: cx + 290, y: cy - 40 },
+        'sample-logger': { x: cx, y: cy + 140 },
       };
 
       return nodes.map((n) => ({
@@ -102,10 +102,10 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
       }));
     }
 
-    // Enterprise layout (40 nodes) arranged across cluster quadrants
+    // Enterprise layout: organized cluster layout
     return nodes.map((n, i) => {
       const angle = (i / nodes.length) * Math.PI * 2;
-      const radius = 220 + (i % 3) * 60;
+      const radius = 240 + (i % 3) * 60;
       const posX = cx + Math.cos(angle) * radius;
       const posY = cy + Math.sin(angle) * (radius * 0.7);
       return { ...n, posX, posY };
@@ -144,12 +144,12 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   return (
     <div
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden bg-[#070b14] ambient-glow topo-grid select-none"
+      className="relative h-full w-full overflow-hidden bg-[#FAF8F5] parchment-grid select-none"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
-      {/* 2D Topological SVG Canvas */}
+      {/* 2D Topological Canvas SVG */}
       <svg
         className="h-full w-full cursor-grab active:cursor-grabbing"
         onClick={(e) => {
@@ -159,46 +159,40 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
         }}
       >
         <defs>
-          {/* Arrow markers for dependency direction */}
+          {/* Unmistakable Dark Arrowheads */}
           <marker
-            id="arrow-default"
+            id="arrow-parchment-default"
             viewBox="0 0 10 10"
-            refX="28"
+            refX="30"
             refY="5"
-            markerWidth="6"
-            markerHeight="6"
+            markerWidth="7"
+            markerHeight="7"
             orient="auto"
           >
-            <path d="M 0 2 L 8 5 L 0 8 z" fill="#475569" />
+            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#71717A" />
           </marker>
           <marker
-            id="arrow-trace-cyan"
+            id="arrow-parchment-active"
             viewBox="0 0 10 10"
-            refX="28"
-            refY="5"
-            markerWidth="8"
-            markerHeight="8"
-            orient="auto"
-          >
-            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#00f5d4" />
-          </marker>
-          <marker
-            id="arrow-trace-indigo"
-            viewBox="0 0 10 10"
-            refX="28"
+            refX="30"
             refY="5"
             markerWidth="8"
             markerHeight="8"
             orient="auto"
           >
-            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#818cf8" />
+            <path d="M 0 1 L 9 5 L 0 9 z" fill="#4A154B" />
           </marker>
-
-          {/* Gradients */}
-          <linearGradient id="trace-grad-cyan" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#38bdf8" />
-            <stop offset="100%" stopColor="#00f5d4" />
-          </linearGradient>
+          <marker
+            id="arrow-parchment-indirect"
+            viewBox="0 0 10 10"
+            refX="30"
+            refY="5"
+            markerWidth="8"
+            markerHeight="8"
+            orient="auto"
+          >
+            <path d="M 0 1 L 9 5 L 0 9 z" fill="#6B21A8" />
+          </marker>
         </defs>
 
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
@@ -225,24 +219,24 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
               selectedPathNodeIds.includes(sId) &&
               selectedPathNodeIds.includes(tId);
 
-            let strokeColor = '#334155';
-            let strokeWidth = 1.4;
-            let marker = 'url(#arrow-default)';
-            let opacity = 0.4;
+            let strokeColor = '#A1A1AA';
+            let strokeWidth = 1.6;
+            let marker = 'url(#arrow-parchment-default)';
+            let opacity = 0.55;
             const isHighlighted = isIsolated || isTracedDirect || isTracedIndirect;
 
             if (isIsolated || isTracedDirect) {
-              strokeColor = 'url(#trace-grad-cyan)';
+              strokeColor = '#4A154B';
               strokeWidth = 3.2;
-              marker = 'url(#arrow-trace-cyan)';
+              marker = 'url(#arrow-parchment-active)';
               opacity = 1;
             } else if (isTracedIndirect) {
-              strokeColor = '#818cf8';
+              strokeColor = '#6B21A8';
               strokeWidth = 2.6;
-              marker = 'url(#arrow-trace-indigo)';
+              marker = 'url(#arrow-parchment-indirect)';
               opacity = 0.95;
             } else if (selectedNode) {
-              opacity = 0.12;
+              opacity = 0.15;
             }
 
             // Connection curve
@@ -251,7 +245,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             const cx = sNode.posX + dx / 2;
             const cy = sNode.posY + dy / 2 - (dx !== 0 ? 25 : 0);
 
-            // Clickable evidence handler
             const evidence = evidenceMap ? evidenceMap[edge.id] : undefined;
 
             return (
@@ -265,7 +258,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                   }
                 }}
               >
-                {/* Fat invisible hit area for clicking */}
+                {/* Fat invisible click buffer */}
                 <path
                   d={`M ${sNode.posX} ${sNode.posY} Q ${cx} ${cy} ${tNode.posX} ${tNode.posY}`}
                   fill="none"
@@ -273,7 +266,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                   strokeWidth="20"
                 />
 
-                {/* Visible Trace Path */}
+                {/* Visible Trace Line */}
                 <path
                   d={`M ${sNode.posX} ${sNode.posY} Q ${cx} ${cy} ${tNode.posX} ${tNode.posY}`}
                   fill="none"
@@ -281,27 +274,26 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                   strokeWidth={strokeWidth}
                   strokeOpacity={opacity}
                   markerEnd={marker}
-                  strokeDasharray={isHighlighted ? '8,4' : undefined}
-                  className={isHighlighted ? 'animate-trace-flow' : ''}
                 />
 
-                {/* Labeled Arrow Badge on Traced Edges */}
+                {/* Clear Labeled Connection Tag */}
                 {isHighlighted && (
                   <g transform={`translate(${cx}, ${cy - 10})`}>
                     <rect
                       x="-55"
-                      y="-12"
+                      y="-11"
                       width="110"
                       height="22"
                       rx="11"
-                      fill="rgba(7, 12, 24, 0.92)"
-                      stroke="#00f5d4"
-                      strokeWidth="1"
+                      fill="#FFFFFF"
+                      stroke="#4A154B"
+                      strokeWidth="1.5"
+                      className="filter drop-shadow-sm"
                     />
                     <text
                       x="0"
-                      y="3"
-                      fill="#00f5d4"
+                      y="4"
+                      fill="#4A154B"
                       fontSize="9.5"
                       fontFamily="JetBrains Mono, monospace"
                       fontWeight="bold"
@@ -325,25 +317,25 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             const isIndirect = status === 'indirect';
             const isIsolated = status === 'isolated';
 
-            let cardBorder = 'rgba(255, 255, 255, 0.1)';
-            let cardBg = 'rgba(15, 23, 42, 0.88)';
-            let titleColor = '#f1f5f9';
+            let cardBorder = '#E2DCD2';
+            let cardBg = '#FFFFFF';
+            let titleColor = '#18181B';
             let opacity = 1.0;
 
             if (isSelected) {
-              cardBorder = '#00f5d4';
-              cardBg = 'rgba(7, 34, 40, 0.95)';
-              titleColor = '#00f5d4';
+              cardBorder = '#4A154B';
+              cardBg = '#FFFFFF';
+              titleColor = '#4A154B';
             } else if (isDirect || isIsolated) {
-              cardBorder = '#38bdf8';
-              cardBg = 'rgba(8, 38, 56, 0.95)';
-              titleColor = '#7dd3fc';
+              cardBorder = '#7C3AED';
+              cardBg = '#FAF5FF';
+              titleColor = '#4A154B';
             } else if (isIndirect) {
-              cardBorder = '#818cf8';
-              cardBg = 'rgba(20, 24, 58, 0.95)';
-              titleColor = '#a5b4fc';
+              cardBorder = '#8B5CF6';
+              cardBg = '#F5F3FF';
+              titleColor = '#581C87';
             } else if (selectedNode) {
-              opacity = 0.22;
+              opacity = 0.28;
             }
 
             const cardW = 210;
@@ -357,43 +349,35 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                   e.stopPropagation();
                   onSelectNode(node);
                 }}
-                className="cursor-pointer transition-all duration-200"
+                className="cursor-pointer transition-all duration-150"
                 opacity={opacity}
               >
-                {/* Luminous halo for selected node */}
+                {/* Outer frame for selected node */}
                 {isSelected && (
                   <rect
-                    x={-cardW / 2 - 6}
-                    y={-cardH / 2 - 6}
-                    width={cardW + 12}
-                    height={cardH + 12}
-                    rx="16"
+                    x={-cardW / 2 - 5}
+                    y={-cardH / 2 - 5}
+                    width={cardW + 10}
+                    height={cardH + 10}
+                    rx="18"
                     fill="none"
-                    stroke="#00f5d4"
-                    strokeWidth="1.5"
-                    strokeDasharray="6,4"
-                    opacity="0.8"
+                    stroke="#4A154B"
+                    strokeWidth="2"
+                    strokeDasharray="5,4"
                   />
                 )}
 
-                {/* Card Container */}
+                {/* Card Rect */}
                 <rect
                   x={-cardW / 2}
                   y={-cardH / 2}
                   width={cardW}
                   height={cardH}
-                  rx="12"
+                  rx="14"
                   fill={cardBg}
                   stroke={cardBorder}
-                  strokeWidth={isSelected ? 2 : 1}
-                  className="filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.65)]"
-                />
-
-                {/* Top Subtle Glass Highlight */}
-                <path
-                  d={`M ${-cardW / 2 + 12} ${-cardH / 2 + 1} L ${cardW / 2 - 12} ${-cardH / 2 + 1}`}
-                  stroke="rgba(255, 255, 255, 0.25)"
-                  strokeWidth="1"
+                  strokeWidth={isSelected ? 2.5 : 1.2}
+                  className="filter drop-shadow-sm"
                 />
 
                 {/* Health Dot */}
@@ -402,7 +386,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                   cy={-cardH / 2 + 22}
                   r="5"
                   fill={visuals.coreColor}
-                  className={isSelected ? 'animate-pulse' : ''}
                 />
 
                 {/* Class Name */}
@@ -417,16 +400,17 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                   {node.name.length > 18 ? `${node.name.slice(0, 17)}…` : node.name}
                 </text>
 
-                {/* Subtitle / Package / Status */}
+                {/* Subtitle Role / Status */}
                 <text
                   x={-cardW / 2 + 16}
                   y={-cardH / 2 + 48}
-                  fill="#94a3b8"
+                  fill="#71717A"
                   fontSize="10"
-                  fontFamily="JetBrains Mono, monospace"
+                  fontFamily="Inter, system-ui, sans-serif"
+                  fontWeight="500"
                 >
                   {isSelected
-                    ? 'Target Class (Inspected)'
+                    ? 'Target (Being Changed)'
                     : isDirect
                     ? 'Direct Dependent (Caller)'
                     : isIndirect
@@ -442,13 +426,13 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                     width="26"
                     height="16"
                     rx="4"
-                    fill="rgba(0, 0, 0, 0.5)"
-                    stroke="rgba(255, 255, 255, 0.1)"
+                    fill="#F5F2EB"
+                    stroke="#E2DCD2"
                   />
                   <text
                     x="13"
                     y="12"
-                    fill={visuals.coreColor}
+                    fill="#3F3F46"
                     fontSize="9"
                     fontFamily="JetBrains Mono, monospace"
                     fontWeight="bold"
@@ -463,13 +447,22 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
         </g>
       </svg>
 
-      {/* Floating Canvas View Controls */}
-      <div className="absolute bottom-4 left-4 flex items-center gap-1 rounded-xl glass-panel p-1 text-slate-300 shadow-xl backdrop-blur-xl">
+      {/* Floating Explanatory Legend: "A -> B means A uses B" */}
+      <div className="absolute top-4 left-4 flex items-center gap-2 rounded-xl bg-white border border-parchment-border px-3.5 py-2 text-xs font-sans text-ink-700 shadow-soft">
+        <span className="font-bold text-plum-800">Rule:</span>
+        <span className="font-mono text-[11px] bg-parchment-100 border border-parchment-border px-1.5 py-0.5 rounded font-semibold text-ink-800">
+          A → B means A uses B
+        </span>
+        <span className="text-ink-400 hidden sm:inline">· Tracing B finds callers that use it</span>
+      </div>
+
+      {/* Canvas View Controls */}
+      <div className="absolute bottom-4 left-4 flex items-center gap-1 rounded-xl bg-white border border-parchment-border p-1 shadow-soft">
         <button
           type="button"
           onClick={() => setZoom((z) => Math.min(2.0, z + 0.15))}
           aria-label="Zoom in"
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition"
+          className="rounded-lg p-1.5 text-ink-600 hover:bg-parchment-200 hover:text-ink-900 transition"
           title="Zoom in"
         >
           <ZoomIn className="h-4 w-4" />
@@ -478,7 +471,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
           type="button"
           onClick={() => setZoom((z) => Math.max(0.5, z - 0.15))}
           aria-label="Zoom out"
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition"
+          className="rounded-lg p-1.5 text-ink-600 hover:bg-parchment-200 hover:text-ink-900 transition"
           title="Zoom out"
         >
           <ZoomOut className="h-4 w-4" />
@@ -487,27 +480,27 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
           type="button"
           onClick={resetView}
           aria-label="Fit view"
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition"
+          className="rounded-lg p-1.5 text-ink-600 hover:bg-parchment-200 hover:text-ink-900 transition"
           title="Center and fit canvas view"
         >
           <Maximize2 className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Quiet Canvas Legend */}
-      <div className="absolute bottom-4 right-4 hidden sm:flex items-center gap-3 rounded-xl glass-panel px-3.5 py-1.5 font-mono text-[10.5px] text-slate-400">
+      {/* Map Legend Pills */}
+      <div className="absolute bottom-4 right-4 hidden sm:flex items-center gap-3 rounded-xl bg-white border border-parchment-border px-3.5 py-2 font-mono text-[10.5px] text-ink-600 shadow-soft">
         <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#00f5d4] shadow-[0_0_8px_#00f5d4]" />
+          <span className="h-2 w-2 rounded-full bg-plum-700" />
           Target Class
         </span>
-        <span className="text-slate-700">|</span>
+        <span className="text-parchment-border">|</span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#38bdf8]" />
+          <span className="h-2 w-2 rounded-full bg-purple-600" />
           Direct Dependent
         </span>
-        <span className="text-slate-700">|</span>
+        <span className="text-parchment-border">|</span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#818cf8]" />
+          <span className="h-2 w-2 rounded-full bg-plum-500" />
           Indirect Dependent
         </span>
       </div>

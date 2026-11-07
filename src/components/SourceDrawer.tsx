@@ -57,19 +57,19 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label="Source Evidence Drawer"
-      className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col glass-panel border-l border-white/10 shadow-[-24px_0_60px_rgba(0,0,0,0.85)] select-none"
+      className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col bg-[#0F172A] text-slate-100 shadow-drawer border-l border-slate-700/80 select-none"
     >
-      {/* Top Refraction Highlight */}
-      <div className="h-1 w-full bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-500 shadow-[0_0_16px_rgba(0,245,212,0.8)]" />
+      {/* Top Plum Shimmer Accent */}
+      <div className="h-1 w-full bg-gradient-to-r from-purple-500 via-plum-600 to-indigo-500" />
 
       {/* Header */}
-      <div className="flex items-start justify-between border-b border-white/10 px-6 py-4 bg-slate-950/60 backdrop-blur-xl">
+      <div className="flex items-start justify-between border-b border-slate-800 px-6 py-4 bg-[#111C33]">
         <div className="min-w-0 pr-3">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-purple-400">
               Source Code Proof
             </span>
-            <span className="rounded-full bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-300">
+            <span className="rounded-full bg-purple-950 border border-purple-500/40 px-2 py-0.5 font-mono text-[10px] font-bold text-purple-300">
               Line {evidence.lineNumber}
             </span>
             {evidence.inferred && (
@@ -79,8 +79,8 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
             )}
           </div>
 
-          <h2 className="mt-1 flex items-center gap-2 font-mono text-base font-bold text-slate-100 truncate">
-            <FileCode className="h-4 w-4 text-cyan-400 shrink-0" />
+          <h2 className="mt-1 flex items-center gap-2 font-mono text-base font-bold text-white truncate">
+            <FileCode className="h-4 w-4 text-purple-400 shrink-0" />
             <span className="truncate">{evidence.callerName}.java</span>
           </h2>
 
@@ -101,17 +101,17 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
           type="button"
           onClick={onClose}
           aria-label="Close source evidence drawer"
-          className="rounded-xl border border-white/10 bg-slate-900/60 p-2 text-slate-400 transition hover:bg-slate-800 hover:text-slate-100"
+          className="rounded-xl border border-slate-700 bg-slate-800/80 p-2 text-slate-400 transition hover:bg-slate-700 hover:text-white"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
       {/* Dependency Link Banner: Caller --[depends on]--> Callee */}
-      <div className="border-b border-white/5 bg-slate-900/50 px-6 py-3">
+      <div className="border-b border-slate-800/80 bg-slate-900/60 px-6 py-3">
         <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-          <span className="font-bold text-cyan-300">{evidence.callerName}</span>
-          <span className="flex items-center gap-1 rounded-md bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 text-[10px] font-bold text-cyan-300">
+          <span className="font-bold text-purple-300">{evidence.callerName}</span>
+          <span className="flex items-center gap-1 rounded-md bg-purple-950/80 border border-purple-500/40 px-2 py-0.5 text-[10px] font-bold text-purple-200">
             depends on
             <ArrowRight className="h-2.5 w-2.5" />
           </span>
@@ -124,10 +124,10 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
 
       {/* Multi-Hop Path Navigation Tabs */}
       {pathEvidenceList.length > 1 && onSelectEvidenceIndex && (
-        <div className="flex items-center gap-1.5 border-b border-white/5 bg-slate-950/80 px-6 py-2 overflow-x-auto">
-          <span className="font-mono text-[10px] text-slate-500 uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
+        <div className="flex items-center gap-1.5 border-b border-slate-800 bg-[#0B132B] px-6 py-2 overflow-x-auto">
+          <span className="font-mono text-[10px] text-slate-400 uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
             <CornerDownRight className="h-3 w-3" />
-            Path Hops:
+            Path Chain:
           </span>
           {pathEvidenceList.map((item, idx) => {
             const isActive = idx === activeEvidenceIndex;
@@ -138,8 +138,8 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
                 onClick={() => onSelectEvidenceIndex(idx)}
                 className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-mono text-[11px] transition shrink-0 ${
                   isActive
-                    ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/40 font-bold'
-                    : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                    ? 'bg-purple-900/50 text-purple-200 border border-purple-400 font-bold'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                 }`}
               >
                 <span>Hop {idx + 1}:</span>
@@ -151,10 +151,10 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
         </div>
       )}
 
-      {/* Rock-solid Steady Editor Surface */}
+      {/* Dark High-Contrast Code Editor */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto bg-[#040711] font-mono text-xs leading-relaxed select-text"
+        className="flex-1 overflow-y-auto bg-[#090E1A] font-mono text-xs leading-relaxed select-text"
       >
         <div className="py-3">
           {evidence.surroundingCode.map((line) => {
@@ -165,14 +165,14 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
                 ref={isTarget ? highlightedLineRef : null}
                 className={`flex items-start transition-colors ${
                   isTarget
-                    ? 'bg-cyan-950/45 border-l-4 border-cyan-400 text-cyan-50 shadow-[inset_0_0_24px_rgba(0,245,212,0.15)]'
-                    : 'hover:bg-slate-900/30 text-slate-300'
+                    ? 'bg-purple-950/50 border-l-4 border-purple-500 text-purple-50 font-medium shadow-[inset_0_0_20px_rgba(147,51,234,0.15)]'
+                    : 'hover:bg-slate-900/40 text-slate-300'
                 }`}
               >
-                {/* Line Number Gutter */}
+                {/* Line Gutter */}
                 <div
                   className={`select-none w-14 shrink-0 pr-4 text-right text-[11px] ${
-                    isTarget ? 'font-bold text-cyan-400' : 'text-slate-600'
+                    isTarget ? 'font-bold text-purple-400' : 'text-slate-600'
                   }`}
                 >
                   {line.line}
@@ -183,9 +183,9 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
                   {line.text}
                 </div>
 
-                {/* Call Site Pill Badge on Target Line */}
+                {/* Call Site Pill Badge */}
                 {isTarget && (
-                  <div className="mr-4 shrink-0 rounded-full bg-cyan-500/25 border border-cyan-400/50 px-2 py-0.2 font-mono text-[9.5px] font-bold text-cyan-300 self-center">
+                  <div className="mr-4 shrink-0 rounded-full bg-purple-500/20 border border-purple-400/50 px-2 py-0.2 font-mono text-[9px] font-bold text-purple-300 self-center">
                     Call Site
                   </div>
                 )}
@@ -195,10 +195,10 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
         </div>
       </div>
 
-      {/* Footer Details */}
-      <div className="flex items-center justify-between border-t border-white/10 bg-slate-950/80 px-6 py-3 font-mono text-[11px] text-slate-400">
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t border-slate-800 bg-[#0B132B] px-6 py-3 font-mono text-[11px] text-slate-400">
         <div className="truncate pr-4">
-          Statement: <code className="text-cyan-200">{evidence.statement}</code>
+          Statement: <code className="text-purple-200">{evidence.statement}</code>
         </div>
         <div className="text-[10px] text-slate-500 shrink-0">
           Press <kbd className="rounded border border-slate-700 bg-slate-800 px-1 py-0.5 text-slate-300">Esc</kbd> to return

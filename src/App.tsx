@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import rawGraphData from './mocks/graph.json';
 import {
   GraphData,
@@ -10,41 +10,43 @@ import {
 import { SAMPLE_GRAPH_DATA, SAMPLE_EVIDENCE_MAP } from './data/sampleProject';
 import { computeImpactAnalysis } from './lib/impactAnalysis';
 import { fetchLiveGraphData, checkBackendHealth } from './api/backendAdapter';
+import { StartPage } from './components/StartPage';
 import { TopBar } from './components/TopBar';
-import { SampleMap } from './components/SampleMap';
-import { InquiryHeroBar } from './components/InquiryHeroBar';
 import { PlanarGraph2D } from './components/PlanarGraph2D';
 import { CommandGraph3D } from './components/CommandGraph3D';
-import { RightInspector } from './components/RightInspector';
+import { InvestigateResults } from './components/InvestigateResults';
 import { SourceDrawer } from './components/SourceDrawer';
 import { BackendErrorBanner } from './components/BackendErrorBanner';
 
+type RouteView = 'start' | 'investigate';
+
 export function App() {
+  // Browser History & Route State
+  const [route, setRoute] = useState<RouteView>(() => {
+    return window.location.hash.startsWith('#/investigate') ? 'investigate' : 'start';
+  });
+
   // Data source mode: 'sample' | 'enterprise' | 'live'
   const [dataSource, setDataSource] = useState<DataSourceMode>('sample');
   const [liveGraphData, setLiveGraphData] = useState<GraphData | null>(null);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
 
-  // View mode: '2d' (Topological flow, 100% stable framing) | '3d' (Three.js Orbit)
+  // Canvas Mode: '2d' (Parchment map) | '3d' (Orbit)
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
 
-  // Mobile layout tab: 'graph' | 'inspector'
-  const [mobileTab, setMobileTab] = useState<'graph' | 'inspector'>('graph');
+  // Mobile layout switch: 'results' | 'map'
+  const [mobileView, setMobileView] = useState<'results' | 'map'>('results');
 
-  // Selection & Investigation State
+  // Investigation & Selection State
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [impactAnalysis, setImpactAnalysis] = useState<ImpactAnalysis | null>(null);
-  const [isTracing, setIsTracing] = useState(false);
   const [selectedPathNodeIds, setSelectedPathNodeIds] = useState<string[] | null>(null);
 
   // Evidence Drawer State
   const [activeEvidence, setActiveEvidence] = useState<SourceEvidence | null>(null);
   const [pathEvidenceList, setPathEvidenceList] = useState<SourceEvidence[]>([]);
   const [activeEvidenceIndex, setActiveEvidenceIndex] = useState(0);
-
-  // Race Condition Tracking
-  const activeRequestId = useRef(0);
 
   // Active Graph Data based on Mode
   const activeGraphData = useMemo<GraphData>(() => {
@@ -57,26 +59,36 @@ export function App() {
     return JSON.parse(JSON.stringify(rawGraphData)) as GraphData;
   }, [dataSource, liveGraphData]);
 
-  // Lookup map of nodes by ID
   const nodesById = useMemo(() => {
     const map = new Map<string, GraphNode>();
     activeGraphData.nodes.forEach((n) => map.set(n.id, n));
     return map;
   }, [activeGraphData.nodes]);
 
-  // FIRST FIVE SECONDS EXPERIENCE:
-  // On initial mount, pre-select SessionManager so the graph is framed and populated immediately!
+  // Sync route with browser hash for native Back / Forward button support
   useEffect(() => {
-    if (!selectedNode && dataSource === 'sample') {
-      const defaultNode = activeGraphData.nodes.find((n) => n.name === 'SessionManager');
-      if (defaultNode) {
-        setSelectedNode(defaultNode);
-        // Pre-compute initial impact analysis so judge sees the answer within 1 second!
-        const initialImpact = computeImpactAnalysis(defaultNode, activeGraphData, true);
-        setImpactAnalysis(initialImpact);
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/investigate')) {
+        setRoute('investigate');
+        // Parse target class name from query param if available
+        const params = new URLSearchParams(hash.split('?')[1] || '');
+        const targetClass = params.get('class');
+        if (targetClass) {
+          const target = activeGraphData.nodes.find((n) => n.name === targetClass);
+          if (target) {
+            setSelectedNode(target);
+            setImpactAnalysis(computeImpactAnalysis(target, activeGraphData, dataSource === 'sample'));
+          }
+        }
+      } else {
+        setRoute('start');
       }
-    }
-  }, [activeGraphData, dataSource, selectedNode]);
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [activeGraphData, dataSource]);
 
   // Check live backend health
   const checkLiveBackend = useCallback(async () => {
@@ -104,7 +116,30 @@ export function App() {
     }
   }, [dataSource, checkLiveBackend]);
 
-  // Reset view action
+  // Navigate to Investigate directly with a class
+  const handleInvestigateClass = useCallback(
+    (className: string) => {
+      const node = activeGraphData.nodes.find((n) => n.name === className) || activeGraphData.nodes[0];
+      if (node) {
+        setSelectedNode(node);
+        const analysis = computeImpactAnalysis(node, activeGraphData, dataSource === 'sample');
+        setImpactAnalysis(analysis);
+        setSelectedPathNodeIds(null);
+        setActiveEvidence(null);
+        setRoute('investigate');
+        window.location.hash = `#/investigate?class=${encodeURIComponent(node.name)}`;
+      }
+    },
+    [activeGraphData, dataSource]
+  );
+
+  // Navigate Back to Start
+  const handleBackToStart = useCallback(() => {
+    setRoute('start');
+    window.location.hash = '#/';
+  }, []);
+
+  // Reset action inside workspace
   const handleReset = useCallback(() => {
     setSelectedNode(null);
     setImpactAnalysis(null);
@@ -113,13 +148,13 @@ export function App() {
     setPathEvidenceList([]);
   }, []);
 
-  // When changing data source, reset investigation
+  // Switch dataset
   const handleSelectDataSource = (mode: DataSourceMode) => {
     setDataSource(mode);
     handleReset();
   };
 
-  // Select a node
+  // Node selection inside workspace
   const handleSelectNode = useCallback(
     (node: GraphNode | null) => {
       setSelectedNode(node);
@@ -130,34 +165,16 @@ export function App() {
         return;
       }
 
-      // Automatically compute impact for the selected node
+      // Compute impact immediately so user does not need to click "Trace"
       const analysis = computeImpactAnalysis(node, activeGraphData, dataSource === 'sample');
       setImpactAnalysis(analysis);
-      setMobileTab('inspector');
+      setMobileView('results');
+
+      // Update URL silently
+      window.history.replaceState(null, '', `#/investigate?class=${encodeURIComponent(node.name)}`);
     },
     [activeGraphData, dataSource]
   );
-
-  // Manual Trace Impact Trigger
-  const handleTraceImpact = useCallback(() => {
-    if (!selectedNode) return;
-
-    setIsTracing(true);
-    const reqId = ++activeRequestId.current;
-
-    setTimeout(() => {
-      if (reqId !== activeRequestId.current) return;
-
-      const analysis = computeImpactAnalysis(
-        selectedNode,
-        activeGraphData,
-        dataSource === 'sample'
-      );
-
-      setImpactAnalysis(analysis);
-      setIsTracing(false);
-    }, 150);
-  }, [selectedNode, activeGraphData, dataSource]);
 
   // Open Source Evidence Drawer
   const handleOpenEvidence = useCallback(
@@ -183,9 +200,21 @@ export function App() {
     }
   };
 
+  // VIEW 1: START LANDING PAGE
+  if (route === 'start') {
+    return (
+      <StartPage
+        nodes={activeGraphData.nodes}
+        onInvestigate={handleInvestigateClass}
+        onOpenWorkspace={() => handleInvestigateClass('SessionManager')}
+      />
+    );
+  }
+
+  // VIEW 2: INVESTIGATION WORKSPACE
   return (
-    <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-[#070b14] text-slate-100 font-sans ambient-glow">
-      {/* Liquid Glass Header */}
+    <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-[#FAF8F5] text-[#18181B] font-sans parchment-grid">
+      {/* Top Header */}
       <TopBar
         nodes={activeGraphData.nodes}
         selectedNode={selectedNode}
@@ -196,6 +225,7 @@ export function App() {
         isBackendConnected={isBackendConnected}
         viewMode={viewMode}
         onToggleViewMode={() => setViewMode((m) => (m === '2d' ? '3d' : '2d'))}
+        onBackToStart={handleBackToStart}
       />
 
       {/* Backend Error Banner if in Live API mode and offline */}
@@ -207,53 +237,43 @@ export function App() {
         />
       )}
 
-      {/* Featured Investigation Inquiry Hook (First 5 seconds) */}
-      <InquiryHeroBar
-        selectedNode={selectedNode}
-        impactAnalysis={impactAnalysis}
-        isTracing={isTracing}
-        onTraceImpact={handleTraceImpact}
-        onSelectNode={handleSelectNode}
-        nodesById={nodesById}
-      />
-
       {/* Mobile Tab Switcher (< 1024px) */}
-      <div className="flex px-4 pt-2 pb-1 lg:hidden select-none">
-        <div className="glass-panel flex w-full p-1 rounded-xl text-xs font-mono">
+      <div className="flex px-4 pt-2 pb-1 lg:hidden select-none bg-white border-b border-parchment-border">
+        <div className="flex w-full rounded-xl bg-parchment-100 p-1 text-xs font-mono">
           <button
             type="button"
-            onClick={() => setMobileTab('graph')}
+            onClick={() => setMobileView('results')}
             className={`flex-1 rounded-lg py-1.5 transition ${
-              mobileTab === 'graph'
-                ? 'bg-slate-800 text-cyan-300 shadow font-bold border border-cyan-500/20'
-                : 'text-slate-400'
+              mobileView === 'results'
+                ? 'bg-white text-plum-900 font-bold shadow-sm'
+                : 'text-ink-600'
+            }`}
+          >
+            Results &amp; Proof {selectedNode ? `(${selectedNode.name})` : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileView('map')}
+            className={`flex-1 rounded-lg py-1.5 transition ${
+              mobileView === 'map'
+                ? 'bg-white text-plum-900 font-bold shadow-sm'
+                : 'text-ink-600'
             }`}
           >
             Dependency Map
           </button>
-          <button
-            type="button"
-            onClick={() => setMobileTab('inspector')}
-            className={`flex-1 rounded-lg py-1.5 transition ${
-              mobileTab === 'inspector'
-                ? 'bg-slate-800 text-cyan-300 shadow font-bold border border-cyan-500/20'
-                : 'text-slate-400'
-            }`}
-          >
-            Evidence &amp; Path {selectedNode ? `(${selectedNode.name})` : ''}
-          </button>
         </div>
       </div>
 
-      {/* Main Investigation Workspace */}
-      <main className="relative flex flex-1 overflow-hidden p-3 sm:p-5 pt-2 sm:pt-3 gap-4">
-        {/* DOMINANT LIVE DEPENDENCY MAP CANVAS */}
+      {/* Main Investigation Split Layout */}
+      <main className="relative flex flex-1 overflow-hidden p-3 sm:p-5 gap-4">
+        {/* MAP CANVAS PANE (Flexible large canvas) */}
         <div
-          className={`relative h-full flex-1 rounded-3xl overflow-hidden glass-panel border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.6)] ${
-            mobileTab === 'inspector' ? 'hidden lg:block' : 'block'
+          className={`relative h-full flex-1 rounded-2xl overflow-hidden bg-white border border-parchment-border shadow-soft ${
+            mobileView === 'results' ? 'hidden lg:block' : 'block'
           }`}
         >
-          {viewMode==='2d' && dataSource==='sample' ? <SampleMap nodes={activeGraphData.nodes} selected={selectedNode} analysis={impactAnalysis} onPick={handleSelectNode} onEvidence={handleOpenEvidence}/> : viewMode === '2d' ? (
+          {viewMode === '2d' ? (
             <PlanarGraph2D
               nodes={activeGraphData.nodes}
               edges={activeGraphData.edges}
@@ -277,23 +297,20 @@ export function App() {
           )}
         </div>
 
-        {/* RIGHT FLOATING LIQUID GLASS INSPECTOR */}
+        {/* RESULTS & EVIDENCE PANE (Side-by-side on desktop, readable without graph) */}
         <div
-          className={`h-full w-full lg:w-[400px] xl:w-[440px] shrink-0 rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)] z-20 ${
-            mobileTab === 'graph' ? 'hidden lg:block' : 'block'
+          className={`h-full w-full lg:w-[410px] xl:w-[450px] shrink-0 z-20 ${
+            mobileView === 'map' ? 'hidden lg:block' : 'block'
           }`}
         >
-          <RightInspector
+          <InvestigateResults
             selectedNode={selectedNode}
             nodesById={nodesById}
             impactAnalysis={impactAnalysis}
-            isTracing={isTracing}
-            onTraceImpact={handleTraceImpact}
             onSelectNode={handleSelectNode}
             onOpenEvidence={handleOpenEvidence}
             selectedPathNodeIds={selectedPathNodeIds}
             onSelectPath={setSelectedPathNodeIds}
-            onClose={() => handleSelectNode(null)}
           />
         </div>
 
