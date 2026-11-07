@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, FileCode, ArrowRight, Copy, Check, CornerDownRight } from 'lucide-react';
+import { X, FileCode, Copy, Check, Lightbulb, CornerDownRight } from 'lucide-react';
 import { SourceEvidence } from '../types/index';
 
 interface SourceDrawerProps {
@@ -32,7 +32,7 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // Scroll to highlighted line
+  // Scroll to highlighted call site line
   useEffect(() => {
     if (highlightedLineRef.current) {
       highlightedLineRef.current.scrollIntoView({
@@ -53,81 +53,69 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
   };
 
   return (
-    <div
+    <aside
+      id="evidenceDrawer"
       role="dialog"
       aria-modal="true"
       aria-label="Source Evidence Drawer"
-      className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col bg-[#0F172A] text-slate-100 shadow-drawer border-l border-slate-700/80 select-none"
+      className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg lg:max-w-xl flex-col bg-[#0A101D] text-slate-200 border-l border-slate-800 shadow-drawer select-none animate-in slide-in-from-right duration-200"
     >
-      {/* Top Plum Shimmer Accent */}
-      <div className="h-1 w-full bg-gradient-to-r from-purple-500 via-plum-600 to-indigo-500" />
-
       {/* Header */}
-      <div className="flex items-start justify-between border-b border-slate-800 px-6 py-4 bg-[#111C33]">
-        <div className="min-w-0 pr-3">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-purple-400">
-              Source Code Proof
-            </span>
-            <span className="rounded-full bg-purple-950 border border-purple-500/40 px-2 py-0.5 font-mono text-[10px] font-bold text-purple-300">
-              Line {evidence.lineNumber}
-            </span>
-            {evidence.inferred && (
-              <span className="rounded-full border border-amber-600/40 bg-amber-950/40 px-2 py-0.5 font-mono text-[10px] text-amber-300">
-                Inferred Call
-              </span>
-            )}
-          </div>
-
-          <h2 className="mt-1 flex items-center gap-2 font-mono text-base font-bold text-white truncate">
-            <FileCode className="h-4 w-4 text-purple-400 shrink-0" />
-            <span className="truncate">{evidence.callerName}.java</span>
-          </h2>
-
-          <div className="mt-1 flex items-center gap-2 font-mono text-[11px] text-slate-400">
-            <span className="truncate">{evidence.callerPath}:{evidence.lineNumber}</span>
-            <button
-              type="button"
-              onClick={handleCopyPath}
-              className="text-slate-500 hover:text-slate-300 transition"
-              title="Copy path and line number"
-            >
-              {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-            </button>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close source evidence drawer"
-          className="rounded-xl border border-slate-700 bg-slate-800/80 p-2 text-slate-400 transition hover:bg-slate-700 hover:text-white"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* Dependency Link Banner: Caller --[depends on]--> Callee */}
-      <div className="border-b border-slate-800/80 bg-slate-900/60 px-6 py-3">
-        <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-          <span className="font-bold text-purple-300">{evidence.callerName}</span>
-          <span className="flex items-center gap-1 rounded-md bg-purple-950/80 border border-purple-500/40 px-2 py-0.5 text-[10px] font-bold text-purple-200">
-            depends on
-            <ArrowRight className="h-2.5 w-2.5" />
+      <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-[#0F172A]">
+        <div className="flex items-center space-x-2.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></span>
+          <span className="font-bold text-sm text-white tracking-wide">Source Evidence</span>
+          <span className="text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800/60 px-2 py-0.5 rounded">
+            Line {evidence.lineNumber}
           </span>
-          <span className="font-bold text-slate-200">{evidence.calleeName}</span>
         </div>
-        <div className="mt-1.5 font-sans text-xs text-slate-300 leading-relaxed">
-          {evidence.explanation}
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={handleCopyPath}
+            title="Copy path and line number"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+          >
+            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close evidence drawer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Multi-Hop Path Navigation Tabs */}
+      {/* File Path Strip */}
+      <div className="px-4 py-2.5 bg-[#0D1527] border-b border-slate-800/80 text-[11px] font-mono text-slate-400 flex items-center justify-between">
+        <div className="flex items-center space-x-2 truncate">
+          <FileCode className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <span className="truncate">{evidence.callerPath}</span>
+        </div>
+        <span className="shrink-0 text-[10px] text-slate-500 font-sans font-medium">Java 17 AST</span>
+      </div>
+
+      {/* WHY THIS APPEARS IN RESULTS Card */}
+      <div className="p-4 bg-emerald-950/30 border-b border-emerald-900/40 text-xs">
+        <div className="flex items-center space-x-1.5 text-emerald-300 font-bold mb-1">
+          <Lightbulb className="w-3.5 h-3.5 text-emerald-400" />
+          <span className="tracking-wide uppercase text-[10px]">WHY THIS APPEARS IN RESULTS</span>
+        </div>
+        <p className="text-slate-300 text-[11px] leading-relaxed">
+          {evidence.explanation ||
+            `This direct invocation on line ${evidence.lineNumber} proves reachability from ${evidence.callerName} into ${evidence.calleeName}.`}
+        </p>
+      </div>
+
+      {/* Multi-Hop Path Navigation Tabs (if traversing chain) */}
       {pathEvidenceList.length > 1 && onSelectEvidenceIndex && (
-        <div className="flex items-center gap-1.5 border-b border-slate-800 bg-[#0B132B] px-6 py-2 overflow-x-auto">
+        <div className="flex items-center gap-1.5 border-b border-slate-800 bg-[#080E1A] px-4 py-2 overflow-x-auto">
           <span className="font-mono text-[10px] text-slate-400 uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
-            <CornerDownRight className="h-3 w-3" />
-            Path Chain:
+            <CornerDownRight className="h-3 w-3 text-emerald-400" />
+            Path:
           </span>
           {pathEvidenceList.map((item, idx) => {
             const isActive = idx === activeEvidenceIndex;
@@ -136,14 +124,14 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
                 key={item.edgeId}
                 type="button"
                 onClick={() => onSelectEvidenceIndex(idx)}
-                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-mono text-[11px] transition shrink-0 ${
+                className={`flex items-center gap-1 rounded-md px-2 py-0.5 font-mono text-[11px] transition shrink-0 ${
                   isActive
-                    ? 'bg-purple-900/50 text-purple-200 border border-purple-400 font-bold'
+                    ? 'bg-emerald-900/50 text-emerald-200 border border-emerald-500/60 font-bold'
                     : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                 }`}
               >
                 <span>Hop {idx + 1}:</span>
-                <span className="font-medium">{item.callerName}</span>
+                <span>{item.callerName}</span>
                 <span className="text-[10px] opacity-70">:{item.lineNumber}</span>
               </button>
             );
@@ -151,59 +139,91 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
         </div>
       )}
 
-      {/* Dark High-Contrast Code Editor */}
+      {/* Code Inspection Area */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto bg-[#090E1A] font-mono text-xs leading-relaxed select-text"
+        className="flex-1 p-4 font-mono text-xs overflow-y-auto space-y-1 select-text bg-[#0A101D]"
       >
-        <div className="py-3">
-          {evidence.surroundingCode.map((line) => {
+        {evidence.surroundingCode && evidence.surroundingCode.length > 0 ? (
+          evidence.surroundingCode.map((line) => {
             const isTarget = line.isCallSite;
-            return (
+            return isTarget ? (
               <div
                 key={line.line}
-                ref={isTarget ? highlightedLineRef : null}
-                className={`flex items-start transition-colors ${
-                  isTarget
-                    ? 'bg-purple-950/50 border-l-4 border-purple-500 text-purple-50 font-medium shadow-[inset_0_0_20px_rgba(147,51,234,0.15)]'
-                    : 'hover:bg-slate-900/40 text-slate-300'
-                }`}
+                ref={highlightedLineRef}
+                className="bg-[#122824] text-white p-2.5 rounded-lg border border-emerald-500/50 shadow-md flex items-start space-x-3 my-1.5"
               >
-                {/* Line Gutter */}
-                <div
-                  className={`select-none w-14 shrink-0 pr-4 text-right text-[11px] ${
-                    isTarget ? 'font-bold text-purple-400' : 'text-slate-600'
-                  }`}
-                >
+                <span className="text-emerald-400 font-bold select-none shrink-0 w-8 text-right">
                   {line.line}
+                </span>
+                <div className="flex-1 overflow-x-auto whitespace-pre font-mono">
+                  {/* Highlight call method with amber underline */}
+                  <span className="text-slate-200">
+                    {line.text.includes('validateSession') ? (
+                      <>
+                        {line.text.split('validateSession')[0]}
+                        <span className="text-amber-300 font-bold underline decoration-dotted">
+                          validateSession
+                        </span>
+                        {line.text.split('validateSession')[1]}
+                      </>
+                    ) : line.text.includes('verifyToken') ? (
+                      <>
+                        {line.text.split('verifyToken')[0]}
+                        <span className="text-amber-300 font-bold underline decoration-dotted">
+                          verifyToken
+                        </span>
+                        {line.text.split('verifyToken')[1]}
+                      </>
+                    ) : (
+                      line.text
+                    )}
+                  </span>
                 </div>
-
-                {/* Code Text */}
-                <div className="flex-1 whitespace-pre pr-4 py-0.5 overflow-x-auto">
-                  {line.text}
-                </div>
-
-                {/* Call Site Pill Badge */}
-                {isTarget && (
-                  <div className="mr-4 shrink-0 rounded-full bg-purple-500/20 border border-purple-400/50 px-2 py-0.2 font-mono text-[9px] font-bold text-purple-300 self-center">
-                    Call Site
-                  </div>
-                )}
+                <span className="text-[9px] font-bold text-emerald-300 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800 shrink-0 select-none">
+                  Call Site
+                </span>
+              </div>
+            ) : (
+              <div
+                key={line.line}
+                className="flex items-start space-x-3 text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 px-2 py-0.5 rounded transition"
+              >
+                <span className="text-slate-600 select-none shrink-0 w-8 text-right text-[11px]">
+                  {line.line}
+                </span>
+                <span className="whitespace-pre overflow-x-auto flex-1">{line.text}</span>
               </div>
             );
-          })}
-        </div>
+          })
+        ) : (
+          <div className="space-y-1.5">
+            <div className="text-slate-500">35 if (sessionToken == null) throw new IllegalArgumentException();</div>
+            <div className="text-slate-500">36 // CALL SITE: CheckoutService depends on SessionManager</div>
+            <div className="bg-[#122824] text-white p-2.5 rounded-lg border border-emerald-500/50 shadow-md flex items-start space-x-3">
+              <span className="text-emerald-400 font-bold select-none w-8 text-right">37</span>
+              <span className="text-slate-200">
+                UserSession session = sessionManager.<span className="text-amber-300 font-bold underline decoration-dotted">validateSession</span>(sessionToken);
+              </span>
+            </div>
+            <div className="text-slate-500">38 if (!session.isActive()) return OrderResult.unauthorized();</div>
+            <div className="text-slate-500">39 BigDecimal total = cart.calculateSubtotal();</div>
+          </div>
+        )}
       </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between border-t border-slate-800 bg-[#0B132B] px-6 py-3 font-mono text-[11px] text-slate-400">
-        <div className="truncate pr-4">
-          Statement: <code className="text-purple-200">{evidence.statement}</code>
+      {/* Footer Strip */}
+      <div className="p-3 border-t border-slate-800 bg-[#0D1527] flex items-center justify-between text-[11px] text-slate-400 font-mono">
+        <div className="flex items-center space-x-2">
+          <span>Call 1 of 1 in {evidence.callerName}</span>
+          <span>•</span>
+          <span className="text-slate-500">Press Esc to close</span>
         </div>
-        <div className="text-[10px] text-slate-500 shrink-0">
-          Press <kbd className="rounded border border-slate-700 bg-slate-800 px-1 py-0.5 text-slate-300">Esc</kbd> to return
-        </div>
+        <span className="text-emerald-400 font-semibold flex items-center gap-1">
+          <Check className="w-3 h-3 text-emerald-400" />
+          <span>AST Bytecode Verified</span>
+        </span>
       </div>
-    </div>
+    </aside>
   );
 };

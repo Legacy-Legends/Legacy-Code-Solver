@@ -9,9 +9,9 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #FAF8F5;
-  color: #18181B;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #FAF9F5;
+  color: #0F172A;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
@@ -20,60 +20,41 @@ body {
 .parchment-grid {
   background-size: 32px 32px;
   background-image: 
-    linear-gradient(to right, rgba(226, 220, 210, 0.45) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(226, 220, 210, 0.45) 1px, transparent 1px);
+    linear-gradient(to right, rgba(226, 232, 240, 0.45) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(226, 232, 240, 0.45) 1px, transparent 1px);
 }
 
-/* Quiet parchment surface card */
-.parchment-card {
-  background-color: #FFFFFF;
-  border: 1px solid #E4DFD5;
-  box-shadow: 0 2px 8px rgba(39, 39, 42, 0.04), 0 1px 2px rgba(39, 39, 42, 0.02);
+/* Liquid Glass Cards */
+.glass-card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.05);
 }
 
-/* Plum primary button */
-.btn-plum {
-  background-color: #4A154B;
-  color: #FFFFFF;
-  transition: all 0.15s ease-in-out;
-}
-.btn-plum:hover {
-  background-color: #380B39;
-  box-shadow: 0 4px 12px rgba(74, 21, 75, 0.25);
-}
-.btn-plum:active {
-  transform: scale(0.98);
-}
-
-/* Lilac selection card */
-.card-lilac-active {
-  background-color: #F5F3FF;
-  border: 1.5px solid #7C3AED;
-  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.08);
-}
-
-/* Custom scrollbars for light parchment */
+/* Custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(245, 242, 235, 0.8);
+  background: rgba(241, 245, 249, 0.8);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(161, 161, 170, 0.6);
+  background: rgba(148, 163, 184, 0.5);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(113, 113, 122, 0.9);
+  background: rgba(100, 116, 139, 0.8);
 }
 
 /* Accessible focus visible outlines */
 button:focus-visible, a:focus-visible, input:focus-visible {
-  outline: 2px solid #581C87 !important;
+  outline: 2px solid #059669 !important;
   outline-offset: 2px !important;
 }
 

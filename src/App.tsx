@@ -12,6 +12,7 @@ import { computeImpactAnalysis } from './lib/impactAnalysis';
 import { fetchLiveGraphData, checkBackendHealth } from './api/backendAdapter';
 import { StartPage } from './components/StartPage';
 import { TopBar } from './components/TopBar';
+import { WorkspaceSidebar, InvestigationTab } from './components/WorkspaceSidebar';
 import { PlanarGraph2D } from './components/PlanarGraph2D';
 import { CommandGraph3D } from './components/CommandGraph3D';
 import { InvestigateResults } from './components/InvestigateResults';
@@ -25,6 +26,9 @@ export function App() {
   const [route, setRoute] = useState<RouteView>(() => {
     return window.location.hash.startsWith('#/investigate') ? 'investigate' : 'start';
   });
+
+  // Active investigation view tab in sidebar: 'graph' | 'hierarchy' | 'blast'
+  const [activeTab, setActiveTab] = useState<InvestigationTab>('graph');
 
   // Data source mode: 'sample' | 'enterprise' | 'live'
   const [dataSource, setDataSource] = useState<DataSourceMode>('sample');
@@ -80,6 +84,11 @@ export function App() {
             setSelectedNode(target);
             setImpactAnalysis(computeImpactAnalysis(target, activeGraphData, dataSource === 'sample'));
           }
+        } else if (!selectedNode && activeGraphData.nodes.length > 0) {
+          const defaultTarget =
+            activeGraphData.nodes.find((n) => n.name === 'SessionManager') || activeGraphData.nodes[0];
+          setSelectedNode(defaultTarget);
+          setImpactAnalysis(computeImpactAnalysis(defaultTarget, activeGraphData, dataSource === 'sample'));
         }
       } else {
         setRoute('start');
@@ -88,7 +97,7 @@ export function App() {
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [activeGraphData, dataSource]);
+  }, [activeGraphData, dataSource, selectedNode]);
 
   // Check live backend health
   const checkLiveBackend = useCallback(async () => {
@@ -200,6 +209,16 @@ export function App() {
     }
   };
 
+  // Ensure default node is selected if in investigate mode
+  useEffect(() => {
+    if (route === 'investigate' && !selectedNode && activeGraphData.nodes.length > 0) {
+      const defaultTarget =
+        activeGraphData.nodes.find((n) => n.name === 'SessionManager') || activeGraphData.nodes[0];
+      setSelectedNode(defaultTarget);
+      setImpactAnalysis(computeImpactAnalysis(defaultTarget, activeGraphData, dataSource === 'sample'));
+    }
+  }, [route, selectedNode, activeGraphData, dataSource]);
+
   // VIEW 1: START LANDING PAGE
   if (route === 'start') {
     return (
@@ -211,118 +230,142 @@ export function App() {
     );
   }
 
-  // VIEW 2: INVESTIGATION WORKSPACE
+  // VIEW 2: INVESTIGATION WORKSPACE (Page 2)
   return (
-    <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-[#FAF8F5] text-[#18181B] font-sans parchment-grid">
-      {/* Top Header */}
-      <TopBar
-        nodes={activeGraphData.nodes}
-        selectedNode={selectedNode}
-        onSelectNode={handleSelectNode}
-        onReset={handleReset}
-        dataSource={dataSource}
-        onSelectDataSource={handleSelectDataSource}
-        isBackendConnected={isBackendConnected}
-        viewMode={viewMode}
-        onToggleViewMode={() => setViewMode((m) => (m === '2d' ? '3d' : '2d'))}
-        onBackToStart={handleBackToStart}
-      />
-
-      {/* Backend Error Banner if in Live API mode and offline */}
-      {dataSource === 'live' && !isBackendConnected && (
-        <BackendErrorBanner
-          errorMessage={backendError}
-          onRetry={checkLiveBackend}
-          onSwitchToSample={() => handleSelectDataSource('sample')}
+    <div className="bg-[#FAF9F5] text-slate-900 font-sans min-h-screen flex antialiased overflow-hidden selection:bg-emerald-200 selection:text-emerald-950">
+      {/* Left Workspace Sidebar */}
+      <div className="hidden md:flex h-screen shrink-0">
+        <WorkspaceSidebar
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          selectedNode={selectedNode}
+          nodes={activeGraphData.nodes}
+          onSelectNode={handleSelectNode}
+          impactAnalysis={impactAnalysis}
+          workspaceName="order-service"
         />
-      )}
-
-      {/* Mobile Tab Switcher (< 1024px) */}
-      <div className="flex px-4 pt-2 pb-1 lg:hidden select-none bg-white border-b border-parchment-border">
-        <div className="flex w-full rounded-xl bg-parchment-100 p-1 text-xs font-mono">
-          <button
-            type="button"
-            onClick={() => setMobileView('results')}
-            className={`flex-1 rounded-lg py-1.5 transition ${
-              mobileView === 'results'
-                ? 'bg-white text-plum-900 font-bold shadow-sm'
-                : 'text-ink-600'
-            }`}
-          >
-            Results &amp; Proof {selectedNode ? `(${selectedNode.name})` : ''}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileView('map')}
-            className={`flex-1 rounded-lg py-1.5 transition ${
-              mobileView === 'map'
-                ? 'bg-white text-plum-900 font-bold shadow-sm'
-                : 'text-ink-600'
-            }`}
-          >
-            Dependency Map
-          </button>
-        </div>
       </div>
 
-      {/* Main Investigation Split Layout */}
-      <main className="relative flex flex-1 overflow-hidden p-3 sm:p-5 gap-4">
-        {/* MAP CANVAS PANE (Flexible large canvas) */}
-        <div
-          className={`relative h-full flex-1 rounded-2xl overflow-hidden bg-white border border-parchment-border shadow-soft ${
-            mobileView === 'results' ? 'hidden lg:block' : 'block'
-          }`}
-        >
-          {viewMode === '2d' ? (
-            <PlanarGraph2D
-              nodes={activeGraphData.nodes}
-              edges={activeGraphData.edges}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Top Bar */}
+        <TopBar
+          nodes={activeGraphData.nodes}
+          selectedNode={selectedNode}
+          onSelectNode={handleSelectNode}
+          onReset={handleReset}
+          dataSource={dataSource}
+          onSelectDataSource={handleSelectDataSource}
+          isBackendConnected={isBackendConnected}
+          viewMode={viewMode}
+          onToggleViewMode={() => setViewMode((m) => (m === '2d' ? '3d' : '2d'))}
+          onBackToStart={handleBackToStart}
+        />
+
+        {/* Backend Error Banner if in Live API mode and offline */}
+        {dataSource === 'live' && !isBackendConnected && (
+          <BackendErrorBanner
+            errorMessage={backendError}
+            onRetry={checkLiveBackend}
+            onSwitchToSample={() => handleSelectDataSource('sample')}
+          />
+        )}
+
+        {/* Mobile Tab Switcher (< 768px) */}
+        <div className="flex px-4 py-2 md:hidden select-none bg-white border-b border-slate-200">
+          <div className="flex w-full rounded-xl bg-slate-100 p-1 text-xs font-mono">
+            <button
+              type="button"
+              onClick={() => setMobileView('results')}
+              className={`flex-1 rounded-lg py-1.5 transition ${
+                mobileView === 'results'
+                  ? 'bg-white text-slate-900 font-bold shadow-2xs'
+                  : 'text-slate-600'
+              }`}
+            >
+              Results {selectedNode ? `(${selectedNode.name})` : ''}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileView('map')}
+              className={`flex-1 rounded-lg py-1.5 transition ${
+                mobileView === 'map'
+                  ? 'bg-white text-slate-900 font-bold shadow-2xs'
+                  : 'text-slate-600'
+              }`}
+            >
+              Map Canvas
+            </button>
+          </div>
+        </div>
+
+        {/* Workspace Grid */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Center Canvas: Findings & AST Topology */}
+          <main className="flex-1 p-6 md:p-8 overflow-y-auto space-y-6">
+            <InvestigateResults
               selectedNode={selectedNode}
+              nodesById={nodesById}
               impactAnalysis={impactAnalysis}
-              selectedPathNodeIds={selectedPathNodeIds}
               onSelectNode={handleSelectNode}
               onOpenEvidence={handleOpenEvidence}
-              evidenceMap={SAMPLE_EVIDENCE_MAP}
-            />
-          ) : (
-            <CommandGraph3D
-              nodes={activeGraphData.nodes}
-              edges={activeGraphData.edges}
-              clusters={activeGraphData.clusters}
-              selectedNode={selectedNode}
-              impactAnalysis={impactAnalysis}
               selectedPathNodeIds={selectedPathNodeIds}
-              onSelectNode={handleSelectNode}
+              onSelectPath={setSelectedPathNodeIds}
+              activeTab={activeTab}
             />
-          )}
-        </div>
 
-        {/* RESULTS & EVIDENCE PANE (Side-by-side on desktop, readable without graph) */}
-        <div
-          className={`h-full w-full lg:w-[410px] xl:w-[450px] shrink-0 z-20 ${
-            mobileView === 'map' ? 'hidden lg:block' : 'block'
-          }`}
-        >
-          <InvestigateResults
-            selectedNode={selectedNode}
-            nodesById={nodesById}
-            impactAnalysis={impactAnalysis}
-            onSelectNode={handleSelectNode}
-            onOpenEvidence={handleOpenEvidence}
-            selectedPathNodeIds={selectedPathNodeIds}
-            onSelectPath={setSelectedPathNodeIds}
+            {/* Interactive Topological Canvas (Integrated directly below relationship flow) */}
+            <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 shadow-soft">
+              <div className="px-6 py-3.5 bg-white border-b border-slate-200/80 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    AST Graph Topology ({viewMode.toUpperCase()})
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Interactive canvas. Drag to pan, scroll to zoom, click any node to trace callers.
+                  </p>
+                </div>
+                <div className="text-[11px] font-mono text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded">
+                  {activeGraphData.nodes.length} indexed classes · {activeGraphData.edges.length} calls
+                </div>
+              </div>
+              <div className="h-[420px] w-full bg-[#FAF9F5]">
+                {viewMode === '2d' ? (
+                  <PlanarGraph2D
+                    nodes={activeGraphData.nodes}
+                    edges={activeGraphData.edges}
+                    selectedNode={selectedNode}
+                    impactAnalysis={impactAnalysis}
+                    selectedPathNodeIds={selectedPathNodeIds}
+                    onSelectNode={handleSelectNode}
+                    onOpenEvidence={handleOpenEvidence}
+                    evidenceMap={SAMPLE_EVIDENCE_MAP}
+                  />
+                ) : (
+                  <CommandGraph3D
+                    nodes={activeGraphData.nodes}
+                    edges={activeGraphData.edges}
+                    clusters={activeGraphData.clusters}
+                    selectedNode={selectedNode}
+                    impactAnalysis={impactAnalysis}
+                    selectedPathNodeIds={selectedPathNodeIds}
+                    onSelectNode={handleSelectNode}
+                  />
+                )}
+              </div>
+            </div>
+          </main>
+
+          {/* Right Docked Evidence Drawer */}
+          <SourceDrawer
+            evidence={activeEvidence}
+            pathEvidenceList={pathEvidenceList}
+            activeEvidenceIndex={activeEvidenceIndex}
+            onSelectEvidenceIndex={handleSelectEvidenceIndex}
+            onClose={() => setActiveEvidence(null)}
           />
         </div>
-
-        {/* SOURCE EVIDENCE DRAWER OVERLAY */}
-        <SourceDrawer
-          evidence={activeEvidence}
-          pathEvidenceList={pathEvidenceList}
-          activeEvidenceIndex={activeEvidenceIndex}
-          onSelectEvidenceIndex={handleSelectEvidenceIndex}
-          onClose={() => setActiveEvidence(null)}
-        />
-      </main>
+      </div>
     </div>
   );
 }
