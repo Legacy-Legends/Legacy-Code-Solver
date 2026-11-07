@@ -13,6 +13,15 @@ export interface BackendStatus {
   lastChecked?: string;
 }
 
+export interface BackendBlastResult {
+  matched_node_ids: string[];
+  blast_node_ids: string[];
+  blast_edge_ids: string[];
+  percent: number;
+  summary: string;
+  affected_domains: string[];
+}
+
 /**
  * Checks connection to FastAPI backend.
  */
@@ -21,24 +30,25 @@ export async function checkBackendHealth(): Promise<{ ok: boolean; message?: str
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2500);
 
-    const res = await fetch(`${BACKEND_URL}/health`, {
+    // Try /api/projects
+    const resProjects = await fetch(`${BACKEND_URL}/api/projects`, {
       method: 'GET',
       signal: controller.signal,
     }).catch(() => null);
 
     clearTimeout(timer);
 
-    if (res && res.ok) {
+    if (resProjects && resProjects.ok) {
       return { ok: true };
     }
 
-    // Try /api/graph as alternative health check
-    const resGraph = await fetch(`${BACKEND_URL}/api/graph`, {
+    // Try /health as alternative
+    const resHealth = await fetch(`${BACKEND_URL}/health`, {
       method: 'GET',
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(1500),
     }).catch(() => null);
 
-    if (resGraph && resGraph.ok) {
+    if (resHealth && resHealth.ok) {
       return { ok: true };
     }
 
@@ -57,16 +67,23 @@ export async function checkBackendHealth(): Promise<{ ok: boolean; message?: str
 
 /**
  * Fetches live graph data from FastAPI backend.
+ * Checks /api/projects/demo/graph first, falls back to /api/graph.
  * Never silently substitutes mock data upon failure.
  */
-export async function fetchLiveGraphData(): Promise<GraphData> {
-  const res = await fetch(`${BACKEND_URL}/api/graph`, {
+export async function fetchLiveGraphData(projectId: string = 'demo'): Promise<GraphData> {
+  let res = await fetch(`${BACKEND_URL}/api/projects/${projectId}/graph`, {
     headers: { Accept: 'application/json' },
-  });
+  }).catch(() => null);
+
+  if (!res || !res.ok) {
+    res = await fetch(`${BACKEND_URL}/api/graph`, {
+      headers: { Accept: 'application/json' },
+    });
+  }
 
   if (!res.ok) {
     throw new Error(
-      `FastAPI returned HTTP ${res.status} (${res.statusText}) on GET /api/graph`
+      `FastAPI returned HTTP ${res.status} (${res.statusText}) on GET /api/projects/${projectId}/graph`
     );
   }
 
@@ -83,34 +100,74 @@ export async function fetchLiveGraphData(): Promise<GraphData> {
 }
 
 /**
- * Requests impact analysis for a class from the FastAPI backend.
- * If backend impact endpoint is not implemented, computes impact deterministically
- * using the shared graph contract while clearly noting client-side execution.
+ * Requests blast radius analysis for a class from the FastAPI backend agent.
+ */
+export async function fetchLiveBlast(
+  query: string,
+  projectId: string = 'demo',
+  signal?: AbortSignal
+): Promise<BackendBlastResult | null> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/projects/${projectId}/blast`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ query }),
+      signal,
+    });
+
+    if (res.ok) {
+      return (await res.json()) as BackendBlastResult;
+    }
+  } catch {
+    // Return null if backend endpoint is unavailable
+  }
+  return null;
+}
+
+/**
+ * Requests impact analysis for a class.
  */
 export async function fetchLiveImpact(
   targetNode: GraphNode,
   graphData: GraphData,
   signal?: AbortSignal
 ): Promise<ImpactAnalysis> {
-  try {
-    const res = await fetch(
-      `${BACKEND_URL}/api/impact?classId=${encodeURIComponent(targetNode.id)}`,
-      {
-        headers: { Accept: 'application/json' },
-        signal,
-      }
-    );
+  // Check if live blast endpoint responds
+  const blast = await fetchLiveBlast(targetNode.name, 'demo', signal);
+  if (blast && blast.blast_node_ids) {
+    const nodesById = new Map<string, GraphNode>();
+    graphData.nodes.forEach((n) => nodesById.set(n.id, n));
 
-    if (res.ok) {
-      const data = (await res.json()) as ImpactAnalysis;
-      if (data && Array.isArray(data.directDependents)) {
-        return data;
-      }
-    }
-  } catch {
-    // If specific /api/impact endpoint is not present, fall back to graph analysis
+    const direct = blast.blast_node_ids
+      .filter((id) => id !== targetNode.id)
+      .map((id) => {
+        const node = nodesById.get(id);
+        if (!node) return null;
+        return {
+          node,
+          edge: {
+            id: `blast-edge-${id}`,
+            source: id,
+            target: targetNode.id,
+            type: 'calls' as const,
+            weight: 5,
+          },
+          explanation: `${node.name} is in the blast radius of ${targetNode.name} (${blast.percent}% total impact)`,
+          depth: 1 as const,
+          pathIds: [id, targetNode.id],
+        };
+      })
+      .filter(Boolean) as ImpactAnalysis['directDependents'];
+
+    return {
+      targetNode,
+      directDependents: direct,
+      indirectDependents: [],
+      totalAffected: direct.length,
+      timestamp: new Date().toISOString(),
+    };
   }
 
-  // Deterministic fallback based on live graph structure
+  // Deterministic reverse traversal fallback
   return computeImpactAnalysis(targetNode, graphData, false);
 }
