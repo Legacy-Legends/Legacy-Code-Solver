@@ -192,11 +192,12 @@ public class AppLogger {
 function parseSurroundingCode(
   source: string,
   targetLine: number,
-  padding: number = 16
+  paddingBefore: number = 6,
+  paddingAfter: number = 10
 ) {
   const lines = source.split('\n');
-  const start = Math.max(1, targetLine - padding);
-  const end = Math.min(lines.length, targetLine + padding);
+  const start = Math.max(1, targetLine - paddingBefore);
+  const end = Math.min(lines.length, targetLine + paddingAfter);
 
   const result = [];
   for (let i = start; i <= end; i++) {
@@ -328,7 +329,7 @@ export const SAMPLE_EVIDENCE_MAP: Record<string, SourceEvidence> = {
     statement: 'UserSession session = sessionManager.validateSession(sessionToken);',
     relationship: 'calls method validateSession(String)',
     explanation: 'CheckoutService depends on SessionManager. If validateSession contract or exception behavior changes, checkout transactions fail.',
-    surroundingCode: parseSurroundingCode(SAMPLE_JAVA_SOURCES.checkout, 37, 14),
+    surroundingCode: parseSurroundingCode(SAMPLE_JAVA_SOURCES.checkout, 37, 6, 10),
   },
   'sample-edge-session-auth': {
     edgeId: 'sample-edge-session-auth',
@@ -342,6 +343,6 @@ export const SAMPLE_EVIDENCE_MAP: Record<string, SourceEvidence> = {
     statement: 'TokenValidationResult result = tokenValidator.verifyToken(rawToken);',
     relationship: 'calls method verifyToken(String)',
     explanation: 'SessionManager depends directly on AuthTokenValidator. Modifying verifyToken response type or validation logic directly alters session state evaluation.',
-    surroundingCode: parseSurroundingCode(SAMPLE_JAVA_SOURCES.session, 32, 14),
+    surroundingCode: parseSurroundingCode(SAMPLE_JAVA_SOURCES.session, 32, 6, 10),
   },
 };

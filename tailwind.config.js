@@ -4,11 +4,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Outfit', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
-        canvas: '#FAF9F5',
+        canvas: '#F7F5F0',
         surface: '#FFFFFF',
         codeplum: '#0A101D', // replaced plum dark with midnight obsidian
         ink: {

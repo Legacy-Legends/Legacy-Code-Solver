@@ -1,57 +1,85 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import rawGraphData from './mocks/graph.json';
 import {
   GraphData,
   GraphNode,
+  GraphEdge,
   DataSourceMode,
   ImpactAnalysis,
   SourceEvidence,
 } from './types/index';
 import { SAMPLE_GRAPH_DATA, SAMPLE_EVIDENCE_MAP } from './data/sampleProject';
+import { getEnterpriseSourceEvidence } from './data/enterpriseSourceSnippets';
 import { computeImpactAnalysis } from './lib/impactAnalysis';
-import { fetchLiveGraphData, fetchLiveImpact, BackendBlastResult, DomainTag } from './api/backendAdapter';
-import { AgentPanel } from './components/AgentPanel';
+import { fetchLiveGraphData, checkBackendHealth } from './api/backendAdapter';
 import { StartPage } from './components/StartPage';
 import { TopBar } from './components/TopBar';
-import { WorkspaceSidebar, InvestigationTab } from './components/WorkspaceSidebar';
 import { PlanarGraph2D } from './components/PlanarGraph2D';
 import { CommandGraph3D } from './components/CommandGraph3D';
-import { InvestigateResults } from './components/InvestigateResults';
+import { DetailPanel } from './components/DetailPanel';
 import { SourceDrawer } from './components/SourceDrawer';
 import { BackendErrorBanner } from './components/BackendErrorBanner';
 
-const EMPTY_GRAPH: GraphData = { nodes: [], edges: [], clusters: [], overallHealth: 0 };
-
 type RouteView = 'start' | 'investigate';
 
-export function App() {
-  // Browser History & Route State
-  const [route, setRoute] = useState<RouteView>(() => {
-    return window.location.hash.startsWith('#/investigate') ? 'investigate' : 'start';
-  });
+const EMPTY_GRAPH_DATA: GraphData = {
+  overallHealth: 0,
+  clusters: [],
+  nodes: [],
+  edges: [],
+};
 
-  // Active investigation view tab in sidebar: 'graph' | 'hierarchy' | 'blast'
-  const [activeTab, setActiveTab] = useState<InvestigationTab>('graph');
+/**
+ * Extracts ?class= parameter from either URL search or hash query string.
+ */
+function getUrlClassParam(): string | null {
+  const searchParams = new URLSearchParams(window.location.search);
+  const fromSearch = searchParams.get('class');
+  if (fromSearch) return fromSearch;
+
+  const hash = window.location.hash;
+  const qIndex = hash.indexOf('?');
+  if (qIndex >= 0) {
+    const hashParams = new URLSearchParams(hash.slice(qIndex + 1));
+    return hashParams.get('class');
+  }
+  return null;
+}
+
+function getUrlParams(): URLSearchParams {
+  const hash = window.location.hash;
+  const qIndex = hash.indexOf('?');
+  if (qIndex >= 0) {
+    return new URLSearchParams(hash.slice(qIndex + 1));
+  }
+  return new URLSearchParams(window.location.search);
+}
+
+export function App() {
+  // Start in 'investigate' by default (or 'start' if #/start is explicitly requested)
+  const [route, setRoute] = useState<RouteView>(() => {
+    if (window.location.hash === '#/start') return 'start';
+    return 'investigate';
+  });
 
   // Data source mode: 'sample' | 'enterprise' | 'live'
   const [dataSource, setDataSource] = useState<DataSourceMode>('sample');
   const [liveGraphData, setLiveGraphData] = useState<GraphData | null>(null);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
-  const [impactError, setImpactError] = useState<string | null>(null);
-  const [impactLoading, setImpactLoading] = useState(false);
-  const [impactRetry, setImpactRetry] = useState(0);
-  const graphRequest = useRef<AbortController>();
 
-  // Canvas Mode: '2d' (Parchment map) | '3d' (Orbit)
+  // Canvas Mode: starts in stable, well-framed 2D layout
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
+  const [fitSignal, setFitSignal] = useState(0);
 
-  // Mobile layout switch: 'results' | 'map'
-  const [mobileView, setMobileView] = useState<'results' | 'map'>('results');
+  // Mobile layout switch (< 768px): 'graph' | 'details'
+  const [mobileView, setMobileView] = useState<'graph' | 'details'>('graph');
 
   // Investigation & Selection State
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<GraphEdge | null>(null);
   const [impactAnalysis, setImpactAnalysis] = useState<ImpactAnalysis | null>(null);
+  const [showIndirect, setShowIndirect] = useState(false);
   const [selectedPathNodeIds, setSelectedPathNodeIds] = useState<string[] | null>(null);
 
   // Evidence Drawer State
@@ -59,12 +87,15 @@ export function App() {
   const [pathEvidenceList, setPathEvidenceList] = useState<SourceEvidence[]>([]);
   const [activeEvidenceIndex, setActiveEvidenceIndex] = useState(0);
 
-  // Active Graph Data based on Mode
+  // Active Graph Data based on Mode.
+  // Never substitutes mock graph data when in 'live' mode and backend is offline!
   const activeGraphData = useMemo<GraphData>(() => {
     if (dataSource === 'sample') {
       return JSON.parse(JSON.stringify(SAMPLE_GRAPH_DATA)) as GraphData;
     }
-    if (dataSource === 'live') return liveGraphData || EMPTY_GRAPH;
+    if (dataSource === 'live') {
+      return liveGraphData || EMPTY_GRAPH_DATA;
+    }
     return JSON.parse(JSON.stringify(rawGraphData)) as GraphData;
   }, [dataSource, liveGraphData]);
 
@@ -74,156 +105,218 @@ export function App() {
     return map;
   }, [activeGraphData.nodes]);
 
-  // Sync route with browser hash for native Back / Forward button support
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      if (hash.startsWith('#/investigate')) {
-        setRoute('investigate');
-        // Parse target class name from query param if available
-        const params = new URLSearchParams(hash.split('?')[1] || '');
-        const targetClass = params.get('class');
-        if (targetClass) {
-          const target = activeGraphData.nodes.find((n) => n.name === targetClass);
-          if (target) {
-            setSelectedNode(target);
-            if (dataSource !== 'live') setImpactAnalysis(computeImpactAnalysis(target, activeGraphData, dataSource === 'sample'));
-          }
-        } else if (!selectedNode && activeGraphData.nodes.length > 0) {
-          const defaultTarget =
-            activeGraphData.nodes.find((n) => n.name === 'SessionManager') || activeGraphData.nodes[0];
-          setSelectedNode(defaultTarget);
-          if (dataSource !== 'live') setImpactAnalysis(computeImpactAnalysis(defaultTarget, activeGraphData, dataSource === 'sample'));
-        }
-      } else {
-        setRoute('start');
+  // Resolve SourceEvidence for any edge in Sample or Enterprise mode
+  const resolveEvidenceForEdge = useCallback(
+    (edge: GraphEdge): SourceEvidence | undefined => {
+      if (dataSource === 'sample') {
+        return SAMPLE_EVIDENCE_MAP[edge.id];
       }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [activeGraphData, dataSource, selectedNode]);
-
-  const checkLiveBackend = useCallback(async () => {
-    graphRequest.current?.abort();
-    const controller = new AbortController();
-    graphRequest.current = controller;
-    setBackendError(null);
-    setIsBackendConnected(false);
-    setLiveGraphData(null);
-    setSelectedNode(null);
-    setImpactAnalysis(null);
-    try {
-      const graph = await fetchLiveGraphData('demo', controller.signal);
-      if (!controller.signal.aborted) {
-        setLiveGraphData(graph);
-        setIsBackendConnected(true);
-      }
-    } catch (error) {
-      if (!controller.signal.aborted) setBackendError(error instanceof Error ? error.message : String(error));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (dataSource === 'live') void checkLiveBackend();
-    return () => graphRequest.current?.abort();
-  }, [dataSource, checkLiveBackend]);
-
-  useEffect(() => {
-    setImpactError(null);
-    if (dataSource !== 'live' || !selectedNode || !liveGraphData) {
-      setImpactLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    setImpactAnalysis(null);
-    setImpactLoading(true);
-    fetchLiveImpact(selectedNode.id, 'demo', controller.signal).then(result => {
-      if (!controller.signal.aborted) setImpactAnalysis(result);
-    }).catch(error => {
-      if (!controller.signal.aborted) setImpactError(error instanceof Error ? error.message : String(error));
-    }).finally(() => {
-      if (!controller.signal.aborted) setImpactLoading(false);
-    });
-    return () => controller.abort();
-  }, [dataSource, selectedNode?.id, liveGraphData, impactRetry]);
-
-  // Navigate to Investigate directly with a class
-  const handleInvestigateClass = useCallback(
-    (className: string) => {
-      const node = activeGraphData.nodes.find((n) => n.name === className) || activeGraphData.nodes[0];
-      if (node) {
-        setSelectedNode(node);
-        const analysis = dataSource === 'live' ? null : computeImpactAnalysis(node, activeGraphData, dataSource === 'sample');
-        if (dataSource !== 'live') setImpactAnalysis(analysis);
-        setSelectedPathNodeIds(null);
-        setActiveEvidence(null);
-        setRoute('investigate');
-        window.location.hash = `#/investigate?class=${encodeURIComponent(node.name)}`;
-      }
+      return getEnterpriseSourceEvidence(edge, nodesById) ?? undefined;
     },
-    [activeGraphData, dataSource]
+    [dataSource, nodesById]
   );
 
-  // Navigate Back to Start
-  const handleBackToStart = useCallback(() => {
-    setRoute('start');
-    window.location.hash = '#/';
+  // Update URL when selectedNode changes so refreshing restores the class
+  const syncClassToUrl = useCallback((node: GraphNode | null) => {
+    const nextHash = node
+      ? `#/investigate?class=${encodeURIComponent(node.name)}`
+      : '#/investigate';
+    if (window.location.hash !== nextHash) {
+      window.history.replaceState(null, '', nextHash);
+    }
   }, []);
 
-  // Reset action inside workspace
-  const handleReset = useCallback(() => {
-    setSelectedNode(null);
-    setImpactAnalysis(null);
-    setSelectedPathNodeIds(null);
-    setActiveEvidence(null);
-    setPathEvidenceList([]);
-  }, []);
-
-  // Switch dataset
-  const handleSelectDataSource = (mode: DataSourceMode) => {
-    if (mode === dataSource) return;
-    graphRequest.current?.abort();
-    setLiveGraphData(null);
-    setDataSource(mode);
-    handleReset();
-  };
-
-  // Node selection inside workspace
+  // Select a node: highlight immediate callers, clear old path & indirect state
   const handleSelectNode = useCallback(
     (node: GraphNode | null) => {
       setSelectedNode(node);
+      setSelectedEdge(null);
       setSelectedPathNodeIds(null);
+      setShowIndirect(false);
+      syncClassToUrl(node);
 
       if (!node) {
         setImpactAnalysis(null);
         return;
       }
 
-      // Compute impact immediately so user does not need to click "Trace"
-      const analysis = dataSource === 'live' ? null : computeImpactAnalysis(node, activeGraphData, dataSource === 'sample');
-      if (dataSource !== 'live') setImpactAnalysis(analysis);
-      setMobileView('results');
-
-      // Update URL silently
-      window.history.replaceState(null, '', `#/investigate?class=${encodeURIComponent(node.name)}`);
+      const analysis = computeImpactAnalysis(
+        node,
+        activeGraphData,
+        dataSource === 'sample'
+      );
+      setImpactAnalysis(analysis);
     },
-    [activeGraphData, dataSource]
+    [activeGraphData, dataSource, syncClassToUrl]
   );
 
-  const handleBlast = (result: BackendBlastResult) => {
-    const first = activeGraphData.nodes.find(node => node.id === result.matched_node_ids[0]);
-    if (first) handleSelectNode(first);
-    setSelectedPathNodeIds(result.blast_node_ids);
+  // Restore class from URL on mount and on hashchange
+  useEffect(() => {
+    const applyUrlState = () => {
+      if (window.location.hash === '#/start') {
+        setRoute('start');
+        return;
+      }
+      const params = getUrlParams();
+      const modeParam = params.get('source') as DataSourceMode | null;
+      if (modeParam && ['sample', 'enterprise', 'live'].includes(modeParam) && modeParam !== dataSource) {
+        setDataSource(modeParam);
+      }
+
+      const classParam = getUrlClassParam();
+      if (classParam && activeGraphData.nodes.length > 0) {
+        const target = activeGraphData.nodes.find(
+          (n) =>
+            n.name.toLowerCase() === classParam.toLowerCase() ||
+            n.id.toLowerCase() === classParam.toLowerCase()
+        );
+        if (target) {
+          const analysis = computeImpactAnalysis(
+            target,
+            activeGraphData,
+            dataSource === 'sample'
+          );
+          setSelectedNode(target);
+          setSelectedEdge(null);
+          setImpactAnalysis(analysis);
+
+          const wantIndirect = params.get('indirect') === '1' || params.get('indirect') === 'true';
+          setShowIndirect(wantIndirect);
+          if (wantIndirect && analysis.indirectDependents.length > 0) {
+            setSelectedPathNodeIds(analysis.indirectDependents[0].pathIds);
+          } else {
+            setSelectedPathNodeIds(null);
+          }
+
+          const wantEvidence = params.get('evidence') === '1' || params.get('evidence') === 'true';
+          if (wantEvidence) {
+            if (wantIndirect && analysis.indirectDependents[0]?.evidence) {
+              const indDep = analysis.indirectDependents[0];
+              const interDep = analysis.directDependents.find(
+                (d) => d.node.id === indDep.pathIds[1]
+              );
+              const hops = [indDep.evidence, interDep?.evidence].filter(
+                Boolean
+              ) as SourceEvidence[];
+              setActiveEvidence(indDep.evidence ?? null);
+              setPathEvidenceList(hops);
+              setActiveEvidenceIndex(0);
+            } else if (analysis.directDependents[0]?.evidence) {
+              const dirEv = analysis.directDependents[0].evidence;
+              setActiveEvidence(dirEv ?? null);
+              setPathEvidenceList([dirEv]);
+              setActiveEvidenceIndex(0);
+            }
+          }
+        }
+      } else if (!classParam) {
+        setSelectedNode(null);
+        setSelectedEdge(null);
+        setImpactAnalysis(null);
+        setShowIndirect(false);
+        setSelectedPathNodeIds(null);
+      }
+    };
+
+    applyUrlState();
+    window.addEventListener('hashchange', applyUrlState);
+    return () => window.removeEventListener('hashchange', applyUrlState);
+  }, [activeGraphData, dataSource]);
+
+  // Global Escape handler: closes Evidence Drawer first, then clears selected node/edge
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (activeEvidence) {
+          setActiveEvidence(null);
+        } else if (selectedPathNodeIds) {
+          setSelectedPathNodeIds(null);
+        } else if (selectedEdge) {
+          setSelectedEdge(null);
+        } else if (selectedNode) {
+          handleSelectNode(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeEvidence, selectedPathNodeIds, selectedEdge, selectedNode, handleSelectNode]);
+
+  // Check live backend health
+  const checkLiveBackend = useCallback(async () => {
+    setBackendError(null);
+    const health = await checkBackendHealth();
+    setIsBackendConnected(health.ok);
+    if (health.ok) {
+      try {
+        const live = await fetchLiveGraphData();
+        setLiveGraphData(live);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setLiveGraphData(null);
+        setBackendError(msg);
+        setIsBackendConnected(false);
+      }
+    } else {
+      setLiveGraphData(null);
+      setBackendError(health.message || 'FastAPI backend connection refused');
+      setIsBackendConnected(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (dataSource === 'live') {
+      checkLiveBackend();
+    }
+  }, [dataSource, checkLiveBackend]);
+
+  // Reset view action
+  const handleReset = useCallback(() => {
+    setSelectedNode(null);
+    setSelectedEdge(null);
+    setImpactAnalysis(null);
+    setShowIndirect(false);
+    setSelectedPathNodeIds(null);
+    setActiveEvidence(null);
+    setPathEvidenceList([]);
+    setFitSignal((s) => s + 1);
+    syncClassToUrl(null);
+  }, [syncClassToUrl]);
+
+  // Switch data source
+  const handleSelectDataSource = (mode: DataSourceMode) => {
+    setDataSource(mode);
+    setSelectedNode(null);
+    setSelectedEdge(null);
+    setImpactAnalysis(null);
+    setShowIndirect(false);
+    setSelectedPathNodeIds(null);
+    setActiveEvidence(null);
+    setPathEvidenceList([]);
+    syncClassToUrl(null);
   };
 
-  const handleDomains = (tags: Record<string, DomainTag>) => {
-    setLiveGraphData(graph => graph ? {
-      ...graph, nodes: graph.nodes.map(node => ({ ...node, ...tags[node.id] })),
-    } : graph);
+  // Open workspace from StartPage
+  const handleExploreSample = (className?: string) => {
+    setDataSource('sample');
+    const targetName = className || 'SessionManager';
+    const target =
+      SAMPLE_GRAPH_DATA.nodes.find(
+        (n) => n.name.toLowerCase() === targetName.toLowerCase()
+      ) || SAMPLE_GRAPH_DATA.nodes[0];
+
+    if (target) {
+      setSelectedNode(target);
+      setSelectedEdge(null);
+      setShowIndirect(false);
+      setSelectedPathNodeIds(null);
+      setImpactAnalysis(computeImpactAnalysis(target, SAMPLE_GRAPH_DATA, true));
+      syncClassToUrl(target);
+    }
+    setRoute('investigate');
   };
 
-  // Open Source Evidence Drawer
+  // Open Source Evidence Drawer (preserving selectedNode and camera state)
   const handleOpenEvidence = useCallback(
     (evidence: SourceEvidence, pathList?: SourceEvidence[]) => {
       setActiveEvidence(evidence);
@@ -247,171 +340,172 @@ export function App() {
     }
   };
 
-  // Ensure default node is selected if in investigate mode
-  useEffect(() => {
-    if (route === 'investigate' && !selectedNode && activeGraphData.nodes.length > 0) {
-      const defaultTarget =
-        activeGraphData.nodes.find((n) => n.name === 'SessionManager') || activeGraphData.nodes[0];
-      setSelectedNode(defaultTarget);
-      if (dataSource !== 'live') setImpactAnalysis(computeImpactAnalysis(defaultTarget, activeGraphData, dataSource === 'sample'));
-    }
-  }, [route, selectedNode, activeGraphData, dataSource]);
-
-  // VIEW 1: START LANDING PAGE
   if (route === 'start') {
     return (
       <StartPage
         nodes={activeGraphData.nodes}
-        onInvestigate={handleInvestigateClass}
-        onOpenWorkspace={() => handleInvestigateClass('SessionManager')}
+        onInvestigate={handleExploreSample}
+        onOpenWorkspace={() => handleExploreSample('SessionManager')}
       />
     );
   }
 
-  // VIEW 2: INVESTIGATION WORKSPACE (Page 2)
+  const isLiveOffline = dataSource === 'live' && (!isBackendConnected || !liveGraphData);
+
   return (
-    <div className="bg-[#FAF9F5] text-slate-900 font-sans min-h-screen flex antialiased overflow-hidden selection:bg-emerald-200 selection:text-emerald-950">
-      {/* Left Workspace Sidebar */}
-      <div className="hidden md:flex h-screen shrink-0">
-        <WorkspaceSidebar
-          activeTab={activeTab}
-          onSelectTab={setActiveTab}
-          selectedNode={selectedNode}
-          nodes={activeGraphData.nodes}
-          onSelectNode={handleSelectNode}
-          impactAnalysis={impactAnalysis}
-          workspaceName={dataSource === 'live' ? 'Backend demo' : 'Local sample'}
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#F7F5F0] text-[#111827] font-sans antialiased">
+      {/* 1. Compact Header */}
+      <TopBar
+        nodes={activeGraphData.nodes}
+        selectedNode={selectedNode}
+        onSelectNode={handleSelectNode}
+        onReset={handleReset}
+        onFitGraph={() => setFitSignal((s) => s + 1)}
+        dataSource={dataSource}
+        onSelectDataSource={handleSelectDataSource}
+        isBackendConnected={isBackendConnected}
+        viewMode={viewMode}
+        onToggleViewMode={(nextMode) =>
+          setViewMode((prev) => nextMode || (prev === '2d' ? '3d' : '2d'))
+        }
+        onBackToStart={() => {
+          window.location.hash = '#/start';
+          setRoute('start');
+        }}
+      />
+
+      {/* Backend Error Banner when Live API is unreachable */}
+      {isLiveOffline && (
+        <BackendErrorBanner
+          errorMessage={backendError}
+          onRetry={checkLiveBackend}
+          onSwitchToSample={() => handleSelectDataSource('sample')}
         />
+      )}
+
+      {/* Mobile View Switcher (< 768px) */}
+      <div className="flex border-b border-[#E4E2DA] bg-white px-4 py-1.5 md:hidden select-none">
+        <div className="flex w-full rounded-lg bg-[#F7F5F0] p-0.5 font-sans text-xs">
+          <button
+            type="button"
+            onClick={() => setMobileView('graph')}
+            className={`flex-1 rounded-md py-1.5 font-medium transition cursor-pointer ${
+              mobileView === 'graph'
+                ? 'bg-white text-slate-900 shadow-2xs'
+                : 'text-slate-600'
+            }`}
+          >
+            Graph ({activeGraphData.nodes.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileView('details')}
+            className={`flex-1 rounded-md py-1.5 font-medium transition cursor-pointer ${
+              mobileView === 'details'
+                ? 'bg-white text-slate-900 shadow-2xs'
+                : 'text-slate-600'
+            }`}
+          >
+            Details {selectedNode ? `(${selectedNode.name})` : ''}
+          </button>
+        </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* Top Bar */}
-        <TopBar
-          nodes={activeGraphData.nodes}
-          selectedNode={selectedNode}
-          onSelectNode={handleSelectNode}
-          onReset={handleReset}
-          dataSource={dataSource}
-          onSelectDataSource={handleSelectDataSource}
-          isBackendConnected={isBackendConnected}
-          viewMode={viewMode}
-          onToggleViewMode={() => setViewMode((m) => (m === '2d' ? '3d' : '2d'))}
-          onBackToStart={handleBackToStart}
-        />
-
-        {/* Backend Error Banner if in Live API mode and offline */}
-        {dataSource === 'live' && !isBackendConnected && backendError && (
-          <BackendErrorBanner
-            errorMessage={backendError}
-            onRetry={checkLiveBackend}
-            onSwitchToSample={() => handleSelectDataSource('sample')}
-          />
-        )}
-
-        {dataSource === 'live' && !isBackendConnected && !backendError && (
-          <p role="status" className="p-3 text-sm">Loading backend graph…</p>
-        )}
-
-        {/* Mobile Tab Switcher (< 768px) */}
-        <div className="flex px-4 py-2 md:hidden select-none bg-white border-b border-slate-200">
-          <div className="flex w-full rounded-xl bg-slate-100 p-1 text-xs font-mono">
-            <button
-              type="button"
-              onClick={() => setMobileView('results')}
-              className={`flex-1 rounded-lg py-1.5 transition ${
-                mobileView === 'results'
-                  ? 'bg-white text-slate-900 font-bold shadow-2xs'
-                  : 'text-slate-600'
-              }`}
-            >
-              Results {selectedNode ? `(${selectedNode.name})` : ''}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileView('map')}
-              className={`flex-1 rounded-lg py-1.5 transition ${
-                mobileView === 'map'
-                  ? 'bg-white text-slate-900 font-bold shadow-2xs'
-                  : 'text-slate-600'
-              }`}
-            >
-              Map Canvas
-            </button>
-          </div>
-        </div>
-
-        {/* Workspace Grid */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Center Canvas: Findings & AST Topology */}
-          <main className="flex-1 p-6 md:p-8 overflow-y-auto space-y-6">
-            {dataSource === 'live' && liveGraphData && isBackendConnected && (
-              <AgentPanel selectedNode={selectedNode} onBlast={handleBlast} onDomains={handleDomains} />
-            )}
-            {selectedNode && nodesById.get(selectedNode.id)?.domain_tag && (
-              <p className="text-sm text-emerald-800">Inferred domain: {nodesById.get(selectedNode.id)?.domain_tag}</p>
-            )}
-            {impactLoading && <p role="status">Computing impact on the server…</p>}
-            {impactError && <div className="text-red-700">
-              <p role="alert">{impactError}</p>
-              <button className="mt-2 rounded border px-3 py-1 text-sm" onClick={() => setImpactRetry(value => value + 1)}>Retry impact</button>
-            </div>}
-            {(dataSource !== 'live' || impactAnalysis) && <InvestigateResults
-              selectedNode={selectedNode}
-              nodesById={nodesById}
-              impactAnalysis={impactAnalysis}
-              onSelectNode={handleSelectNode}
-              onOpenEvidence={handleOpenEvidence}
-              selectedPathNodeIds={selectedPathNodeIds}
-              onSelectPath={setSelectedPathNodeIds}
-              activeTab={activeTab}
-              edges={activeGraphData.edges}
-              evidenceMap={dataSource === 'sample' ? SAMPLE_EVIDENCE_MAP : {}}
-            />}
-
-            {/* Interactive Topological Canvas (Integrated directly below relationship flow) */}
-            <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 shadow-soft">
-              <div className="px-6 py-3.5 bg-white border-b border-slate-200/80 flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    AST Graph Topology ({viewMode.toUpperCase()})
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Interactive canvas. Drag to pan, scroll to zoom, click any node to trace callers.
-                  </p>
+      {/* Main Workspace: 2. Large Interactive Dependency Graph + 3. One Contextual Detail Panel */}
+      <main className="relative flex flex-1 overflow-hidden">
+        {/* 2. Large Interactive Dependency Graph */}
+        <div
+          className={`relative h-full flex-1 overflow-hidden ${
+            mobileView === 'details' ? 'hidden md:block' : 'block'
+          }`}
+        >
+          {isLiveOffline ? (
+            <div className="flex h-full w-full flex-col items-center justify-center bg-[#F7F5F0] p-6 text-center">
+              <div className="max-w-md rounded-2xl border border-[#E4E2DA] bg-white p-6 shadow-soft">
+                <h2 className="font-sans text-base font-semibold text-slate-900">
+                  Live backend unavailable
+                </h2>
+                <p className="mt-1.5 font-sans text-xs leading-relaxed text-slate-600">
+                  No live graph is displayed because the FastAPI server at{' '}
+                  <code className="font-mono text-slate-800">http://localhost:8000</code> could not be reached. Mock graphs are never shown under a Live label.
+                </p>
+                <div className="mt-4 flex items-center justify-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={checkLiveBackend}
+                    className="rounded-lg border border-[#DCD9D0] bg-white px-3 py-1.5 font-sans text-xs font-medium text-slate-800 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Retry connection
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectDataSource('sample')}
+                    className="rounded-lg bg-[#3730A3] px-3.5 py-1.5 font-sans text-xs font-semibold text-white hover:bg-[#312E81] cursor-pointer"
+                  >
+                    Switch to Sample project
+                  </button>
                 </div>
-                <div className="text-[11px] font-mono text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded">
-                  {activeGraphData.nodes.length} indexed classes · {activeGraphData.edges.length} calls
-                </div>
-              </div>
-              <div className="h-[420px] w-full bg-[#FAF9F5]">
-                {viewMode === '2d' ? (
-                  <PlanarGraph2D
-                    nodes={activeGraphData.nodes}
-                    edges={activeGraphData.edges}
-                    selectedNode={selectedNode}
-                    impactAnalysis={impactAnalysis}
-                    selectedPathNodeIds={selectedPathNodeIds}
-                    onSelectNode={handleSelectNode}
-                    onOpenEvidence={handleOpenEvidence}
-                    evidenceMap={dataSource === 'sample' ? SAMPLE_EVIDENCE_MAP : {}}
-                  />
-                ) : (
-                  <CommandGraph3D
-                    nodes={activeGraphData.nodes}
-                    edges={activeGraphData.edges}
-                    clusters={activeGraphData.clusters}
-                    selectedNode={selectedNode}
-                    impactAnalysis={impactAnalysis}
-                    selectedPathNodeIds={selectedPathNodeIds}
-                    onSelectNode={handleSelectNode}
-                  />
-                )}
               </div>
             </div>
-          </main>
+          ) : viewMode === '2d' ? (
+            <PlanarGraph2D
+              nodes={activeGraphData.nodes}
+              edges={activeGraphData.edges}
+              selectedNode={selectedNode}
+              selectedEdge={selectedEdge}
+              impactAnalysis={impactAnalysis}
+              showIndirect={showIndirect}
+              selectedPathNodeIds={selectedPathNodeIds}
+              fitSignal={fitSignal}
+              onSelectNode={handleSelectNode}
+              onSelectEdge={setSelectedEdge}
+              onOpenEvidence={handleOpenEvidence}
+              resolveEvidenceForEdge={resolveEvidenceForEdge}
+            />
+          ) : (
+            <CommandGraph3D
+              nodes={activeGraphData.nodes}
+              edges={activeGraphData.edges}
+              clusters={activeGraphData.clusters}
+              selectedNode={selectedNode}
+              impactAnalysis={impactAnalysis}
+              selectedPathNodeIds={selectedPathNodeIds}
+              onSelectNode={handleSelectNode}
+            />
+          )}
 
-          {/* Right Docked Evidence Drawer */}
+          {/* Mobile Collapsible Bottom Summary Pill when a class is selected on Graph view */}
+          {selectedNode && mobileView === 'graph' && (
+            <div className="glass-card absolute inset-x-3 bottom-16 z-20 flex items-center justify-between gap-3 rounded-xl p-3 md:hidden">
+              <div className="min-w-0">
+                <div className="font-mono text-xs font-bold text-slate-900 truncate">
+                  {selectedNode.name}
+                </div>
+                <div className="font-sans text-[11px] text-slate-600 truncate">
+                  {impactAnalysis && impactAnalysis.directDependents.length > 0
+                    ? `${impactAnalysis.directDependents.length} direct caller${
+                        impactAnalysis.directDependents.length === 1 ? '' : 's'
+                      }${
+                        impactAnalysis.indirectDependents.length > 0
+                          ? ` · ${impactAnalysis.indirectDependents.length} indirect`
+                          : ''
+                      }`
+                    : 'No callers found'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileView('details')}
+                className="shrink-0 rounded-lg bg-[#3730A3] px-3 py-1.5 font-sans text-xs font-semibold text-white cursor-pointer"
+              >
+                Details &amp; code →
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 3. Single Contextual Detail Panel */}
+        {activeEvidence ? (
           <SourceDrawer
             evidence={activeEvidence}
             pathEvidenceList={pathEvidenceList}
@@ -419,8 +513,31 @@ export function App() {
             onSelectEvidenceIndex={handleSelectEvidenceIndex}
             onClose={() => setActiveEvidence(null)}
           />
-        </div>
-      </div>
+        ) : (
+          <div
+            className={`h-full w-full md:w-[360px] lg:w-[420px] shrink-0 border-l border-[#E4E2DA] bg-[#FCFBF8] z-20 ${
+              mobileView === 'graph' ? 'hidden md:block' : 'block'
+            }`}
+          >
+            <DetailPanel
+              nodes={activeGraphData.nodes}
+              edges={activeGraphData.edges}
+              nodesById={nodesById}
+              selectedNode={selectedNode}
+              selectedEdge={selectedEdge}
+              impactAnalysis={impactAnalysis}
+              showIndirect={showIndirect}
+              onToggleIndirect={setShowIndirect}
+              selectedPathNodeIds={selectedPathNodeIds}
+              onSelectPath={setSelectedPathNodeIds}
+              onSelectNode={handleSelectNode}
+              onSelectEdge={setSelectedEdge}
+              onOpenEvidence={handleOpenEvidence}
+              resolveEvidenceForEdge={resolveEvidenceForEdge}
+            />
+          </div>
+        )}
+      </main>
     </div>
   );
 }
