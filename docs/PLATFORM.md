@@ -11,6 +11,19 @@ From the repository root in PowerShell:
 .\scripts\run-api.ps1
 ```
 
+If Windows reports that script execution is disabled, use the policy-safe
+launcher instead:
+
+```powershell
+.\scripts\run-api.cmd
+```
+
+Or run the PowerShell script with a process-only bypass:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-api.ps1
+```
+
 The script generates the demo caches, sets `USE_CACHED_DEMO=true`, and starts Uvicorn
 at `http://127.0.0.1:8000`.
 

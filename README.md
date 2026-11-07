@@ -27,6 +27,12 @@ $env:USE_CACHED_DEMO = "true"
 .\.venv\Scripts\python.exe -m uvicorn backend.api.main:app --host 127.0.0.1 --port 8000
 ```
 
+If Windows blocks `.ps1` files, use the policy-safe launcher:
+
+```powershell
+.\scripts\run-api.cmd
+```
+
 ### Terminal 2 — frontend (all platforms)
 
 ```sh
