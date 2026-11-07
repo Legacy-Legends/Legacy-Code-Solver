@@ -82,3 +82,17 @@ export function terminalUrl(): string {
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   return url.href;
 }
+
+export async function checkBackendHealth(
+  signal?: AbortSignal
+): Promise<{ ok: boolean; message?: string }> {
+  try {
+    const data = await request<unknown>('/api/config', undefined, signal);
+    return { ok: Boolean(data) };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
