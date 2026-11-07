@@ -21,3 +21,6 @@ logs/
 /.opencode-skills/
 
 .venv/
+
+/test-results/
+/playwright-report/

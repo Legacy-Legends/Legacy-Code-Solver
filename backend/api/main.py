@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Annotated, Protocol
+from typing import Annotated, Literal, Protocol
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -13,7 +13,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.agent.api_adapter import AgentAdapter
-from backend.agent.models import BlastResult, Proposal
+from backend.agent.models import BlastResult, Proposal, PetResponse, DomainTag
+from backend.agent import chat_with_pet, infer_domains
+from backend.agent.llm import AgentUnavailable, use_mock_agent
+from backend.api.integration import impact_for_node
 
 ROOT = Path(__file__).resolve().parents[2]
 CACHE_GRAPH = ROOT / "demo-repos" / "cache" / "graph.json"
@@ -39,6 +42,8 @@ class Node(BaseModel):
     complexity: float
     health: float = Field(ge=0, le=100)
     loc: int = Field(ge=0)
+    domain_tag: str = ""
+    domain_inferred: bool = False
     x: float | None = None
     y: float | None = None
     z: float | None = None
@@ -57,6 +62,27 @@ class GraphData(BaseModel):
     clusters: list[ClusterInfo]
     nodes: list[Node]
     edges: list[Edge]
+
+
+class DependentItem(BaseModel):
+    node: Node
+    edge: Edge
+    depth: Literal[1, 2]
+    pathIds: list[str]
+    explanation: str
+
+
+class ImpactResult(BaseModel):
+    targetNode: Node
+    directDependents: list[DependentItem]
+    indirectDependents: list[DependentItem]
+    totalAffected: int
+    timestamp: str
+
+
+class PetRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=2000)
+    recent_action: str = Field(default="Viewed graph", max_length=2000)
 
 
 class BlastRequest(BaseModel):
@@ -168,6 +194,48 @@ def get_graph(project_id: str) -> GraphData:
     if project_id not in PROJECTS:
         raise HTTPException(status_code=404, detail=f"Unknown project: {project_id}")
     return clone_graph(GRAPH_STATE)
+
+
+@app.get("/api/config")
+def integration_config() -> dict:
+    return {"agent_mode": "mock" if use_mock_agent() else "live",
+            "graph_source": "demo_fixture", "can_apply_proposals": False}
+
+
+@app.get("/api/projects/{project_id}/impact", response_model=ImpactResult)
+def impact(project_id: str, class_id: str) -> dict:
+    graph = get_graph(project_id)
+    try:
+        return impact_for_node(graph.model_dump(), class_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/projects/{project_id}/pet", response_model=PetResponse)
+def pet(project_id: str, request: PetRequest) -> PetResponse:
+    graph = get_graph(project_id)
+    try:
+        return chat_with_pet(request.query, round(graph.overallHealth), request.recent_action)
+    except AgentUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/projects/{project_id}/domains", response_model=dict[str, DomainTag])
+def domains(project_id: str) -> dict[str, DomainTag]:
+    graph = get_graph(project_id)
+    try:
+        tags = infer_domains([node.model_dump() for node in graph.nodes])
+        for node in GRAPH_STATE.nodes:
+            if node.id in tags:
+                node.domain_tag = tags[node.id].domain_tag
+                node.domain_inferred = True
+        return tags
+    except AgentUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.post("/api/projects/{project_id}/blast", response_model=BlastResult)

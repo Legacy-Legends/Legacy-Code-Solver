@@ -121,3 +121,9 @@ reverse reachability, cycles, bounds, strict diffs, live-output validation using
 stubbed provider responses, SDK structured-output invocation, and actual FastAPI
 routes through TestClient. Real provider responses require credentials and are
 not claimed as tested by this offline suite.
+
+
+The frontend's FastAPI mode now connects these functions through the agent
+workspace: blast questions, proposal preview/rejection, domain inference and
+pet chat. Server impact uses `/api/projects/{id}/impact`; provider errors remain
+visible. The full end-to-end browser checks are `npm run test:e2e` (see root README).

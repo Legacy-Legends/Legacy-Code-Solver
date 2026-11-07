@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import rawGraphData from './mocks/graph.json';
 import {
   GraphData,
@@ -9,7 +9,8 @@ import {
 } from './types/index';
 import { SAMPLE_GRAPH_DATA, SAMPLE_EVIDENCE_MAP } from './data/sampleProject';
 import { computeImpactAnalysis } from './lib/impactAnalysis';
-import { fetchLiveGraphData, checkBackendHealth } from './api/backendAdapter';
+import { fetchLiveGraphData, fetchLiveImpact, BackendBlastResult, DomainTag } from './api/backendAdapter';
+import { AgentPanel } from './components/AgentPanel';
 import { StartPage } from './components/StartPage';
 import { TopBar } from './components/TopBar';
 import { WorkspaceSidebar, InvestigationTab } from './components/WorkspaceSidebar';
@@ -18,6 +19,8 @@ import { CommandGraph3D } from './components/CommandGraph3D';
 import { InvestigateResults } from './components/InvestigateResults';
 import { SourceDrawer } from './components/SourceDrawer';
 import { BackendErrorBanner } from './components/BackendErrorBanner';
+
+const EMPTY_GRAPH: GraphData = { nodes: [], edges: [], clusters: [], overallHealth: 0 };
 
 type RouteView = 'start' | 'investigate';
 
@@ -35,6 +38,10 @@ export function App() {
   const [liveGraphData, setLiveGraphData] = useState<GraphData | null>(null);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
+  const [impactError, setImpactError] = useState<string | null>(null);
+  const [impactLoading, setImpactLoading] = useState(false);
+  const [impactRetry, setImpactRetry] = useState(0);
+  const graphRequest = useRef<AbortController>();
 
   // Canvas Mode: '2d' (Parchment map) | '3d' (Orbit)
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
@@ -57,9 +64,7 @@ export function App() {
     if (dataSource === 'sample') {
       return JSON.parse(JSON.stringify(SAMPLE_GRAPH_DATA)) as GraphData;
     }
-    if (dataSource === 'live' && liveGraphData) {
-      return liveGraphData;
-    }
+    if (dataSource === 'live') return liveGraphData || EMPTY_GRAPH;
     return JSON.parse(JSON.stringify(rawGraphData)) as GraphData;
   }, [dataSource, liveGraphData]);
 
@@ -82,13 +87,13 @@ export function App() {
           const target = activeGraphData.nodes.find((n) => n.name === targetClass);
           if (target) {
             setSelectedNode(target);
-            setImpactAnalysis(computeImpactAnalysis(target, activeGraphData, dataSource === 'sample'));
+            if (dataSource !== 'live') setImpactAnalysis(computeImpactAnalysis(target, activeGraphData, dataSource === 'sample'));
           }
         } else if (!selectedNode && activeGraphData.nodes.length > 0) {
           const defaultTarget =
             activeGraphData.nodes.find((n) => n.name === 'SessionManager') || activeGraphData.nodes[0];
           setSelectedNode(defaultTarget);
-          setImpactAnalysis(computeImpactAnalysis(defaultTarget, activeGraphData, dataSource === 'sample'));
+          if (dataSource !== 'live') setImpactAnalysis(computeImpactAnalysis(defaultTarget, activeGraphData, dataSource === 'sample'));
         }
       } else {
         setRoute('start');
@@ -99,31 +104,49 @@ export function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [activeGraphData, dataSource, selectedNode]);
 
-  // Check live backend health
   const checkLiveBackend = useCallback(async () => {
+    graphRequest.current?.abort();
+    const controller = new AbortController();
+    graphRequest.current = controller;
     setBackendError(null);
-    const health = await checkBackendHealth();
-    setIsBackendConnected(health.ok);
-    if (health.ok) {
-      try {
-        const live = await fetchLiveGraphData();
-        setLiveGraphData(live);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setBackendError(msg);
-        setIsBackendConnected(false);
+    setIsBackendConnected(false);
+    setLiveGraphData(null);
+    setSelectedNode(null);
+    setImpactAnalysis(null);
+    try {
+      const graph = await fetchLiveGraphData('demo', controller.signal);
+      if (!controller.signal.aborted) {
+        setLiveGraphData(graph);
+        setIsBackendConnected(true);
       }
-    } else {
-      setBackendError(health.message || 'FastAPI backend connection refused');
-      setIsBackendConnected(false);
+    } catch (error) {
+      if (!controller.signal.aborted) setBackendError(error instanceof Error ? error.message : String(error));
     }
   }, []);
 
   useEffect(() => {
-    if (dataSource === 'live') {
-      checkLiveBackend();
-    }
+    if (dataSource === 'live') void checkLiveBackend();
+    return () => graphRequest.current?.abort();
   }, [dataSource, checkLiveBackend]);
+
+  useEffect(() => {
+    setImpactError(null);
+    if (dataSource !== 'live' || !selectedNode || !liveGraphData) {
+      setImpactLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setImpactAnalysis(null);
+    setImpactLoading(true);
+    fetchLiveImpact(selectedNode.id, 'demo', controller.signal).then(result => {
+      if (!controller.signal.aborted) setImpactAnalysis(result);
+    }).catch(error => {
+      if (!controller.signal.aborted) setImpactError(error instanceof Error ? error.message : String(error));
+    }).finally(() => {
+      if (!controller.signal.aborted) setImpactLoading(false);
+    });
+    return () => controller.abort();
+  }, [dataSource, selectedNode?.id, liveGraphData, impactRetry]);
 
   // Navigate to Investigate directly with a class
   const handleInvestigateClass = useCallback(
@@ -131,8 +154,8 @@ export function App() {
       const node = activeGraphData.nodes.find((n) => n.name === className) || activeGraphData.nodes[0];
       if (node) {
         setSelectedNode(node);
-        const analysis = computeImpactAnalysis(node, activeGraphData, dataSource === 'sample');
-        setImpactAnalysis(analysis);
+        const analysis = dataSource === 'live' ? null : computeImpactAnalysis(node, activeGraphData, dataSource === 'sample');
+        if (dataSource !== 'live') setImpactAnalysis(analysis);
         setSelectedPathNodeIds(null);
         setActiveEvidence(null);
         setRoute('investigate');
@@ -159,6 +182,9 @@ export function App() {
 
   // Switch dataset
   const handleSelectDataSource = (mode: DataSourceMode) => {
+    if (mode === dataSource) return;
+    graphRequest.current?.abort();
+    setLiveGraphData(null);
     setDataSource(mode);
     handleReset();
   };
@@ -175,8 +201,8 @@ export function App() {
       }
 
       // Compute impact immediately so user does not need to click "Trace"
-      const analysis = computeImpactAnalysis(node, activeGraphData, dataSource === 'sample');
-      setImpactAnalysis(analysis);
+      const analysis = dataSource === 'live' ? null : computeImpactAnalysis(node, activeGraphData, dataSource === 'sample');
+      if (dataSource !== 'live') setImpactAnalysis(analysis);
       setMobileView('results');
 
       // Update URL silently
@@ -184,6 +210,18 @@ export function App() {
     },
     [activeGraphData, dataSource]
   );
+
+  const handleBlast = (result: BackendBlastResult) => {
+    const first = activeGraphData.nodes.find(node => node.id === result.matched_node_ids[0]);
+    if (first) handleSelectNode(first);
+    setSelectedPathNodeIds(result.blast_node_ids);
+  };
+
+  const handleDomains = (tags: Record<string, DomainTag>) => {
+    setLiveGraphData(graph => graph ? {
+      ...graph, nodes: graph.nodes.map(node => ({ ...node, ...tags[node.id] })),
+    } : graph);
+  };
 
   // Open Source Evidence Drawer
   const handleOpenEvidence = useCallback(
@@ -215,7 +253,7 @@ export function App() {
       const defaultTarget =
         activeGraphData.nodes.find((n) => n.name === 'SessionManager') || activeGraphData.nodes[0];
       setSelectedNode(defaultTarget);
-      setImpactAnalysis(computeImpactAnalysis(defaultTarget, activeGraphData, dataSource === 'sample'));
+      if (dataSource !== 'live') setImpactAnalysis(computeImpactAnalysis(defaultTarget, activeGraphData, dataSource === 'sample'));
     }
   }, [route, selectedNode, activeGraphData, dataSource]);
 
@@ -242,7 +280,7 @@ export function App() {
           nodes={activeGraphData.nodes}
           onSelectNode={handleSelectNode}
           impactAnalysis={impactAnalysis}
-          workspaceName="order-service"
+          workspaceName={dataSource === 'live' ? 'Backend demo' : 'Local sample'}
         />
       </div>
 
@@ -263,12 +301,16 @@ export function App() {
         />
 
         {/* Backend Error Banner if in Live API mode and offline */}
-        {dataSource === 'live' && !isBackendConnected && (
+        {dataSource === 'live' && !isBackendConnected && backendError && (
           <BackendErrorBanner
             errorMessage={backendError}
             onRetry={checkLiveBackend}
             onSwitchToSample={() => handleSelectDataSource('sample')}
           />
+        )}
+
+        {dataSource === 'live' && !isBackendConnected && !backendError && (
+          <p role="status" className="p-3 text-sm">Loading backend graph…</p>
         )}
 
         {/* Mobile Tab Switcher (< 768px) */}
@@ -303,7 +345,18 @@ export function App() {
         <div className="flex-1 flex overflow-hidden">
           {/* Center Canvas: Findings & AST Topology */}
           <main className="flex-1 p-6 md:p-8 overflow-y-auto space-y-6">
-            <InvestigateResults
+            {dataSource === 'live' && liveGraphData && isBackendConnected && (
+              <AgentPanel selectedNode={selectedNode} onBlast={handleBlast} onDomains={handleDomains} />
+            )}
+            {selectedNode && nodesById.get(selectedNode.id)?.domain_tag && (
+              <p className="text-sm text-emerald-800">Inferred domain: {nodesById.get(selectedNode.id)?.domain_tag}</p>
+            )}
+            {impactLoading && <p role="status">Computing impact on the server…</p>}
+            {impactError && <div className="text-red-700">
+              <p role="alert">{impactError}</p>
+              <button className="mt-2 rounded border px-3 py-1 text-sm" onClick={() => setImpactRetry(value => value + 1)}>Retry impact</button>
+            </div>}
+            {(dataSource !== 'live' || impactAnalysis) && <InvestigateResults
               selectedNode={selectedNode}
               nodesById={nodesById}
               impactAnalysis={impactAnalysis}
@@ -312,7 +365,9 @@ export function App() {
               selectedPathNodeIds={selectedPathNodeIds}
               onSelectPath={setSelectedPathNodeIds}
               activeTab={activeTab}
-            />
+              edges={activeGraphData.edges}
+              evidenceMap={dataSource === 'sample' ? SAMPLE_EVIDENCE_MAP : {}}
+            />}
 
             {/* Interactive Topological Canvas (Integrated directly below relationship flow) */}
             <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 shadow-soft">
@@ -339,7 +394,7 @@ export function App() {
                     selectedPathNodeIds={selectedPathNodeIds}
                     onSelectNode={handleSelectNode}
                     onOpenEvidence={handleOpenEvidence}
-                    evidenceMap={SAMPLE_EVIDENCE_MAP}
+                    evidenceMap={dataSource === 'sample' ? SAMPLE_EVIDENCE_MAP : {}}
                   />
                 ) : (
                   <CommandGraph3D

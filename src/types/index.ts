@@ -23,6 +23,8 @@ export interface GraphNode {
   /** Code health score from 0 to 100 (teal-green healthy, dim amber sick, never red) */
   health: number;
   loc: number;
+  domain_tag?: string;
+  domain_inferred?: boolean;
   x?: number;
   y?: number;
   z?: number;

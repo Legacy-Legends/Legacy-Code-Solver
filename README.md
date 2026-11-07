@@ -64,19 +64,26 @@ successfully. Stop either server with Ctrl+C. No cache-generation step is needed
    to explore the same dependency data. Where available, **View code** opens
    the fixture's source evidence. The demo evidence is checked-in sample data,
    not proof that an uploaded repository was parsed.
-3. **Stay in 2D for this demo.** The current 3D toggle can throw
-   `object.intersectsFrustum is not a function`. The installed graph renderer
-   uses Three.js 0.187.0 alongside the app’s 0.170.0; these versions need to be
-   aligned and the 3D flow retested. Reload the page if you encounter the error.
+3. Use the **2D / 3D** toggle to explore either view. The app and graph renderer
+   now share Three.js 0.187.0; the previous `intersectsFrustum` crash is fixed.
 4. Click **Enterprise (40)** to explore the larger local fixture without a
    backend. Select a class from the sidebar or search box.
 5. Click **FastAPI** to fetch the 40-node graph from your running server. A green
    indicator shows the connection. Select **BillingOrchestrator** to investigate
-   its callers. This verifies browser → API → cached graph integration.
-6. Open `/docs` for the agent demo below. The investigation UI currently computes
-   impact locally from the loaded graph; it does not call the agent blast route.
+   its callers. FastAPI mode requests dependency paths from the backend; Sample
+   and Enterprise modes compute locally. Backend errors are shown explicitly.
+6. In **Agent workspace**, enter “What breaks if BillingOrchestrator goes down?”
+   and click **Ask impact**. The backend result shows counts and highlights the
+   affected graph. The mock/live badge tells you which agent mode is active.
+7. Click **Preview refactor** to inspect before/after code for the selected target,
+   then **Reject proposal** to update its server-side status. Mock code is an
+   illustrative fixture; Apply stays disabled until real validation is built.
+8. Click **Infer domains** to label the graph (always marked inferred), then
+   **Chat with pet** for a response based on server-side graph health. Expand
+   **Connection and action log** to see WebSocket startup messages and completed
+   UI actions. This log is not a stream of analysis-job progress.
 
-**FastAPI is a data-source mode, not a live-LLM switch.** The commands above use
+**FastAPI mode uses the backend for graph, impact and agent actions.** The commands above use
 `USE_MOCK_AGENT=true` for offline agent behavior and `USE_CACHED_DEMO=true` for
 the checked-in graph. No API key is required. The first two sample modes can
 also run with only the frontend server.
@@ -99,8 +106,9 @@ into `/api/proposals/{proposal_id}/reject` to complete the preview/reject flow.
 Proposals contain typed `{path,before,after}` previews. A1 does **not** apply code
 or validate a refactor; `/apply` returns 409. `/reject` works. Health remains
 unchanged until a real patch-validation and recomputation pipeline is connected.
-Pet chat and domain inference are available as Python functions in
-`backend.agent`; they are not yet exposed as UI features or HTTP routes.
+Pet chat and domain inference are wired through the agent workspace and
+`POST /api/projects/demo/pet` and `/api/projects/demo/domains`. The pet mood
+is computed from backend health; inferred domain tags persist in memory until restart.
 
 ## Analyze your own Java checkout
 
@@ -118,38 +126,69 @@ churn and vulnerability scanning remain future work.
 
 ## What is still missing for the full product?
 
-The **2D fixture-based demo is working**. The 3D view has a known runtime error. The complete upload → analyze → AI refactor
+The **connected 2D/3D fixture-based demo is working**. The complete upload → analyze → AI refactor
 → apply → re-score workflow is **not implemented yet**:
 
 | Capability | Current state / missing work |
 | --- | --- |
-| 3D view | Browser check failed with `object.intersectsFrustum is not a function`; dependency alignment and retesting are needed. Use 2D. |
 | Upload or clone a Java project | Project creation stores metadata only. No ZIP/Git ingestion, authorized checkout, or per-project analysis pipeline. |
 | Real graphs in the UI | Java analysis works via CLI. API graph routes still return the same demo graph for registered projects; CLI exports are not automatically loaded. |
 | Complete Java dependencies | Parser handles imports, inheritance and class-qualified calls. Instance dispatch and full symbol resolution remain incomplete. |
-| AI interaction in the UI | Agent blast/proposal routes work in mock mode via `/docs`. No conversational agent or proposal review UI is connected. |
+| Agent UI | Blast questions, preview/reject, pet chat and inferred tags are connected. Real-provider behavior and source-aware refactors still need validation. |
 | Apply and validate proposals | `/apply` deliberately returns 409. Need source loading, patch application, Java validation, re-analysis and measured health deltas. Mock diffs are illustrative fixtures. |
 | Live LLM | SDK path exists, but needs `OPENAI_API_KEY` and outbound provider access. Live proposals also need a project-aware source loader. No real-provider call was verified in this environment. |
-| Code-health pet and domain tags | Python functions exist; HTTP/UI wiring and pet visuals are absent. |
+| Pet evolution | Mood and chat are connected. Evolving visuals and improvement after a validated code change remain unfinished. |
 | Measured risk signals | Churn and vulnerability scanning are not implemented. Demo scores/signals are synthetic. |
 | Persistence and terminal progress | Projects/proposals are in-memory and reset on restart. WebSocket currently sends startup text, not analysis/agent job progress. |
+
+Recommended order to finish the hackathon plan:
+
+1. Pick one 30–80-class Java demo, add safe ZIP/Git ingestion and per-project
+   storage, then serve its real analysis and source evidence to the UI.
+2. Connect source loading to the agent and implement one narrow refactor with
+   exact-file checks, Java parse/compile validation, rollback, and re-analysis.
+3. Feed the measured health change into the pet; verify live LLM output with
+   credentials while keeping the offline demo reproducible.
+4. Complete or explicitly defer instance-call resolution, measured churn,
+   vulnerability checks, durable storage and real job progress.
+5. Rehearse the full flow, capture a backup demo/video and finish the submission
+   materials. The remaining items are implementation work, not configuration.
 
 ## Checks
 
 ```sh
 # Windows: use .\.venv\Scripts\python.exe instead
 .venv/bin/python -m pip install -r backend/agent/requirements-dev.txt
-.venv/bin/python -m pytest backend/agent/tests backend/analysis/tests -q
+.venv/bin/python -m pytest backend/agent/tests backend/analysis/tests backend/api/tests -q
 npm run build
 node scripts/test-impact.cjs
 ```
 
-Latest validation: 37 Python tests, the frontend impact regression check, and the
-production build passed. Chromium exercised sample investigation, all three
-sidebar views and FastAPI graph loading in 2D without JavaScript exceptions.
-The separate 3D check failed with the runtime error documented above. HTTP checks covered health, graphs, blast, proposal preview and
-rejection. The build reports a large-bundle warning. Windows commands are
-provided but were not executed on this Linux validation machine.
+Browser integration tests (they start isolated servers on ports 5174 and 8012):
+
+```sh
+npx playwright install chromium
+# macOS/Linux; use your virtualenv Python path
+TEST_PYTHON="$PWD/.venv/bin/python" npm run test:e2e
+```
+
+```powershell
+# Windows PowerShell
+npx playwright install chromium
+$env:TEST_PYTHON = (Resolve-Path .\.venv\Scripts\python.exe).Path
+npm run test:e2e
+```
+
+For an existing Chromium installation, optionally set
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its executable. Linux machines may need
+Playwright's browser system dependencies (`npx playwright install --with-deps chromium`).
+
+Validation covers 42 Python tests, five browser integration tests, the frontend impact
+regression check and the production build. Browser tests exercise real HTTP and
+WebSocket connections, server impact, blast, preview/reject, domains, pet chat,
+3D rendering, failure states and dataset switching. The build still reports a
+large-bundle warning. Windows commands are provided but were not executed on
+this Linux validation machine.
 
 For live LLM mode, set `USE_MOCK_AGENT=false` and supply `OPENAI_API_KEY` securely
 in the backend process. Default model: `gpt-4o-mini`. Live proposal generation
@@ -160,9 +199,12 @@ belongs in frontend variables or committed files.
 
 - **Backend offline:** open `/api/projects` on port 8000 and check the backend
   terminal. Ensure the UI's data source is FastAPI.
-- **Different backend address:** set `VITE_API_URL=http://127.0.0.1:8000` in
-  `.env.local` and restart Vite. On another machine, use a backend address that
-  your browser can reach; `localhost` always means the browser's own machine.
+- **Backend address:** by default Vite proxies `/backend` HTTP and WebSocket
+  requests to `127.0.0.1:8000`, so the browser uses the frontend's origin. For a
+  different server target, set `API_PROXY_TARGET` in the Vite process environment.
+  For a separately hosted production API, set `VITE_API_URL` to its public origin
+  before building, or configure your production host to reverse-proxy `/backend`.
+  A static file host alone does not start the Python server.
 - **Missing Python packages:** install requirements with the same virtualenv's
   Python used to launch Uvicorn.
 - **Port in use:** stop your old server, or choose another port and update

@@ -24,7 +24,7 @@ export const BackendErrorBanner: React.FC<BackendErrorBannerProps> = ({
               {errorMessage || 'Connection refused at http://localhost:8000'}
             </span>
             <span className="text-slate-400 hidden md:inline">
-              . Start backend with <code className="text-slate-200">uvicorn main:app --port 8000</code>.
+              . Start backend with <code className="text-slate-200">python -m uvicorn backend.api.main:app --port 8000</code>.
             </span>
           </div>
         </div>

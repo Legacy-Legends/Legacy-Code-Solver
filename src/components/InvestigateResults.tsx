@@ -8,10 +8,11 @@ import {
 } from 'lucide-react';
 import {
   GraphNode,
+  GraphEdge,
   ImpactAnalysis,
   SourceEvidence,
 } from '../types/index';
-import { SAMPLE_EVIDENCE_MAP } from '../data/sampleProject';
+import { resolveNodeId } from '../lib/impactAnalysis';
 import { InvestigationTab } from './WorkspaceSidebar';
 
 interface InvestigateResultsProps {
@@ -23,6 +24,8 @@ interface InvestigateResultsProps {
   selectedPathNodeIds?: string[] | null;
   onSelectPath?: (pathIds: string[] | null) => void;
   activeTab?: InvestigationTab;
+  edges: GraphEdge[];
+  evidenceMap: Record<string, SourceEvidence>;
 }
 
 export const InvestigateResults: React.FC<InvestigateResultsProps> = ({
@@ -32,6 +35,8 @@ export const InvestigateResults: React.FC<InvestigateResultsProps> = ({
   onSelectNode,
   onOpenEvidence,
   activeTab = 'graph',
+  edges,
+  evidenceMap,
 }) => {
   if (!selectedNode) {
     return (
@@ -52,15 +57,17 @@ export const InvestigateResults: React.FC<InvestigateResultsProps> = ({
 
   // Find evidence for direct callers
   const getCallerEvidence = (callerId: string): SourceEvidence | undefined => {
-    return Object.values(SAMPLE_EVIDENCE_MAP).find(
+    return Object.values(evidenceMap).find(
       (ev) => ev.callerId === callerId && ev.calleeId === selectedNode.id
     );
   };
 
   // Find downstream callees that this class calls
-  const downstreamEdges = Object.values(SAMPLE_EVIDENCE_MAP).filter(
-    (ev) => ev.callerId === selectedNode.id
-  );
+  const downstreamEdges = edges.filter(edge => resolveNodeId(edge.source) === selectedNode.id).map(edge => ({
+    edgeId: edge.id, calleeId: resolveNodeId(edge.target),
+    calleeName: nodesById.get(resolveNodeId(edge.target))?.name || resolveNodeId(edge.target),
+    lineNumber: edge.callSiteLine, type: edge.type,
+  }));
 
   return (
     <div className="space-y-6">
@@ -70,10 +77,10 @@ export const InvestigateResults: React.FC<InvestigateResultsProps> = ({
           <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
           <span className="tracking-wide">
             {totalCount === 0
-              ? 'ZERO INBOUND DEPENDENCIES · ISOLATED MODULE'
+              ? 'NO INBOUND DEPENDENCIES IN THIS GRAPH'
               : directCount === 1
-              ? 'SINGLE DIRECT INGRESS POINT · BYTECODE VERIFIED'
-              : `${directCount} DIRECT INGRESS POINTS · BYTECODE VERIFIED`}
+              ? 'SINGLE DIRECT DEPENDENCY · STATIC GRAPH'
+              : `${directCount} DIRECT DEPENDENCIES · STATIC GRAPH`}
           </span>
         </div>
 
@@ -112,11 +119,9 @@ export const InvestigateResults: React.FC<InvestigateResultsProps> = ({
                       {dep.node.name}.java
                     </span>
                     <p className="text-sm text-slate-700 mt-2 leading-relaxed">
-                      <strong>{dep.node.name}</strong> invokes{' '}
-                      <code className="font-mono text-slate-900 font-bold bg-slate-200/50 px-1 py-0.5 rounded">
-                        {dep.edge.callSiteCode ? dep.edge.callSiteCode.split('(')[0].split('.').pop() + '(…)' : 'validateSession(…)'}
-                      </code>{' '}
-                      on line {dep.callSiteLine || 37} before executing operations.
+                      <strong>{dep.node.name}</strong> depends on {selectedNode.name} via {dep.edge.type}.
+                      {dep.callSiteLine != null && ` Source line ${dep.callSiteLine}.`}
+
                     </p>
                   </div>
 
@@ -136,9 +141,8 @@ export const InvestigateResults: React.FC<InvestigateResultsProps> = ({
           </div>
         ) : (
           <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-600">
-            You can modify, refactor, or delete{' '}
-            <code className="font-mono font-semibold text-slate-800">{selectedNode.name}</code> without
-            breaking callers in the <code className="font-mono">order-service</code> project.
+            No inbound dependencies were found in the supplied graph. This does not establish
+            that a change is safe; dynamic calls and dependencies outside the graph may still exist.
           </div>
         )}
       </div>
@@ -151,11 +155,11 @@ export const InvestigateResults: React.FC<InvestigateResultsProps> = ({
               Interactive Relationship Map
             </h3>
             <p className="text-xs text-slate-500">
-              Live directional AST topology. Arrows indicate caller to callee dependencies.
+              Static dependency topology. Arrows indicate caller to callee dependencies.
             </p>
           </div>
           <div className="text-xs font-mono bg-slate-100 border border-slate-200 px-3 py-1 rounded text-slate-800 font-semibold shrink-0">
-            A → B means A calls B
+            A → B means A depends on B
           </div>
         </div>
 
@@ -188,7 +192,7 @@ export const InvestigateResults: React.FC<InvestigateResultsProps> = ({
                   {/* Flow Arrow */}
                   <div className="flex flex-col items-center">
                     <span className="text-[10px] font-mono font-semibold text-slate-400 mb-1">
-                      invokes (L{dep.callSiteLine || 37})
+                      {dep.callSiteLine != null ? `line ${dep.callSiteLine}` : dep.edge.type}
                     </span>
                     <div className="w-12 h-0.5 bg-slate-900 relative">
                       <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-t-4 border-t-transparent border-b-4 border-b-transparent border-l-4 border-l-slate-900"></div>
@@ -226,7 +230,7 @@ export const InvestigateResults: React.FC<InvestigateResultsProps> = ({
                   {/* Flow Arrow */}
                   <div className="flex flex-col items-center">
                     <span className="text-[10px] font-mono font-semibold text-slate-400 mb-1">
-                      calls (L{edge.lineNumber})
+                      {edge.lineNumber != null ? `line ${edge.lineNumber}` : edge.type}
                     </span>
                     <div className="w-12 h-0.5 bg-slate-400 relative">
                       <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-t-4 border-t-transparent border-b-4 border-b-transparent border-l-4 border-l-slate-400"></div>
@@ -276,7 +280,7 @@ export const InvestigateResults: React.FC<InvestigateResultsProps> = ({
                 <div key={dep.node.id} className="flex items-center space-x-2 py-1 text-slate-800">
                   <CornerDownRight className="w-3.5 h-3.5 text-emerald-600" />
                   <span className="font-bold">{dep.node.name}.java</span>
-                  <span className="text-slate-500 text-[11px]">→ line {dep.callSiteLine || 37}</span>
+                  <span className="text-slate-500 text-[11px]">{dep.callSiteLine != null ? `→ line ${dep.callSiteLine}` : dep.edge.type}</span>
                 </div>
               ))}
             </div>
@@ -296,7 +300,7 @@ export const InvestigateResults: React.FC<InvestigateResultsProps> = ({
                 <div key={edge.edgeId} className="flex items-center space-x-2 py-1 text-slate-800">
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                   <span className="font-bold">{edge.calleeName}.java</span>
-                  <span className="text-slate-500 text-[11px]">via line {edge.lineNumber}</span>
+                  <span className="text-slate-500 text-[11px]">{edge.lineNumber != null ? `via line ${edge.lineNumber}` : edge.type}</span>
                 </div>
               ))}
             </div>
@@ -312,14 +316,14 @@ export const InvestigateResults: React.FC<InvestigateResultsProps> = ({
               <span className="text-xs font-bold text-slate-500 uppercase">Tier 1: Direct Blast</span>
               <p className="text-2xl font-bold text-slate-900 mt-1">{directCount} class{directCount === 1 ? '' : 'es'}</p>
               <p className="text-xs text-slate-500 mt-1">
-                Will fail compilation or runtime calls immediately if method signatures change.
+                Direct dependencies to inspect before changing this component.
               </p>
             </div>
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
               <span className="text-xs font-bold text-slate-500 uppercase">Tier 2: Transitive Reach</span>
               <p className="text-2xl font-bold text-slate-700 mt-1">{indirectCount} class{indirectCount === 1 ? '' : 'es'}</p>
               <p className="text-xs text-slate-500 mt-1">
-                Call paths that transitively rely on session state integrity downstream.
+                Components connected by two or more dependency hops.
               </p>
             </div>
           </div>

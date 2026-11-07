@@ -35,7 +35,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 }) => {
   return (
     <header className="h-14 border-b border-slate-200/80 bg-white/80 backdrop-blur-md px-6 flex items-center justify-between select-none z-30 shrink-0">
-      {/* Left: AST Graph Resolved status & Target Package Path */}
+      {/* Left: {dataSource === 'live' ? (isBackendConnected ? 'Backend graph' : 'Backend disconnected') : 'Sample graph'} status & Target Package Path */}
       <div className="flex items-center space-x-4 min-w-0">
         <button
           type="button"
@@ -51,7 +51,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         <div className="flex items-center space-x-2 shrink-0">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-            AST Graph Resolved
+            {dataSource === 'live' ? (isBackendConnected ? 'Backend graph' : 'Backend disconnected') : 'Sample graph'}
           </span>
         </div>
 

@@ -60,3 +60,23 @@ responses are no longer read. Proposal diffs are now objects with `path`,
 `before`, and `after` fields. Live proposals require a project-aware source loader.
 See [the agent handoff](../backend/agent/README.md) for graph-summary limits,
 provider configuration, typed contracts, and the A1 preview boundary.
+
+
+## Connected frontend actions
+
+FastAPI mode now calls these endpoints through Vite's `/backend` HTTP/WebSocket
+proxy (default target `http://127.0.0.1:8000`):
+
+- `GET /api/config`: agent mode, graph source, and apply capability.
+- `GET /api/projects/{id}/impact?class_id=...`: reverse BFS, actual edge objects,
+  direct/indirect dependencies and full shortest paths. No LLM needed.
+- Existing blast and proposal/reject routes: used by the agent workspace.
+- `POST /api/projects/{id}/pet`: `{query, recent_action?}`; health comes from the
+  server graph, never from the browser.
+- `POST /api/projects/{id}/domains`: ID-to-inferred-tag map, retained in the demo
+  graph in memory. The next blast can report those inferred domains.
+- `/ws/terminal`: connection/startup messages shown in the UI action log.
+
+Sample/Enterprise modes remain local fixtures. FastAPI mode does not fall back
+to a local graph after an error. Apply remains unavailable, and all registered
+projects still share the demo graph pending real project ingestion/storage.
