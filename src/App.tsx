@@ -11,6 +11,7 @@ import { SAMPLE_GRAPH_DATA, SAMPLE_EVIDENCE_MAP } from './data/sampleProject';
 import { computeImpactAnalysis } from './lib/impactAnalysis';
 import { fetchLiveGraphData, checkBackendHealth } from './api/backendAdapter';
 import { TopBar } from './components/TopBar';
+import { SampleMap } from './components/SampleMap';
 import { InquiryHeroBar } from './components/InquiryHeroBar';
 import { PlanarGraph2D } from './components/PlanarGraph2D';
 import { CommandGraph3D } from './components/CommandGraph3D';
@@ -252,7 +253,7 @@ export function App() {
             mobileTab === 'inspector' ? 'hidden lg:block' : 'block'
           }`}
         >
-          {viewMode === '2d' ? (
+          {viewMode==='2d' && dataSource==='sample' ? <SampleMap nodes={activeGraphData.nodes} selected={selectedNode} analysis={impactAnalysis} onPick={handleSelectNode} onEvidence={handleOpenEvidence}/> : viewMode === '2d' ? (
             <PlanarGraph2D
               nodes={activeGraphData.nodes}
               edges={activeGraphData.edges}
