@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
-import { GraphNode, GraphEdge, ImpactAnalysis } from '../types/index';
+import { GraphNode, GraphEdge, ImpactAnalysis, SourceEvidence } from '../types/index';
 import { getHealthVisuals } from '../lib/healthColor';
 
 interface PlanarGraph2DProps {
@@ -10,7 +10,8 @@ interface PlanarGraph2DProps {
   impactAnalysis: ImpactAnalysis | null;
   selectedPathNodeIds: string[] | null;
   onSelectNode: (node: GraphNode | null) => void;
-  onFitView?: () => void;
+  onOpenEvidence?: (evidence: SourceEvidence) => void;
+  evidenceMap?: Record<string, SourceEvidence>;
 }
 
 function resolveId(endpoint: string | GraphNode): string {
@@ -24,11 +25,31 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   impactAnalysis,
   selectedPathNodeIds,
   onSelectNode,
+  onOpenEvidence,
+  evidenceMap,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 900, height: 600 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  // Measure container size
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (containerRef.current) {
+        const w = containerRef.current.clientWidth || 900;
+        const h = containerRef.current.clientHeight || 600;
+        setDimensions({ width: w, height: h });
+      }
+    };
+    updateSize();
+    const ro = new ResizeObserver(updateSize);
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   // Compute node classification relative to active trace
   const nodeStatusMap = useMemo(() => {
@@ -60,31 +81,36 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     return map;
   }, [selectedNode, impactAnalysis, selectedPathNodeIds, nodes]);
 
-  // Coordinate positioning: compute structured or force layout coordinates for 2D
+  // Framed layout coordinates: Guaranteed centered, readable, non-colliding
   const positionedNodes = useMemo(() => {
-    // If small sample project (4 nodes), place them in clear dependency order
+    const cx = dimensions.width / 2;
+    const cy = dimensions.height / 2;
+
+    // Small sample project (4 nodes: Checkout -> Session -> Auth + Logger)
     if (nodes.length <= 6) {
       const positions: Record<string, { x: number; y: number }> = {
-        'sample-checkout': { x: 120, y: 220 },
-        'sample-session': { x: 380, y: 220 },
-        'sample-auth': { x: 640, y: 220 },
-        'sample-logger': { x: 380, y: 400 },
+        'sample-checkout': { x: cx - 280, y: cy - 40 },
+        'sample-session': { x: cx, y: cy - 40 },
+        'sample-auth': { x: cx + 280, y: cy - 40 },
+        'sample-logger': { x: cx, y: cy + 150 },
       };
 
       return nodes.map((n) => ({
         ...n,
-        posX: positions[n.id]?.x ?? (n.x ? n.x * 2.5 + 400 : 300),
-        posY: positions[n.id]?.y ?? (n.y ? n.y * 2.5 + 250 : 250),
+        posX: positions[n.id]?.x ?? cx + (n.x ?? 0) * 2,
+        posY: positions[n.id]?.y ?? cy + (n.y ?? 0) * 2,
       }));
     }
 
-    // Enterprise layout: normalize x, y coordinates
+    // Enterprise layout (40 nodes) arranged across cluster quadrants
     return nodes.map((n, i) => {
-      const posX = n.x !== undefined ? n.x * 3.2 + 450 : 150 + (i % 6) * 110;
-      const posY = n.y !== undefined ? n.y * 3.2 + 300 : 100 + Math.floor(i / 6) * 80;
+      const angle = (i / nodes.length) * Math.PI * 2;
+      const radius = 220 + (i % 3) * 60;
+      const posX = cx + Math.cos(angle) * radius;
+      const posY = cy + Math.sin(angle) * (radius * 0.7);
       return { ...n, posX, posY };
     });
-  }, [nodes]);
+  }, [nodes, dimensions]);
 
   const positionedNodesById = useMemo(() => {
     const map = new Map<string, (typeof positionedNodes)[0]>();
@@ -93,7 +119,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   }, [positionedNodes]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).tagName === 'svg') {
+    if ((e.target as HTMLElement).tagName === 'svg' || (e.target as HTMLElement).tagName === 'rect') {
       setIsDragging(true);
       setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
@@ -110,19 +136,20 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
 
   const handleMouseUp = () => setIsDragging(false);
 
-  const resetView = () => {
+  const resetView = useCallback(() => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
-  };
+  }, []);
 
   return (
     <div
-      className="relative h-full w-full overflow-hidden bg-[#050811] select-none"
+      ref={containerRef}
+      className="relative h-full w-full overflow-hidden bg-[#070b14] ambient-glow topo-grid select-none"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
-      {/* 2D Topological Canvas SVG */}
+      {/* 2D Topological SVG Canvas */}
       <svg
         className="h-full w-full cursor-grab active:cursor-grabbing"
         onClick={(e) => {
@@ -136,36 +163,42 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
           <marker
             id="arrow-default"
             viewBox="0 0 10 10"
-            refX="22"
+            refX="28"
             refY="5"
             markerWidth="6"
             markerHeight="6"
-            orient="auto-start-reverse"
+            orient="auto"
           >
-            <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#475569" />
+            <path d="M 0 2 L 8 5 L 0 8 z" fill="#475569" />
           </marker>
           <marker
-            id="arrow-trace"
+            id="arrow-trace-cyan"
             viewBox="0 0 10 10"
-            refX="22"
+            refX="28"
             refY="5"
-            markerWidth="7"
-            markerHeight="7"
-            orient="auto-start-reverse"
+            markerWidth="8"
+            markerHeight="8"
+            orient="auto"
           >
-            <path d="M 0 1 L 10 5 L 0 9 z" fill="#00f5d4" />
+            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#00f5d4" />
           </marker>
           <marker
-            id="arrow-indirect"
+            id="arrow-trace-indigo"
             viewBox="0 0 10 10"
-            refX="22"
+            refX="28"
             refY="5"
-            markerWidth="7"
-            markerHeight="7"
-            orient="auto-start-reverse"
+            markerWidth="8"
+            markerHeight="8"
+            orient="auto"
           >
-            <path d="M 0 1 L 10 5 L 0 9 z" fill="#818cf8" />
+            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#818cf8" />
           </marker>
+
+          {/* Gradients */}
+          <linearGradient id="trace-grad-cyan" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#38bdf8" />
+            <stop offset="100%" stopColor="#00f5d4" />
+          </linearGradient>
         </defs>
 
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
@@ -193,32 +226,54 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
               selectedPathNodeIds.includes(tId);
 
             let strokeColor = '#334155';
-            let strokeWidth = 1.2;
+            let strokeWidth = 1.4;
             let marker = 'url(#arrow-default)';
-            let opacity = 0.45;
+            let opacity = 0.4;
+            const isHighlighted = isIsolated || isTracedDirect || isTracedIndirect;
 
             if (isIsolated || isTracedDirect) {
-              strokeColor = '#00f5d4';
-              strokeWidth = 2.4;
-              marker = 'url(#arrow-trace)';
+              strokeColor = 'url(#trace-grad-cyan)';
+              strokeWidth = 3.2;
+              marker = 'url(#arrow-trace-cyan)';
               opacity = 1;
             } else if (isTracedIndirect) {
               strokeColor = '#818cf8';
-              strokeWidth = 2;
-              marker = 'url(#arrow-indirect)';
-              opacity = 0.9;
+              strokeWidth = 2.6;
+              marker = 'url(#arrow-trace-indigo)';
+              opacity = 0.95;
             } else if (selectedNode) {
               opacity = 0.12;
             }
 
-            // Draw clean curved connection
+            // Connection curve
             const dx = tNode.posX - sNode.posX;
             const dy = tNode.posY - sNode.posY;
             const cx = sNode.posX + dx / 2;
-            const cy = sNode.posY + dy / 2 - 20;
+            const cy = sNode.posY + dy / 2 - (dx !== 0 ? 25 : 0);
+
+            // Clickable evidence handler
+            const evidence = evidenceMap ? evidenceMap[edge.id] : undefined;
 
             return (
-              <g key={edge.id} className="pointer-events-none">
+              <g
+                key={edge.id}
+                className={evidence ? 'cursor-pointer' : ''}
+                onClick={(e) => {
+                  if (evidence && onOpenEvidence) {
+                    e.stopPropagation();
+                    onOpenEvidence(evidence);
+                  }
+                }}
+              >
+                {/* Fat invisible hit area for clicking */}
+                <path
+                  d={`M ${sNode.posX} ${sNode.posY} Q ${cx} ${cy} ${tNode.posX} ${tNode.posY}`}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth="20"
+                />
+
+                {/* Visible Trace Path */}
                 <path
                   d={`M ${sNode.posX} ${sNode.posY} Q ${cx} ${cy} ${tNode.posX} ${tNode.posY}`}
                   fill="none"
@@ -226,56 +281,73 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                   strokeWidth={strokeWidth}
                   strokeOpacity={opacity}
                   markerEnd={marker}
-                  strokeDasharray={edge.type === 'implements' ? '4,4' : undefined}
+                  strokeDasharray={isHighlighted ? '8,4' : undefined}
+                  className={isHighlighted ? 'animate-trace-flow' : ''}
                 />
-                {/* Edge Label for traced edges */}
-                {(isTracedDirect || isIsolated) && (
-                  <text
-                    x={cx}
-                    y={cy - 6}
-                    fill="#22d3ee"
-                    fontSize="9"
-                    fontFamily="JetBrains Mono, monospace"
-                    textAnchor="middle"
-                    className="font-semibold"
-                  >
-                    depends on ({edge.type})
-                  </text>
+
+                {/* Labeled Arrow Badge on Traced Edges */}
+                {isHighlighted && (
+                  <g transform={`translate(${cx}, ${cy - 10})`}>
+                    <rect
+                      x="-55"
+                      y="-12"
+                      width="110"
+                      height="22"
+                      rx="11"
+                      fill="rgba(7, 12, 24, 0.92)"
+                      stroke="#00f5d4"
+                      strokeWidth="1"
+                    />
+                    <text
+                      x="0"
+                      y="3"
+                      fill="#00f5d4"
+                      fontSize="9.5"
+                      fontFamily="JetBrains Mono, monospace"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      ──depends on──&gt;
+                    </text>
+                  </g>
                 )}
               </g>
             );
           })}
 
-          {/* Nodes */}
+          {/* Node Cards */}
           {positionedNodes.map((node) => {
             const status = nodeStatusMap.get(node.id) || 'unrelated';
             const isSelected = selectedNode?.id === node.id;
             const visuals = getHealthVisuals(node.health);
 
-            let nodeBorder = '#334155';
-            let nodeBg = '#0b1120';
-            let textColor = '#cbd5e1';
-            let nodeOpacity = 1;
+            const isDirect = status === 'direct';
+            const isIndirect = status === 'indirect';
+            const isIsolated = status === 'isolated';
+
+            let cardBorder = 'rgba(255, 255, 255, 0.1)';
+            let cardBg = 'rgba(15, 23, 42, 0.88)';
+            let titleColor = '#f1f5f9';
+            let opacity = 1.0;
 
             if (isSelected) {
-              nodeBorder = '#00f5d4';
-              nodeBg = '#071d24';
-              textColor = '#00f5d4';
-            } else if (status === 'direct') {
-              nodeBorder = '#38bdf8';
-              nodeBg = '#082333';
-              textColor = '#7dd3fc';
-            } else if (status === 'indirect') {
-              nodeBorder = '#818cf8';
-              nodeBg = '#131633';
-              textColor = '#a5b4fc';
-            } else if (status === 'isolated') {
-              nodeBorder = '#38bdf8';
-              nodeBg = '#0a1e2d';
-              textColor = '#38bdf8';
+              cardBorder = '#00f5d4';
+              cardBg = 'rgba(7, 34, 40, 0.95)';
+              titleColor = '#00f5d4';
+            } else if (isDirect || isIsolated) {
+              cardBorder = '#38bdf8';
+              cardBg = 'rgba(8, 38, 56, 0.95)';
+              titleColor = '#7dd3fc';
+            } else if (isIndirect) {
+              cardBorder = '#818cf8';
+              cardBg = 'rgba(20, 24, 58, 0.95)';
+              titleColor = '#a5b4fc';
             } else if (selectedNode) {
-              nodeOpacity = 0.28;
+              opacity = 0.22;
             }
+
+            const cardW = 210;
+            const cardH = 66;
 
             return (
               <g
@@ -285,110 +357,148 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                   e.stopPropagation();
                   onSelectNode(node);
                 }}
-                className="cursor-pointer transition-all"
-                opacity={nodeOpacity}
+                className="cursor-pointer transition-all duration-200"
+                opacity={opacity}
               >
-                {/* Outer Ring for selection / trace */}
+                {/* Luminous halo for selected node */}
                 {isSelected && (
-                  <circle
-                    r="34"
+                  <rect
+                    x={-cardW / 2 - 6}
+                    y={-cardH / 2 - 6}
+                    width={cardW + 12}
+                    height={cardH + 12}
+                    rx="16"
                     fill="none"
                     stroke="#00f5d4"
                     strokeWidth="1.5"
-                    strokeDasharray="4,4"
-                    className="animate-spin-slow"
+                    strokeDasharray="6,4"
+                    opacity="0.8"
                   />
                 )}
 
-                {/* Node Box */}
+                {/* Card Container */}
                 <rect
-                  x="-80"
-                  y="-22"
-                  width="160"
-                  height="44"
-                  rx="8"
-                  fill={nodeBg}
-                  stroke={nodeBorder}
-                  strokeWidth={isSelected ? 2 : 1.2}
-                  className="filter drop-shadow-md"
+                  x={-cardW / 2}
+                  y={-cardH / 2}
+                  width={cardW}
+                  height={cardH}
+                  rx="12"
+                  fill={cardBg}
+                  stroke={cardBorder}
+                  strokeWidth={isSelected ? 2 : 1}
+                  className="filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.65)]"
                 />
 
-                {/* Health Indicator Pip */}
+                {/* Top Subtle Glass Highlight */}
+                <path
+                  d={`M ${-cardW / 2 + 12} ${-cardH / 2 + 1} L ${cardW / 2 - 12} ${-cardH / 2 + 1}`}
+                  stroke="rgba(255, 255, 255, 0.25)"
+                  strokeWidth="1"
+                />
+
+                {/* Health Dot */}
                 <circle
-                  cx="-64"
-                  cy="0"
+                  cx={-cardW / 2 + 16}
+                  cy={-cardH / 2 + 22}
                   r="5"
                   fill={visuals.coreColor}
+                  className={isSelected ? 'animate-pulse' : ''}
                 />
 
-                {/* Node Class Name */}
+                {/* Class Name */}
                 <text
-                  x="-52"
-                  y="-4"
-                  fill={textColor}
-                  fontSize="11"
-                  fontWeight={isSelected ? 'bold' : '600'}
+                  x={-cardW / 2 + 28}
+                  y={-cardH / 2 + 25}
+                  fill={titleColor}
+                  fontSize="12.5"
+                  fontWeight="bold"
                   fontFamily="JetBrains Mono, monospace"
                 >
-                  {node.name.length > 15 ? `${node.name.slice(0, 14)}…` : node.name}
+                  {node.name.length > 18 ? `${node.name.slice(0, 17)}…` : node.name}
                 </text>
 
-                {/* Node Cluster / Status Subtitle */}
+                {/* Subtitle / Package / Status */}
                 <text
-                  x="-52"
-                  y="12"
-                  fill="#64748b"
-                  fontSize="9"
+                  x={-cardW / 2 + 16}
+                  y={-cardH / 2 + 48}
+                  fill="#94a3b8"
+                  fontSize="10"
                   fontFamily="JetBrains Mono, monospace"
                 >
                   {isSelected
-                    ? 'Target (Selected)'
-                    : status === 'direct'
-                    ? 'Direct Dependent'
-                    : status === 'indirect'
-                    ? 'Indirect Dependent'
-                    : node.clusterName.slice(0, 16)}
+                    ? 'Target Class (Inspected)'
+                    : isDirect
+                    ? 'Direct Dependent (Caller)'
+                    : isIndirect
+                    ? 'Indirect Dependent (Chain)'
+                    : node.clusterName.slice(0, 22)}
                 </text>
+
+                {/* Health Score Chip */}
+                <g transform={`translate(${cardW / 2 - 34}, ${-cardH / 2 + 12})`}>
+                  <rect
+                    x="0"
+                    y="0"
+                    width="26"
+                    height="16"
+                    rx="4"
+                    fill="rgba(0, 0, 0, 0.5)"
+                    stroke="rgba(255, 255, 255, 0.1)"
+                  />
+                  <text
+                    x="13"
+                    y="12"
+                    fill={visuals.coreColor}
+                    fontSize="9"
+                    fontFamily="JetBrains Mono, monospace"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                  >
+                    {node.health}
+                  </text>
+                </g>
               </g>
             );
           })}
         </g>
       </svg>
 
-      {/* Canvas Viewport Controls */}
-      <div className="absolute bottom-4 left-4 flex items-center gap-1.5 rounded-lg border border-slate-800 bg-[#080d1a]/90 p-1 font-mono text-xs shadow-lg backdrop-blur-md">
+      {/* Floating Canvas View Controls */}
+      <div className="absolute bottom-4 left-4 flex items-center gap-1 rounded-xl glass-panel p-1 text-slate-300 shadow-xl backdrop-blur-xl">
         <button
           type="button"
-          onClick={() => setZoom((z) => Math.min(2.2, z + 0.15))}
+          onClick={() => setZoom((z) => Math.min(2.0, z + 0.15))}
           aria-label="Zoom in"
-          className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition"
+          title="Zoom in"
         >
-          <ZoomIn className="h-3.5 w-3.5" />
+          <ZoomIn className="h-4 w-4" />
         </button>
         <button
           type="button"
-          onClick={() => setZoom((z) => Math.max(0.4, z - 0.15))}
+          onClick={() => setZoom((z) => Math.max(0.5, z - 0.15))}
           aria-label="Zoom out"
-          className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition"
+          title="Zoom out"
         >
-          <ZoomOut className="h-3.5 w-3.5" />
+          <ZoomOut className="h-4 w-4" />
         </button>
         <button
           type="button"
           onClick={resetView}
           aria-label="Fit view"
-          className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
-          title="Fit view / Reset zoom"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition"
+          title="Center and fit canvas view"
         >
-          <Maximize2 className="h-3.5 w-3.5" />
+          <Maximize2 className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Quiet Legend Overlay */}
-      <div className="absolute top-4 left-4 hidden sm:flex items-center gap-3 rounded-lg border border-slate-800/80 bg-[#080d1a]/80 px-3 py-1.5 font-mono text-[10px] text-slate-400 backdrop-blur-md">
+      {/* Quiet Canvas Legend */}
+      <div className="absolute bottom-4 right-4 hidden sm:flex items-center gap-3 rounded-xl glass-panel px-3.5 py-1.5 font-mono text-[10.5px] text-slate-400">
         <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#00f5d4]" />
-          Target
+          <span className="h-2 w-2 rounded-full bg-[#00f5d4] shadow-[0_0_8px_#00f5d4]" />
+          Target Class
         </span>
         <span className="text-slate-700">|</span>
         <span className="flex items-center gap-1.5">

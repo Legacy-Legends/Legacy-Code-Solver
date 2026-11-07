@@ -9,35 +9,75 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #050811;
+  background-color: #070b14;
   color: #f1f5f9;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Command center subtle grid overlay */
-.command-grid-overlay {
-  background-size: 48px 48px;
+/* Liquid glass panel styling */
+.glass-panel {
+  background: rgba(13, 19, 34, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.glass-pill {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.glass-interactive:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 8px 30px rgba(0, 245, 212, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* Subtle background atmospheric gradient */
+.ambient-glow {
   background-image: 
-    linear-gradient(to right, rgba(30, 41, 59, 0.18) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(30, 41, 59, 0.18) 1px, transparent 1px);
+    radial-gradient(circle at 25% 15%, rgba(14, 165, 233, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 75% 75%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(20, 184, 166, 0.04) 0%, transparent 60%);
 }
 
-/* Custom thin scrollbars for inspector and drawers */
+/* Refined coordinate grid */
+.topo-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+}
+
+/* Custom thin scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(11, 17, 32, 0.6);
+  background: rgba(11, 17, 32, 0.4);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(51, 65, 85, 0.7);
+  background: rgba(71, 85, 105, 0.6);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(71, 85, 105, 0.9);
+  background: rgba(100, 116, 139, 0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

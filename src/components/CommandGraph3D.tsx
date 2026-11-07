@@ -8,7 +8,7 @@ import { getHealthVisuals } from '../lib/healthColor';
 interface CommandGraph3DProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  clusters: ClusterInfo[];
+  clusters?: ClusterInfo[];
   selectedNode: GraphNode | null;
   impactAnalysis: ImpactAnalysis | null;
   selectedPathNodeIds: string[] | null;
@@ -19,23 +19,20 @@ function resolveId(endpoint: string | GraphNode): string {
   return typeof endpoint === 'string' ? endpoint : endpoint.id;
 }
 
-/**
- * Creates a crisp 2D canvas sprite for Three.js node label rendering.
- */
 function createTextSprite(text: string, color: string, bgColor: string, borderColor: string) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   if (!ctx) return new THREE.Sprite();
 
-  canvas.width = 384;
-  canvas.height = 96;
+  canvas.width = 512;
+  canvas.height = 128;
 
   // Background box with rounded corners
   ctx.fillStyle = bgColor;
   ctx.strokeStyle = borderColor;
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 6;
 
-  const r = 16;
+  const r = 24;
   const x = 8;
   const y = 8;
   const w = canvas.width - 16;
@@ -57,7 +54,7 @@ function createTextSprite(text: string, color: string, bgColor: string, borderCo
 
   // Text
   ctx.fillStyle = color;
-  ctx.font = 'bold 36px monospace';
+  ctx.font = 'bold 44px JetBrains Mono, monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
@@ -71,14 +68,13 @@ function createTextSprite(text: string, color: string, bgColor: string, borderCo
   });
 
   const sprite = new THREE.Sprite(spriteMaterial);
-  sprite.scale.set(38, 9.5, 1);
+  sprite.scale.set(44, 11, 1);
   return sprite;
 }
 
 export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
   nodes,
   edges,
-  clusters,
   selectedNode,
   impactAnalysis,
   selectedPathNodeIds,
@@ -86,16 +82,16 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
 }) => {
   const fgRef = useRef<ForceGraphMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const [dimensions, setDimensions] = useState({ width: 900, height: 600 });
 
-  // Dynamically measure container size
+  // Measure container size
   useEffect(() => {
     if (!containerRef.current) return;
     const updateSize = () => {
       if (containerRef.current) {
         setDimensions({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight,
+          width: containerRef.current.clientWidth || 900,
+          height: containerRef.current.clientHeight || 600,
         });
       }
     };
@@ -105,20 +101,6 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
     return () => ro.disconnect();
   }, []);
 
-  // Map cluster anchors
-  const clusterAnchorMap = useMemo(() => {
-    const map = new Map<string, { x: number; y: number; z: number }>();
-    clusters.forEach((c) => map.set(c.id, c.anchor));
-    return map;
-  }, [clusters]);
-
-  const nodesById = useMemo(() => {
-    const map = new Map<string, GraphNode>();
-    nodes.forEach((n) => map.set(n.id, n));
-    return map;
-  }, [nodes]);
-
-  // Compute node status in active trace
   const nodeStatusMap = useMemo(() => {
     const map = new Map<string, 'selected' | 'direct' | 'indirect' | 'isolated' | 'unrelated'>();
     if (!selectedNode) {
@@ -144,74 +126,49 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
     return map;
   }, [selectedNode, impactAnalysis, selectedPathNodeIds, nodes]);
 
-  // Configure forces: stable camera, no wild spinning
+  // Set initial camera position on mount
   useEffect(() => {
     const fg = fgRef.current;
     if (!fg) return;
 
-    const linkForce = fg.d3Force('link') as
-      | { distance?: (fn: (edge: GraphEdge) => number) => void }
-      | undefined;
-    if (linkForce && typeof linkForce.distance === 'function') {
-      linkForce.distance((edge: GraphEdge) => {
-        const sNode = nodesById.get(resolveId(edge.source));
-        const tNode = nodesById.get(resolveId(edge.target));
-        if (sNode && tNode && sNode.clusterId === tNode.clusterId) {
-          return 40;
-        }
-        return 120;
-      });
-    }
+    // Add ambient and directional lights to the 3D scene so nodes are never dark!
+    try {
+      const scene = fg.scene?.();
+      if (scene && !(scene as unknown as { __lightsAdded?: boolean }).__lightsAdded) {
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.8);
+        scene.add(ambientLight);
 
-    const chargeForce = fg.d3Force('charge') as
-      | { strength?: (val: number) => void }
-      | undefined;
-    if (chargeForce && typeof chargeForce.strength === 'function') {
-      chargeForce.strength(-85);
-    }
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        dirLight.position.set(100, 200, 150);
+        scene.add(dirLight);
 
-    // Cluster gentle attraction force
-    fg.d3Force('cluster', (alpha: number) => {
-      const strength = alpha * 0.28;
-      for (const node of nodes) {
-        const anchor = clusterAnchorMap.get(node.clusterId);
-        if (!anchor) continue;
-        node.vx = (node.vx ?? 0) + (anchor.x - (node.x ?? 0)) * strength;
-        node.vy = (node.vy ?? 0) + (anchor.y - (node.y ?? 0)) * strength;
-        node.vz = (node.vz ?? 0) + (anchor.z - (node.z ?? 0)) * strength;
+        const pointLight = new THREE.PointLight(0x00f5d4, 3.5, 400);
+        pointLight.position.set(0, 0, 100);
+        scene.add(pointLight);
+
+        (scene as unknown as { __lightsAdded?: boolean }).__lightsAdded = true;
       }
-    });
+    } catch {
+      // Graceful fallback
+    }
 
-    fg.d3ReheatSimulation();
-  }, [nodes, clusterAnchorMap, nodesById]);
+    // Set stable camera position centered on scene
+    fg.cameraPosition({ x: 0, y: 0, z: 230 }, { x: 0, y: 0, z: 0 }, 400);
 
-  // Stable camera zoom to fit
+    const timer = setTimeout(() => {
+      fg.zoomToFit(500, 40);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleFitView = useCallback(() => {
     const fg = fgRef.current;
     if (!fg) return;
-    fg.zoomToFit(500, 30);
+    fg.zoomToFit(600, 40);
   }, []);
 
-  // Center camera on node when selected
-  const focusCameraOnNode = useCallback((node: GraphNode) => {
-    const fg = fgRef.current;
-    if (!fg || node.x === undefined || node.y === undefined || node.z === undefined) {
-      return;
-    }
-    const distance = 160;
-    const distRatio = 1 + distance / Math.hypot(node.x || 1, node.y || 1, node.z || 1);
-    fg.cameraPosition(
-      {
-        x: node.x * distRatio,
-        y: node.y * distRatio,
-        z: node.z * distRatio,
-      },
-      { x: node.x, y: node.y, z: node.z },
-      800
-    );
-  }, []);
-
-  // Build custom 3D sphere + label + trace aura for each node
+  // Build custom 3D sphere + outer glow aura + billboard label
   const renderNodeObject = useCallback(
     (rawNode: object) => {
       const node = rawNode as GraphNode;
@@ -224,48 +181,48 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
       const isDimmed = selectedNode !== null && status === 'unrelated';
 
       const group = new THREE.Group();
-      const baseRadius = 4.0 + Math.min(2.5, node.loc / 650);
+      // Scaled baseRadius so nodes are prominent and visible
+      const baseRadius = 8.0 + Math.min(4.0, node.loc / 400);
 
-      // Node colors based on trace role
       let coreColor = visuals.coreColor;
-      let emissiveIntensity = visuals.emissiveIntensity;
+      let emissiveIntensity = 1.0;
 
       if (isSelected) {
         coreColor = '#00f5d4';
-        emissiveIntensity = 1.6;
+        emissiveIntensity = 2.0;
       } else if (isDirect || isIsolated) {
         coreColor = '#38bdf8';
-        emissiveIntensity = 1.3;
+        emissiveIntensity = 1.6;
       } else if (isIndirect) {
         coreColor = '#818cf8';
-        emissiveIntensity = 1.1;
+        emissiveIntensity = 1.4;
       } else if (isDimmed) {
         coreColor = '#334155';
-        emissiveIntensity = 0.08;
+        emissiveIntensity = 0.1;
       }
 
       // 1. Core Sphere
-      const coreGeo = new THREE.SphereGeometry(baseRadius, 20, 20);
+      const coreGeo = new THREE.SphereGeometry(baseRadius, 24, 24);
       const coreMat = new THREE.MeshStandardMaterial({
         color: new THREE.Color(coreColor),
         emissive: new THREE.Color(coreColor),
         emissiveIntensity,
-        roughness: 0.3,
-        metalness: 0.2,
+        roughness: 0.2,
+        metalness: 0.1,
         transparent: isDimmed,
-        opacity: isDimmed ? 0.35 : 1.0,
+        opacity: isDimmed ? 0.3 : 1.0,
       });
       const coreMesh = new THREE.Mesh(coreGeo, coreMat);
       group.add(coreMesh);
 
-      // 2. Halo when in trace
+      // 2. Halo Glow
       if (!isDimmed) {
-        const haloRadius = baseRadius * (isSelected ? 2.2 : isDirect ? 1.8 : 1.5);
+        const haloRadius = baseRadius * (isSelected ? 2.4 : 1.7);
         const haloGeo = new THREE.SphereGeometry(haloRadius, 16, 16);
         const haloMat = new THREE.MeshBasicMaterial({
           color: new THREE.Color(coreColor),
           transparent: true,
-          opacity: isSelected ? 0.45 : isDirect ? 0.3 : 0.15,
+          opacity: isSelected ? 0.5 : 0.25,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         });
@@ -273,9 +230,9 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
         group.add(haloMesh);
       }
 
-      // 3. Selection Ring
+      // 3. Selection Indicator Ring
       if (isSelected) {
-        const ringGeo = new THREE.TorusGeometry(baseRadius * 2.4, 0.35, 12, 40);
+        const ringGeo = new THREE.TorusGeometry(baseRadius * 2.5, 0.5, 12, 48);
         const ringMat = new THREE.MeshBasicMaterial({
           color: new THREE.Color('#00f5d4'),
           transparent: true,
@@ -287,31 +244,31 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
         group.add(ringMesh);
       }
 
-      // 4. Billboard text labels for selection, dependents, or all in small sample mode (<= 6 nodes)
+      // 4. Billboard text label
       const shouldShowLabel =
         nodes.length <= 6 || isSelected || isDirect || isIndirect || isIsolated;
 
       if (shouldShowLabel && !isDimmed) {
         let labelColor = '#f1f5f9';
-        let labelBg = 'rgba(11, 17, 32, 0.88)';
+        let labelBg = 'rgba(11, 19, 38, 0.94)';
         let labelBorder = '#334155';
 
         if (isSelected) {
           labelColor = '#00f5d4';
-          labelBg = 'rgba(7, 29, 36, 0.95)';
+          labelBg = 'rgba(7, 34, 40, 0.96)';
           labelBorder = '#00f5d4';
         } else if (isDirect || isIsolated) {
           labelColor = '#7dd3fc';
-          labelBg = 'rgba(8, 35, 51, 0.95)';
+          labelBg = 'rgba(8, 38, 56, 0.96)';
           labelBorder = '#38bdf8';
         } else if (isIndirect) {
           labelColor = '#a5b4fc';
-          labelBg = 'rgba(19, 22, 51, 0.95)';
+          labelBg = 'rgba(20, 24, 58, 0.96)';
           labelBorder = '#818cf8';
         }
 
         const labelSprite = createTextSprite(node.name, labelColor, labelBg, labelBorder);
-        labelSprite.position.set(0, baseRadius + 8, 0);
+        labelSprite.position.set(0, baseRadius + 12, 0);
         group.add(labelSprite);
       }
 
@@ -323,13 +280,13 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
   const graphData = useMemo(() => ({ nodes, links: edges }), [nodes, edges]);
 
   return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-[#050811]">
+    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-[#070b14] ambient-glow">
       <ForceGraph3D
         ref={fgRef}
         width={dimensions.width}
         height={dimensions.height}
         graphData={graphData}
-        backgroundColor="#050811"
+        backgroundColor="#070b14"
         showNavInfo={false}
         enableNodeDrag={true}
         nodeThreeObject={renderNodeObject}
@@ -337,16 +294,15 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
         nodeLabel={(rawNode) => {
           const n = rawNode as GraphNode;
           const v = getHealthVisuals(n.health);
-          return `<div style="background: rgba(7,12,24,0.94); border: 1px solid rgba(56,189,248,0.4); padding: 6px 10px; border-radius: 6px; font-family: monospace; font-size: 11px; color: #f1f5f9; box-shadow: 0 4px 20px rgba(0,0,0,0.8);">
-            <div style="font-weight: 700; color: #38bdf8;">${n.name}</div>
-            <div style="color: #94a3b8; font-size: 10px;">${n.clusterName}</div>
-            <div style="margin-top: 3px; font-size: 10px; color: #cbd5e1;">Health: <b style="color: ${v.coreColor}">${n.health}/100</b> · Complexity: <b>${n.complexity}</b></div>
+          return `<div style="background: rgba(13,19,34,0.95); border: 1px solid rgba(0,245,212,0.4); padding: 8px 12px; border-radius: 8px; font-family: monospace; font-size: 11px; color: #f1f5f9; box-shadow: 0 8px 24px rgba(0,0,0,0.85);">
+            <div style="font-weight: 700; color: #00f5d4; font-size: 12px;">${n.name}</div>
+            <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">${n.clusterName}</div>
+            <div style="margin-top: 4px; font-size: 10px; color: #cbd5e1;">Health: <b style="color: ${v.coreColor}">${n.health}/100</b> · Complexity: <b>${n.complexity}</b></div>
           </div>`;
         }}
         onNodeClick={(rawNode) => {
           const node = rawNode as GraphNode;
           onSelectNode(node);
-          focusCameraOnNode(node);
         }}
         onBackgroundClick={() => onSelectNode(null)}
         linkWidth={(rawLink) => {
@@ -360,41 +316,28 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
               nodeStatusMap.get(sId) === 'direct' ||
               nodeStatusMap.get(sId) === 'indirect');
 
-          const isIsolated =
-            selectedPathNodeIds &&
-            selectedPathNodeIds.includes(sId) &&
-            selectedPathNodeIds.includes(tId);
-
-          if (isIsolated) return 2.6;
-          if (isTraced) return 2.0;
-          return 0.6;
+          if (isTraced) return 3.2;
+          return 0.8;
         }}
         linkColor={(rawLink) => {
           const link = rawLink as GraphEdge;
           const sId = resolveId(link.source);
           const tId = resolveId(link.target);
 
-          const isIsolated =
-            selectedPathNodeIds &&
-            selectedPathNodeIds.includes(sId) &&
-            selectedPathNodeIds.includes(tId);
-
-          if (isIsolated) return 'rgba(0, 245, 212, 0.95)';
-
           if (selectedNode) {
             const isTraced =
               tId === selectedNode.id && nodeStatusMap.get(sId) === 'direct';
-            if (isTraced) return 'rgba(56, 189, 248, 0.85)';
+            if (isTraced) return 'rgba(0, 245, 212, 0.95)';
 
             const isIndirect =
               nodeStatusMap.get(sId) === 'indirect' ||
               nodeStatusMap.get(tId) === 'direct';
-            if (isIndirect) return 'rgba(129, 140, 248, 0.7)';
+            if (isIndirect) return 'rgba(129, 140, 248, 0.85)';
 
             return 'rgba(51, 65, 85, 0.12)';
           }
 
-          return 'rgba(71, 85, 105, 0.35)';
+          return 'rgba(71, 85, 105, 0.4)';
         }}
         linkDirectionalParticles={(rawLink) => {
           const link = rawLink as GraphEdge;
@@ -406,52 +349,26 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
               tId === selectedNode.id ||
               nodeStatusMap.get(sId) === 'direct' ||
               nodeStatusMap.get(sId) === 'indirect';
-            return isTraced ? 4 : 0;
+            return isTraced ? 5 : 0;
           }
           return 1;
         }}
-        linkDirectionalParticleSpeed={0.005}
-        linkDirectionalParticleWidth={(rawLink) => {
-          const link = rawLink as GraphEdge;
-          const sId = resolveId(link.source);
-          const tId = resolveId(link.target);
-          if (selectedNode && (tId === selectedNode.id || nodeStatusMap.get(sId) === 'direct')) {
-            return 2.8;
-          }
-          return 1.4;
-        }}
+        linkDirectionalParticleSpeed={0.006}
+        linkDirectionalParticleWidth={3.2}
         linkDirectionalParticleColor={() => '#00f5d4'}
       />
 
       {/* Floating Canvas Controls */}
-      <div className="absolute bottom-4 left-4 flex items-center gap-1.5 rounded-lg border border-slate-800 bg-[#080d1a]/90 p-1 font-mono text-xs shadow-lg backdrop-blur-md">
+      <div className="absolute bottom-4 left-4 flex items-center gap-1 rounded-xl glass-panel p-1 text-slate-300 shadow-xl backdrop-blur-xl">
         <button
           type="button"
           onClick={handleFitView}
           aria-label="Fit view"
-          className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
-          title="Fit view"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition"
+          title="Fit view / center graph"
         >
-          <Maximize2 className="h-3.5 w-3.5" />
+          <Maximize2 className="h-4 w-4" />
         </button>
-      </div>
-
-      {/* Trace Legend Pill */}
-      <div className="absolute top-4 left-4 hidden sm:flex items-center gap-3 rounded-lg border border-slate-800/80 bg-[#080d1a]/80 px-3 py-1.5 font-mono text-[10px] text-slate-400 backdrop-blur-md">
-        <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#00f5d4] shadow-[0_0_8px_#00f5d4]" />
-          Target Class
-        </span>
-        <span className="text-slate-700">|</span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#38bdf8]" />
-          Direct Dependent
-        </span>
-        <span className="text-slate-700">|</span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#818cf8]" />
-          Indirect Dependent
-        </span>
       </div>
     </div>
   );
