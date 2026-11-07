@@ -1,0 +1,1279 @@
+{
+  "overallHealth": 55,
+  "clusters": [
+    {
+      "id": "module-000",
+      "name": "Module 1",
+      "packagePath": "",
+      "anchor": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "module-001",
+      "name": "Module 2",
+      "packagePath": "",
+      "anchor": {
+        "x": 180,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "module-002",
+      "name": "Module 3",
+      "packagePath": "",
+      "anchor": {
+        "x": 360,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "module-003",
+      "name": "Module 4",
+      "packagePath": "",
+      "anchor": {
+        "x": 540,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "module-004",
+      "name": "Module 5",
+      "packagePath": "",
+      "anchor": {
+        "x": 0,
+        "y": 0,
+        "z": 180
+      }
+    },
+    {
+      "id": "module-005",
+      "name": "Module 6",
+      "packagePath": "",
+      "anchor": {
+        "x": 180,
+        "y": 0,
+        "z": 180
+      }
+    },
+    {
+      "id": "module-006",
+      "name": "Module 7",
+      "packagePath": "",
+      "anchor": {
+        "x": 360,
+        "y": 0,
+        "z": 180
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "com.legacy.auth.AuthCache",
+      "name": "AuthCache",
+      "path": "src/main/java/com/legacy/auth/AuthCache.java",
+      "clusterId": "module-000",
+      "clusterName": "Module 1",
+      "complexity": 15,
+      "health": 49,
+      "loc": 464
+    },
+    {
+      "id": "com.legacy.auth.AuthClient",
+      "name": "AuthClient",
+      "path": "src/main/java/com/legacy/auth/AuthClient.java",
+      "clusterId": "module-000",
+      "clusterName": "Module 1",
+      "complexity": 13,
+      "health": 49,
+      "loc": 609
+    },
+    {
+      "id": "com.legacy.auth.AuthController",
+      "name": "AuthController",
+      "path": "src/main/java/com/legacy/auth/AuthController.java",
+      "clusterId": "module-000",
+      "clusterName": "Module 1",
+      "complexity": 2,
+      "health": 71,
+      "loc": 149
+    },
+    {
+      "id": "com.legacy.auth.AuthHandler",
+      "name": "AuthHandler",
+      "path": "src/main/java/com/legacy/auth/AuthHandler.java",
+      "clusterId": "module-001",
+      "clusterName": "Module 2",
+      "complexity": 22,
+      "health": 71,
+      "loc": 467
+    },
+    {
+      "id": "com.legacy.auth.AuthJob",
+      "name": "AuthJob",
+      "path": "src/main/java/com/legacy/auth/AuthJob.java",
+      "clusterId": "module-000",
+      "clusterName": "Module 1",
+      "complexity": 22,
+      "health": 73,
+      "loc": 255
+    },
+    {
+      "id": "com.legacy.auth.AuthMapper",
+      "name": "AuthMapper",
+      "path": "src/main/java/com/legacy/auth/AuthMapper.java",
+      "clusterId": "module-000",
+      "clusterName": "Module 1",
+      "complexity": 33,
+      "health": 37,
+      "loc": 273
+    },
+    {
+      "id": "com.legacy.auth.AuthPolicy",
+      "name": "AuthPolicy",
+      "path": "src/main/java/com/legacy/auth/AuthPolicy.java",
+      "clusterId": "module-002",
+      "clusterName": "Module 3",
+      "complexity": 1,
+      "health": 90,
+      "loc": 319
+    },
+    {
+      "id": "com.legacy.auth.AuthRepository",
+      "name": "AuthRepository",
+      "path": "src/main/java/com/legacy/auth/AuthRepository.java",
+      "clusterId": "module-000",
+      "clusterName": "Module 1",
+      "complexity": 6,
+      "health": 66,
+      "loc": 593
+    },
+    {
+      "id": "com.legacy.auth.AuthService",
+      "name": "AuthService",
+      "path": "src/main/java/com/legacy/auth/AuthService.java",
+      "clusterId": "module-000",
+      "clusterName": "Module 1",
+      "complexity": 15,
+      "health": 63,
+      "loc": 285
+    },
+    {
+      "id": "com.legacy.auth.AuthValidator",
+      "name": "AuthValidator",
+      "path": "src/main/java/com/legacy/auth/AuthValidator.java",
+      "clusterId": "module-000",
+      "clusterName": "Module 1",
+      "complexity": 2,
+      "health": 79,
+      "loc": 67
+    },
+    {
+      "id": "com.legacy.billing.BillingCache",
+      "name": "BillingCache",
+      "path": "src/main/java/com/legacy/billing/BillingCache.java",
+      "clusterId": "module-002",
+      "clusterName": "Module 3",
+      "complexity": 15,
+      "health": 55,
+      "loc": 116
+    },
+    {
+      "id": "com.legacy.billing.BillingClient",
+      "name": "BillingClient",
+      "path": "src/main/java/com/legacy/billing/BillingClient.java",
+      "clusterId": "module-003",
+      "clusterName": "Module 4",
+      "complexity": 15,
+      "health": 55,
+      "loc": 81
+    },
+    {
+      "id": "com.legacy.billing.BillingController",
+      "name": "BillingController",
+      "path": "src/main/java/com/legacy/billing/BillingController.java",
+      "clusterId": "module-003",
+      "clusterName": "Module 4",
+      "complexity": 7,
+      "health": 73,
+      "loc": 424
+    },
+    {
+      "id": "com.legacy.billing.BillingHandler",
+      "name": "BillingHandler",
+      "path": "src/main/java/com/legacy/billing/BillingHandler.java",
+      "clusterId": "module-003",
+      "clusterName": "Module 4",
+      "complexity": 24,
+      "health": 47,
+      "loc": 201
+    },
+    {
+      "id": "com.legacy.billing.BillingJob",
+      "name": "BillingJob",
+      "path": "src/main/java/com/legacy/billing/BillingJob.java",
+      "clusterId": "module-002",
+      "clusterName": "Module 3",
+      "complexity": 42,
+      "health": 54,
+      "loc": 308
+    },
+    {
+      "id": "com.legacy.billing.BillingMapper",
+      "name": "BillingMapper",
+      "path": "src/main/java/com/legacy/billing/BillingMapper.java",
+      "clusterId": "module-003",
+      "clusterName": "Module 4",
+      "complexity": 37,
+      "health": 61,
+      "loc": 405
+    },
+    {
+      "id": "com.legacy.billing.BillingPolicy",
+      "name": "BillingPolicy",
+      "path": "src/main/java/com/legacy/billing/BillingPolicy.java",
+      "clusterId": "module-003",
+      "clusterName": "Module 4",
+      "complexity": 18,
+      "health": 55,
+      "loc": 424
+    },
+    {
+      "id": "com.legacy.billing.BillingRepository",
+      "name": "BillingRepository",
+      "path": "src/main/java/com/legacy/billing/BillingRepository.java",
+      "clusterId": "module-002",
+      "clusterName": "Module 3",
+      "complexity": 8,
+      "health": 60,
+      "loc": 584
+    },
+    {
+      "id": "com.legacy.billing.BillingService",
+      "name": "BillingService",
+      "path": "src/main/java/com/legacy/billing/BillingService.java",
+      "clusterId": "module-002",
+      "clusterName": "Module 3",
+      "complexity": 3,
+      "health": 66,
+      "loc": 305
+    },
+    {
+      "id": "com.legacy.billing.BillingValidator",
+      "name": "BillingValidator",
+      "path": "src/main/java/com/legacy/billing/BillingValidator.java",
+      "clusterId": "module-003",
+      "clusterName": "Module 4",
+      "complexity": 36,
+      "health": 51,
+      "loc": 115
+    },
+    {
+      "id": "com.legacy.inventory.InventoryCache",
+      "name": "InventoryCache",
+      "path": "src/main/java/com/legacy/inventory/InventoryCache.java",
+      "clusterId": "module-001",
+      "clusterName": "Module 2",
+      "complexity": 35,
+      "health": 35,
+      "loc": 152
+    },
+    {
+      "id": "com.legacy.inventory.InventoryClient",
+      "name": "InventoryClient",
+      "path": "src/main/java/com/legacy/inventory/InventoryClient.java",
+      "clusterId": "module-001",
+      "clusterName": "Module 2",
+      "complexity": 36,
+      "health": 55,
+      "loc": 292
+    },
+    {
+      "id": "com.legacy.inventory.InventoryController",
+      "name": "InventoryController",
+      "path": "src/main/java/com/legacy/inventory/InventoryController.java",
+      "clusterId": "module-001",
+      "clusterName": "Module 2",
+      "complexity": 24,
+      "health": 47,
+      "loc": 443
+    },
+    {
+      "id": "com.legacy.inventory.InventoryHandler",
+      "name": "InventoryHandler",
+      "path": "src/main/java/com/legacy/inventory/InventoryHandler.java",
+      "clusterId": "module-001",
+      "clusterName": "Module 2",
+      "complexity": 30,
+      "health": 65,
+      "loc": 196
+    },
+    {
+      "id": "com.legacy.inventory.InventoryJob",
+      "name": "InventoryJob",
+      "path": "src/main/java/com/legacy/inventory/InventoryJob.java",
+      "clusterId": "module-001",
+      "clusterName": "Module 2",
+      "complexity": 12,
+      "health": 63,
+      "loc": 547
+    },
+    {
+      "id": "com.legacy.inventory.InventoryMapper",
+      "name": "InventoryMapper",
+      "path": "src/main/java/com/legacy/inventory/InventoryMapper.java",
+      "clusterId": "module-001",
+      "clusterName": "Module 2",
+      "complexity": 39,
+      "health": 49,
+      "loc": 425
+    },
+    {
+      "id": "com.legacy.inventory.InventoryPolicy",
+      "name": "InventoryPolicy",
+      "path": "src/main/java/com/legacy/inventory/InventoryPolicy.java",
+      "clusterId": "module-001",
+      "clusterName": "Module 2",
+      "complexity": 8,
+      "health": 67,
+      "loc": 383
+    },
+    {
+      "id": "com.legacy.inventory.InventoryRepository",
+      "name": "InventoryRepository",
+      "path": "src/main/java/com/legacy/inventory/InventoryRepository.java",
+      "clusterId": "module-004",
+      "clusterName": "Module 5",
+      "complexity": 10,
+      "health": 64,
+      "loc": 147
+    },
+    {
+      "id": "com.legacy.inventory.InventoryService",
+      "name": "InventoryService",
+      "path": "src/main/java/com/legacy/inventory/InventoryService.java",
+      "clusterId": "module-001",
+      "clusterName": "Module 2",
+      "complexity": 32,
+      "health": 44,
+      "loc": 556
+    },
+    {
+      "id": "com.legacy.inventory.InventoryValidator",
+      "name": "InventoryValidator",
+      "path": "src/main/java/com/legacy/inventory/InventoryValidator.java",
+      "clusterId": "module-001",
+      "clusterName": "Module 2",
+      "complexity": 39,
+      "health": 59,
+      "loc": 467
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsCache",
+      "name": "NotificationsCache",
+      "path": "src/main/java/com/legacy/notifications/NotificationsCache.java",
+      "clusterId": "module-004",
+      "clusterName": "Module 5",
+      "complexity": 6,
+      "health": 64,
+      "loc": 115
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsClient",
+      "name": "NotificationsClient",
+      "path": "src/main/java/com/legacy/notifications/NotificationsClient.java",
+      "clusterId": "module-005",
+      "clusterName": "Module 6",
+      "complexity": 4,
+      "health": 87,
+      "loc": 280
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsController",
+      "name": "NotificationsController",
+      "path": "src/main/java/com/legacy/notifications/NotificationsController.java",
+      "clusterId": "module-006",
+      "clusterName": "Module 7",
+      "complexity": 41,
+      "health": 29,
+      "loc": 340
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsHandler",
+      "name": "NotificationsHandler",
+      "path": "src/main/java/com/legacy/notifications/NotificationsHandler.java",
+      "clusterId": "module-004",
+      "clusterName": "Module 5",
+      "complexity": 31,
+      "health": 23,
+      "loc": 166
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsJob",
+      "name": "NotificationsJob",
+      "path": "src/main/java/com/legacy/notifications/NotificationsJob.java",
+      "clusterId": "module-004",
+      "clusterName": "Module 5",
+      "complexity": 17,
+      "health": 45,
+      "loc": 204
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsMapper",
+      "name": "NotificationsMapper",
+      "path": "src/main/java/com/legacy/notifications/NotificationsMapper.java",
+      "clusterId": "module-004",
+      "clusterName": "Module 5",
+      "complexity": 24,
+      "health": 62,
+      "loc": 149
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsPolicy",
+      "name": "NotificationsPolicy",
+      "path": "src/main/java/com/legacy/notifications/NotificationsPolicy.java",
+      "clusterId": "module-004",
+      "clusterName": "Module 5",
+      "complexity": 35,
+      "health": 55,
+      "loc": 105
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsRepository",
+      "name": "NotificationsRepository",
+      "path": "src/main/java/com/legacy/notifications/NotificationsRepository.java",
+      "clusterId": "module-004",
+      "clusterName": "Module 5",
+      "complexity": 34,
+      "health": 33,
+      "loc": 587
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsService",
+      "name": "NotificationsService",
+      "path": "src/main/java/com/legacy/notifications/NotificationsService.java",
+      "clusterId": "module-006",
+      "clusterName": "Module 7",
+      "complexity": 10,
+      "health": 68,
+      "loc": 238
+    },
+    {
+      "id": "com.legacy.notifications.NotificationsValidator",
+      "name": "NotificationsValidator",
+      "path": "src/main/java/com/legacy/notifications/NotificationsValidator.java",
+      "clusterId": "module-004",
+      "clusterName": "Module 5",
+      "complexity": 21,
+      "health": 70,
+      "loc": 648
+    },
+    {
+      "id": "com.legacy.orders.OrdersCache",
+      "name": "OrdersCache",
+      "path": "src/main/java/com/legacy/orders/OrdersCache.java",
+      "clusterId": "module-006",
+      "clusterName": "Module 7",
+      "complexity": 42,
+      "health": 34,
+      "loc": 252
+    },
+    {
+      "id": "com.legacy.orders.OrdersClient",
+      "name": "OrdersClient",
+      "path": "src/main/java/com/legacy/orders/OrdersClient.java",
+      "clusterId": "module-006",
+      "clusterName": "Module 7",
+      "complexity": 37,
+      "health": 35,
+      "loc": 251
+    },
+    {
+      "id": "com.legacy.orders.OrdersController",
+      "name": "OrdersController",
+      "path": "src/main/java/com/legacy/orders/OrdersController.java",
+      "clusterId": "module-006",
+      "clusterName": "Module 7",
+      "complexity": 35,
+      "health": 36,
+      "loc": 210
+    },
+    {
+      "id": "com.legacy.orders.OrdersHandler",
+      "name": "OrdersHandler",
+      "path": "src/main/java/com/legacy/orders/OrdersHandler.java",
+      "clusterId": "module-006",
+      "clusterName": "Module 7",
+      "complexity": 36,
+      "health": 38,
+      "loc": 287
+    },
+    {
+      "id": "com.legacy.orders.OrdersJob",
+      "name": "OrdersJob",
+      "path": "src/main/java/com/legacy/orders/OrdersJob.java",
+      "clusterId": "module-006",
+      "clusterName": "Module 7",
+      "complexity": 28,
+      "health": 26,
+      "loc": 633
+    },
+    {
+      "id": "com.legacy.orders.OrdersMapper",
+      "name": "OrdersMapper",
+      "path": "src/main/java/com/legacy/orders/OrdersMapper.java",
+      "clusterId": "module-006",
+      "clusterName": "Module 7",
+      "complexity": 26,
+      "health": 45,
+      "loc": 358
+    },
+    {
+      "id": "com.legacy.orders.OrdersPolicy",
+      "name": "OrdersPolicy",
+      "path": "src/main/java/com/legacy/orders/OrdersPolicy.java",
+      "clusterId": "module-006",
+      "clusterName": "Module 7",
+      "complexity": 10,
+      "health": 87,
+      "loc": 504
+    },
+    {
+      "id": "com.legacy.orders.OrdersRepository",
+      "name": "OrdersRepository",
+      "path": "src/main/java/com/legacy/orders/OrdersRepository.java",
+      "clusterId": "module-006",
+      "clusterName": "Module 7",
+      "complexity": 15,
+      "health": 52,
+      "loc": 605
+    },
+    {
+      "id": "com.legacy.orders.OrdersService",
+      "name": "OrdersService",
+      "path": "src/main/java/com/legacy/orders/OrdersService.java",
+      "clusterId": "module-006",
+      "clusterName": "Module 7",
+      "complexity": 30,
+      "health": 36,
+      "loc": 202
+    },
+    {
+      "id": "com.legacy.orders.OrdersValidator",
+      "name": "OrdersValidator",
+      "path": "src/main/java/com/legacy/orders/OrdersValidator.java",
+      "clusterId": "module-006",
+      "clusterName": "Module 7",
+      "complexity": 15,
+      "health": 55,
+      "loc": 92
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-0000",
+      "source": "com.legacy.auth.AuthCache",
+      "target": "com.legacy.auth.AuthMapper",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0001",
+      "source": "com.legacy.auth.AuthClient",
+      "target": "com.legacy.auth.AuthMapper",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0002",
+      "source": "com.legacy.auth.AuthClient",
+      "target": "com.legacy.auth.AuthRepository",
+      "type": "implements",
+      "weight": 3.0
+    },
+    {
+      "id": "edge-0003",
+      "source": "com.legacy.auth.AuthController",
+      "target": "com.legacy.auth.AuthService",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0004",
+      "source": "com.legacy.auth.AuthHandler",
+      "target": "com.legacy.inventory.InventoryMapper",
+      "type": "calls",
+      "weight": 7.0
+    },
+    {
+      "id": "edge-0005",
+      "source": "com.legacy.auth.AuthJob",
+      "target": "com.legacy.auth.AuthRepository",
+      "type": "imports",
+      "weight": 2.0
+    },
+    {
+      "id": "edge-0006",
+      "source": "com.legacy.auth.AuthJob",
+      "target": "com.legacy.auth.AuthValidator",
+      "type": "implements",
+      "weight": 2.0
+    },
+    {
+      "id": "edge-0007",
+      "source": "com.legacy.auth.AuthMapper",
+      "target": "com.legacy.auth.AuthHandler",
+      "type": "extends",
+      "weight": 3.0
+    },
+    {
+      "id": "edge-0008",
+      "source": "com.legacy.auth.AuthMapper",
+      "target": "com.legacy.auth.AuthValidator",
+      "type": "implements",
+      "weight": 2.0
+    },
+    {
+      "id": "edge-0009",
+      "source": "com.legacy.auth.AuthMapper",
+      "target": "com.legacy.notifications.NotificationsMapper",
+      "type": "imports",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0010",
+      "source": "com.legacy.auth.AuthPolicy",
+      "target": "com.legacy.billing.BillingCache",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "id": "edge-0011",
+      "source": "com.legacy.auth.AuthRepository",
+      "target": "com.legacy.auth.AuthCache",
+      "type": "extends",
+      "weight": 6.0
+    },
+    {
+      "id": "edge-0012",
+      "source": "com.legacy.auth.AuthRepository",
+      "target": "com.legacy.auth.AuthController",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0013",
+      "source": "com.legacy.auth.AuthService",
+      "target": "com.legacy.auth.AuthRepository",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0014",
+      "source": "com.legacy.auth.AuthValidator",
+      "target": "com.legacy.auth.AuthCache",
+      "type": "implements",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0015",
+      "source": "com.legacy.auth.AuthValidator",
+      "target": "com.legacy.auth.AuthClient",
+      "type": "imports",
+      "weight": 8.0
+    },
+    {
+      "id": "edge-0016",
+      "source": "com.legacy.auth.AuthValidator",
+      "target": "com.legacy.auth.AuthHandler",
+      "type": "calls",
+      "weight": 2.0
+    },
+    {
+      "id": "edge-0017",
+      "source": "com.legacy.billing.BillingCache",
+      "target": "com.legacy.billing.BillingPolicy",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0018",
+      "source": "com.legacy.billing.BillingCache",
+      "target": "com.legacy.billing.BillingService",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "id": "edge-0019",
+      "source": "com.legacy.billing.BillingClient",
+      "target": "com.legacy.auth.AuthMapper",
+      "type": "implements",
+      "weight": 2.0
+    },
+    {
+      "id": "edge-0020",
+      "source": "com.legacy.billing.BillingClient",
+      "target": "com.legacy.billing.BillingController",
+      "type": "calls",
+      "weight": 7.0
+    },
+    {
+      "id": "edge-0021",
+      "source": "com.legacy.billing.BillingClient",
+      "target": "com.legacy.billing.BillingHandler",
+      "type": "implements",
+      "weight": 3.0
+    },
+    {
+      "id": "edge-0022",
+      "source": "com.legacy.billing.BillingController",
+      "target": "com.legacy.billing.BillingHandler",
+      "type": "extends",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0023",
+      "source": "com.legacy.billing.BillingController",
+      "target": "com.legacy.billing.BillingPolicy",
+      "type": "implements",
+      "weight": 5.0
+    },
+    {
+      "id": "edge-0024",
+      "source": "com.legacy.billing.BillingController",
+      "target": "com.legacy.billing.BillingService",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0025",
+      "source": "com.legacy.billing.BillingHandler",
+      "target": "com.legacy.billing.BillingClient",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "id": "edge-0026",
+      "source": "com.legacy.billing.BillingJob",
+      "target": "com.legacy.billing.BillingCache",
+      "type": "imports",
+      "weight": 8.0
+    },
+    {
+      "id": "edge-0027",
+      "source": "com.legacy.billing.BillingMapper",
+      "target": "com.legacy.billing.BillingController",
+      "type": "imports",
+      "weight": 4.0
+    },
+    {
+      "id": "edge-0028",
+      "source": "com.legacy.billing.BillingMapper",
+      "target": "com.legacy.billing.BillingHandler",
+      "type": "implements",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0029",
+      "source": "com.legacy.billing.BillingMapper",
+      "target": "com.legacy.billing.BillingPolicy",
+      "type": "calls",
+      "weight": 7.0
+    },
+    {
+      "id": "edge-0030",
+      "source": "com.legacy.billing.BillingMapper",
+      "target": "com.legacy.billing.BillingValidator",
+      "type": "implements",
+      "weight": 6.0
+    },
+    {
+      "id": "edge-0031",
+      "source": "com.legacy.billing.BillingPolicy",
+      "target": "com.legacy.billing.BillingService",
+      "type": "implements",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0032",
+      "source": "com.legacy.billing.BillingPolicy",
+      "target": "com.legacy.notifications.NotificationsJob",
+      "type": "extends",
+      "weight": 6.0
+    },
+    {
+      "id": "edge-0033",
+      "source": "com.legacy.billing.BillingRepository",
+      "target": "com.legacy.billing.BillingCache",
+      "type": "implements",
+      "weight": 7.0
+    },
+    {
+      "id": "edge-0034",
+      "source": "com.legacy.billing.BillingRepository",
+      "target": "com.legacy.billing.BillingController",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0035",
+      "source": "com.legacy.billing.BillingService",
+      "target": "com.legacy.billing.BillingRepository",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0036",
+      "source": "com.legacy.billing.BillingValidator",
+      "target": "com.legacy.billing.BillingClient",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "id": "edge-0037",
+      "source": "com.legacy.billing.BillingValidator",
+      "target": "com.legacy.billing.BillingJob",
+      "type": "implements",
+      "weight": 4.0
+    },
+    {
+      "id": "edge-0038",
+      "source": "com.legacy.inventory.InventoryCache",
+      "target": "com.legacy.inventory.InventoryController",
+      "type": "implements",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0039",
+      "source": "com.legacy.inventory.InventoryCache",
+      "target": "com.legacy.inventory.InventoryJob",
+      "type": "calls",
+      "weight": 2.0
+    },
+    {
+      "id": "edge-0040",
+      "source": "com.legacy.inventory.InventoryCache",
+      "target": "com.legacy.orders.OrdersJob",
+      "type": "extends",
+      "weight": 6.0
+    },
+    {
+      "id": "edge-0041",
+      "source": "com.legacy.inventory.InventoryClient",
+      "target": "com.legacy.inventory.InventoryHandler",
+      "type": "calls",
+      "weight": 2.0
+    },
+    {
+      "id": "edge-0042",
+      "source": "com.legacy.inventory.InventoryClient",
+      "target": "com.legacy.inventory.InventoryMapper",
+      "type": "extends",
+      "weight": 4.0
+    },
+    {
+      "id": "edge-0043",
+      "source": "com.legacy.inventory.InventoryClient",
+      "target": "com.legacy.inventory.InventoryService",
+      "type": "implements",
+      "weight": 3.0
+    },
+    {
+      "id": "edge-0044",
+      "source": "com.legacy.inventory.InventoryController",
+      "target": "com.legacy.inventory.InventoryCache",
+      "type": "calls",
+      "weight": 3.0
+    },
+    {
+      "id": "edge-0045",
+      "source": "com.legacy.inventory.InventoryController",
+      "target": "com.legacy.inventory.InventoryPolicy",
+      "type": "extends",
+      "weight": 5.0
+    },
+    {
+      "id": "edge-0046",
+      "source": "com.legacy.inventory.InventoryController",
+      "target": "com.legacy.inventory.InventoryService",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0047",
+      "source": "com.legacy.inventory.InventoryController",
+      "target": "com.legacy.inventory.InventoryValidator",
+      "type": "calls",
+      "weight": 2.0
+    },
+    {
+      "id": "edge-0048",
+      "source": "com.legacy.inventory.InventoryJob",
+      "target": "com.legacy.inventory.InventoryHandler",
+      "type": "implements",
+      "weight": 8.0
+    },
+    {
+      "id": "edge-0049",
+      "source": "com.legacy.inventory.InventoryJob",
+      "target": "com.legacy.inventory.InventoryRepository",
+      "type": "implements",
+      "weight": 2.0
+    },
+    {
+      "id": "edge-0050",
+      "source": "com.legacy.inventory.InventoryPolicy",
+      "target": "com.legacy.inventory.InventoryController",
+      "type": "extends",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0051",
+      "source": "com.legacy.inventory.InventoryRepository",
+      "target": "com.legacy.inventory.InventoryController",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0052",
+      "source": "com.legacy.inventory.InventoryService",
+      "target": "com.legacy.inventory.InventoryRepository",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0053",
+      "source": "com.legacy.inventory.InventoryValidator",
+      "target": "com.legacy.inventory.InventoryHandler",
+      "type": "calls",
+      "weight": 3.0
+    },
+    {
+      "id": "edge-0054",
+      "source": "com.legacy.inventory.InventoryValidator",
+      "target": "com.legacy.inventory.InventoryMapper",
+      "type": "imports",
+      "weight": 6.0
+    },
+    {
+      "id": "edge-0055",
+      "source": "com.legacy.notifications.NotificationsCache",
+      "target": "com.legacy.inventory.InventoryRepository",
+      "type": "extends",
+      "weight": 7.0
+    },
+    {
+      "id": "edge-0056",
+      "source": "com.legacy.notifications.NotificationsCache",
+      "target": "com.legacy.notifications.NotificationsService",
+      "type": "calls",
+      "weight": 7.0
+    },
+    {
+      "id": "edge-0057",
+      "source": "com.legacy.notifications.NotificationsController",
+      "target": "com.legacy.notifications.NotificationsService",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0058",
+      "source": "com.legacy.notifications.NotificationsHandler",
+      "target": "com.legacy.auth.AuthController",
+      "type": "implements",
+      "weight": 2.0
+    },
+    {
+      "id": "edge-0059",
+      "source": "com.legacy.notifications.NotificationsHandler",
+      "target": "com.legacy.notifications.NotificationsMapper",
+      "type": "imports",
+      "weight": 4.0
+    },
+    {
+      "id": "edge-0060",
+      "source": "com.legacy.notifications.NotificationsHandler",
+      "target": "com.legacy.notifications.NotificationsPolicy",
+      "type": "calls",
+      "weight": 6.0
+    },
+    {
+      "id": "edge-0061",
+      "source": "com.legacy.notifications.NotificationsHandler",
+      "target": "com.legacy.notifications.NotificationsRepository",
+      "type": "implements",
+      "weight": 8.0
+    },
+    {
+      "id": "edge-0062",
+      "source": "com.legacy.notifications.NotificationsJob",
+      "target": "com.legacy.notifications.NotificationsCache",
+      "type": "imports",
+      "weight": 4.0
+    },
+    {
+      "id": "edge-0063",
+      "source": "com.legacy.notifications.NotificationsJob",
+      "target": "com.legacy.notifications.NotificationsMapper",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0064",
+      "source": "com.legacy.notifications.NotificationsJob",
+      "target": "com.legacy.notifications.NotificationsPolicy",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "id": "edge-0065",
+      "source": "com.legacy.notifications.NotificationsRepository",
+      "target": "com.legacy.notifications.NotificationsCache",
+      "type": "implements",
+      "weight": 8.0
+    },
+    {
+      "id": "edge-0066",
+      "source": "com.legacy.notifications.NotificationsRepository",
+      "target": "com.legacy.notifications.NotificationsController",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0067",
+      "source": "com.legacy.notifications.NotificationsRepository",
+      "target": "com.legacy.notifications.NotificationsHandler",
+      "type": "extends",
+      "weight": 2.0
+    },
+    {
+      "id": "edge-0068",
+      "source": "com.legacy.notifications.NotificationsRepository",
+      "target": "com.legacy.notifications.NotificationsMapper",
+      "type": "calls",
+      "weight": 3.0
+    },
+    {
+      "id": "edge-0069",
+      "source": "com.legacy.notifications.NotificationsService",
+      "target": "com.legacy.notifications.NotificationsHandler",
+      "type": "extends",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0070",
+      "source": "com.legacy.notifications.NotificationsService",
+      "target": "com.legacy.notifications.NotificationsRepository",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0071",
+      "source": "com.legacy.notifications.NotificationsValidator",
+      "target": "com.legacy.notifications.NotificationsRepository",
+      "type": "extends",
+      "weight": 7.0
+    },
+    {
+      "id": "edge-0072",
+      "source": "com.legacy.orders.OrdersCache",
+      "target": "com.legacy.orders.OrdersClient",
+      "type": "implements",
+      "weight": 4.0
+    },
+    {
+      "id": "edge-0073",
+      "source": "com.legacy.orders.OrdersCache",
+      "target": "com.legacy.orders.OrdersHandler",
+      "type": "implements",
+      "weight": 7.0
+    },
+    {
+      "id": "edge-0074",
+      "source": "com.legacy.orders.OrdersCache",
+      "target": "com.legacy.orders.OrdersJob",
+      "type": "extends",
+      "weight": 5.0
+    },
+    {
+      "id": "edge-0075",
+      "source": "com.legacy.orders.OrdersClient",
+      "target": "com.legacy.billing.BillingRepository",
+      "type": "calls",
+      "weight": 4.0
+    },
+    {
+      "id": "edge-0076",
+      "source": "com.legacy.orders.OrdersClient",
+      "target": "com.legacy.notifications.NotificationsService",
+      "type": "extends",
+      "weight": 8.0
+    },
+    {
+      "id": "edge-0077",
+      "source": "com.legacy.orders.OrdersClient",
+      "target": "com.legacy.orders.OrdersMapper",
+      "type": "implements",
+      "weight": 6.0
+    },
+    {
+      "id": "edge-0078",
+      "source": "com.legacy.orders.OrdersController",
+      "target": "com.legacy.orders.OrdersCache",
+      "type": "extends",
+      "weight": 7.0
+    },
+    {
+      "id": "edge-0079",
+      "source": "com.legacy.orders.OrdersController",
+      "target": "com.legacy.orders.OrdersMapper",
+      "type": "imports",
+      "weight": 4.0
+    },
+    {
+      "id": "edge-0080",
+      "source": "com.legacy.orders.OrdersController",
+      "target": "com.legacy.orders.OrdersService",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0081",
+      "source": "com.legacy.orders.OrdersHandler",
+      "target": "com.legacy.orders.OrdersMapper",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "id": "edge-0082",
+      "source": "com.legacy.orders.OrdersHandler",
+      "target": "com.legacy.orders.OrdersValidator",
+      "type": "implements",
+      "weight": 3.0
+    },
+    {
+      "id": "edge-0083",
+      "source": "com.legacy.orders.OrdersJob",
+      "target": "com.legacy.orders.OrdersHandler",
+      "type": "extends",
+      "weight": 8.0
+    },
+    {
+      "id": "edge-0084",
+      "source": "com.legacy.orders.OrdersMapper",
+      "target": "com.legacy.orders.OrdersCache",
+      "type": "extends",
+      "weight": 8.0
+    },
+    {
+      "id": "edge-0085",
+      "source": "com.legacy.orders.OrdersPolicy",
+      "target": "com.legacy.inventory.InventoryMapper",
+      "type": "imports",
+      "weight": 5.0
+    },
+    {
+      "id": "edge-0086",
+      "source": "com.legacy.orders.OrdersPolicy",
+      "target": "com.legacy.orders.OrdersClient",
+      "type": "extends",
+      "weight": 2.0
+    },
+    {
+      "id": "edge-0087",
+      "source": "com.legacy.orders.OrdersPolicy",
+      "target": "com.legacy.orders.OrdersHandler",
+      "type": "calls",
+      "weight": 7.0
+    },
+    {
+      "id": "edge-0088",
+      "source": "com.legacy.orders.OrdersPolicy",
+      "target": "com.legacy.orders.OrdersJob",
+      "type": "extends",
+      "weight": 8.0
+    },
+    {
+      "id": "edge-0089",
+      "source": "com.legacy.orders.OrdersRepository",
+      "target": "com.legacy.billing.BillingClient",
+      "type": "extends",
+      "weight": 5.0
+    },
+    {
+      "id": "edge-0090",
+      "source": "com.legacy.orders.OrdersRepository",
+      "target": "com.legacy.orders.OrdersClient",
+      "type": "calls",
+      "weight": 6.0
+    },
+    {
+      "id": "edge-0091",
+      "source": "com.legacy.orders.OrdersRepository",
+      "target": "com.legacy.orders.OrdersController",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0092",
+      "source": "com.legacy.orders.OrdersRepository",
+      "target": "com.legacy.orders.OrdersService",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0093",
+      "source": "com.legacy.orders.OrdersRepository",
+      "target": "com.legacy.orders.OrdersValidator",
+      "type": "calls",
+      "weight": 6.0
+    },
+    {
+      "id": "edge-0094",
+      "source": "com.legacy.orders.OrdersService",
+      "target": "com.legacy.orders.OrdersCache",
+      "type": "imports",
+      "weight": 8.0
+    },
+    {
+      "id": "edge-0095",
+      "source": "com.legacy.orders.OrdersService",
+      "target": "com.legacy.orders.OrdersHandler",
+      "type": "calls",
+      "weight": 3.0
+    },
+    {
+      "id": "edge-0096",
+      "source": "com.legacy.orders.OrdersService",
+      "target": "com.legacy.orders.OrdersMapper",
+      "type": "imports",
+      "weight": 8.0
+    },
+    {
+      "id": "edge-0097",
+      "source": "com.legacy.orders.OrdersService",
+      "target": "com.legacy.orders.OrdersRepository",
+      "type": "calls",
+      "weight": 1.0
+    },
+    {
+      "id": "edge-0098",
+      "source": "com.legacy.orders.OrdersService",
+      "target": "com.legacy.orders.OrdersValidator",
+      "type": "extends",
+      "weight": 8.0
+    },
+    {
+      "id": "edge-0099",
+      "source": "com.legacy.orders.OrdersValidator",
+      "target": "com.legacy.orders.OrdersRepository",
+      "type": "implements",
+      "weight": 3.0
+    }
+  ]
+}
