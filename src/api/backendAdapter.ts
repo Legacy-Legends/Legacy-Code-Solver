@@ -132,42 +132,8 @@ export async function fetchLiveImpact(
   graphData: GraphData,
   signal?: AbortSignal
 ): Promise<ImpactAnalysis> {
-  // Check if live blast endpoint responds
-  const blast = await fetchLiveBlast(targetNode.name, 'demo', signal);
-  if (blast && blast.blast_node_ids) {
-    const nodesById = new Map<string, GraphNode>();
-    graphData.nodes.forEach((n) => nodesById.set(n.id, n));
-
-    const direct = blast.blast_node_ids
-      .filter((id) => id !== targetNode.id)
-      .map((id) => {
-        const node = nodesById.get(id);
-        if (!node) return null;
-        return {
-          node,
-          edge: {
-            id: `blast-edge-${id}`,
-            source: id,
-            target: targetNode.id,
-            type: 'calls' as const,
-            weight: 5,
-          },
-          explanation: `${node.name} is in the blast radius of ${targetNode.name} (${blast.percent}% total impact)`,
-          depth: 1 as const,
-          pathIds: [id, targetNode.id],
-        };
-      })
-      .filter(Boolean) as ImpactAnalysis['directDependents'];
-
-    return {
-      targetNode,
-      directDependents: direct,
-      indirectDependents: [],
-      totalAffected: direct.length,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
-  // Deterministic reverse traversal fallback
+  // Reconstruct real dependency paths from the graph, never synthetic direct edges.
+  // The agent's blast response is an affected set, not a direct/indirect path tree.
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   return computeImpactAnalysis(targetNode, graphData, false);
 }

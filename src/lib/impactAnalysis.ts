@@ -71,7 +71,9 @@ export function computeImpactAnalysis(
   }
 
   // 2. Indirect Dependents: callers that depend on direct dependents
-  for (const direct of directDependents) {
+  const queue = [...directDependents];
+  for (let index = 0; index < queue.length; index++) {
+    const direct = queue[index];
     const indirectEdges = incomingEdgesByTarget.get(direct.node.id) || [];
     for (const edge of indirectEdges) {
       const callerId = resolveNodeId(edge.source);
@@ -89,9 +91,10 @@ export function computeImpactAnalysis(
           edge.explanation ||
           `${callerNode.name} depends indirectly on ${targetNode.name} through ${direct.node.name}`,
         depth: 2,
-        pathIds: [callerId, direct.node.id, targetNode.id],
+        pathIds: [callerId, ...direct.pathIds],
         evidence: getEvidenceForEdge(edge),
       });
+      queue.push(indirectDependents[indirectDependents.length - 1]);
     }
   }
 
