@@ -1,125 +1,287 @@
-import { useMemo, useState, useEffect } from 'react';
-import { Terminal } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import rawGraphData from './mocks/graph.json';
-import { GraphData, GraphNode } from './types';
+import {
+  GraphData,
+  GraphNode,
+  DataSourceMode,
+  ImpactAnalysis,
+  SourceEvidence,
+} from './types/index';
+import { SAMPLE_GRAPH_DATA } from './data/sampleProject';
+import { computeImpactAnalysis } from './lib/impactAnalysis';
+import { fetchLiveGraphData, checkBackendHealth } from './api/backendAdapter';
+import { TopBar } from './components/TopBar';
 import { CommandGraph3D } from './components/CommandGraph3D';
-import { StatsCard } from './components/StatsCard';
-import { NodeDrawer } from './components/NodeDrawer';
+import { PlanarGraph2D } from './components/PlanarGraph2D';
+import { RightInspector } from './components/RightInspector';
+import { SourceDrawer } from './components/SourceDrawer';
+import { BackendErrorBanner } from './components/BackendErrorBanner';
 
 export function App() {
-  // Clone graph data once so ForceGraph3D can mutate x/y/z coordinates safely
-  const graphData = useMemo<GraphData>(() => {
-    return JSON.parse(JSON.stringify(rawGraphData)) as GraphData;
-  }, []);
+  // Data source mode: 'sample' | 'enterprise' | 'live'
+  const [dataSource, setDataSource] = useState<DataSourceMode>('sample');
+  const [liveGraphData, setLiveGraphData] = useState<GraphData | null>(null);
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const [backendError, setBackendError] = useState<string | null>(null);
 
+  // View mode: '3d' | '2d'
+  const [viewMode, setViewMode] = useState<'3d' | '2d'>('3d');
+
+  // Mobile layout tab: 'graph' | 'inspector'
+  const [mobileTab, setMobileTab] = useState<'graph' | 'inspector'>('graph');
+
+  // Selection & Investigation State
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [impactAnalysis, setImpactAnalysis] = useState<ImpactAnalysis | null>(null);
+  const [isTracing, setIsTracing] = useState(false);
+  const [selectedPathNodeIds, setSelectedPathNodeIds] = useState<string[] | null>(null);
 
+  // Evidence Drawer State
+  const [activeEvidence, setActiveEvidence] = useState<SourceEvidence | null>(null);
+  const [pathEvidenceList, setPathEvidenceList] = useState<SourceEvidence[]>([]);
+  const [activeEvidenceIndex, setActiveEvidenceIndex] = useState(0);
+
+  // Active Request Tracking (avoids race condition when selecting classes rapidly)
+  const activeRequestId = useRef(0);
+
+  // Active Graph Data based on Mode
+  const activeGraphData = useMemo<GraphData>(() => {
+    if (dataSource === 'sample') {
+      return JSON.parse(JSON.stringify(SAMPLE_GRAPH_DATA)) as GraphData;
+    }
+    if (dataSource === 'live' && liveGraphData) {
+      return liveGraphData;
+    }
+    return JSON.parse(JSON.stringify(rawGraphData)) as GraphData;
+  }, [dataSource, liveGraphData]);
+
+  // Lookup map of nodes by ID
   const nodesById = useMemo(() => {
     const map = new Map<string, GraphNode>();
-    graphData.nodes.forEach((n) => map.set(n.id, n));
+    activeGraphData.nodes.forEach((n) => map.set(n.id, n));
     return map;
-  }, [graphData.nodes]);
+  }, [activeGraphData.nodes]);
 
-  const { healthyCount, moderateCount, sickCount } = useMemo(() => {
-    let healthy = 0;
-    let moderate = 0;
-    let sick = 0;
-    for (const n of graphData.nodes) {
-      if (n.health >= 70) healthy++;
-      else if (n.health >= 40) moderate++;
-      else sick++;
-    }
-    return { healthyCount: healthy, moderateCount: moderate, sickCount: sick };
-  }, [graphData.nodes]);
-
-  // Close drawer on Escape key
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setSelectedNode(null);
+  // Check live backend health when switched to 'live'
+  const checkLiveBackend = useCallback(async () => {
+    setBackendError(null);
+    const health = await checkBackendHealth();
+    setIsBackendConnected(health.ok);
+    if (health.ok) {
+      try {
+        const live = await fetchLiveGraphData();
+        setLiveGraphData(live);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setBackendError(msg);
+        setIsBackendConnected(false);
       }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    } else {
+      setBackendError(health.message || 'FastAPI backend connection refused');
+      setIsBackendConnected(false);
+    }
   }, []);
 
+  useEffect(() => {
+    if (dataSource === 'live') {
+      checkLiveBackend();
+    }
+  }, [dataSource, checkLiveBackend]);
+
+  // Reset view action
+  const handleReset = useCallback(() => {
+    setSelectedNode(null);
+    setImpactAnalysis(null);
+    setSelectedPathNodeIds(null);
+    setActiveEvidence(null);
+    setPathEvidenceList([]);
+  }, []);
+
+  // When changing data source, reset investigation
+  const handleSelectDataSource = (mode: DataSourceMode) => {
+    setDataSource(mode);
+    handleReset();
+  };
+
+  // Select a node: update selectedNode, switch mobile view, reset active path
+  const handleSelectNode = useCallback(
+    (node: GraphNode | null) => {
+      setSelectedNode(node);
+      setSelectedPathNodeIds(null);
+
+      // If clicking background or deselecting, clear trace
+      if (!node) {
+        setImpactAnalysis(null);
+        return;
+      }
+
+      // If a new node is selected while another was traced, clear previous trace immediately
+      setImpactAnalysis(null);
+      setMobileTab('inspector');
+    },
+    []
+  );
+
+  // Trace Impact Action
+  const handleTraceImpact = useCallback(() => {
+    if (!selectedNode) return;
+
+    setIsTracing(true);
+    const reqId = ++activeRequestId.current;
+
+    // Simulate minor async tick so UI shows tracing feedback cleanly
+    setTimeout(() => {
+      // Race condition check: ensure user didn't switch to a different node in the interim
+      if (reqId !== activeRequestId.current) return;
+
+      const analysis = computeImpactAnalysis(
+        selectedNode,
+        activeGraphData,
+        dataSource === 'sample'
+      );
+
+      setImpactAnalysis(analysis);
+      setIsTracing(false);
+    }, 180);
+  }, [selectedNode, activeGraphData, dataSource]);
+
+  // Open Source Evidence Drawer
+  const handleOpenEvidence = useCallback(
+    (evidence: SourceEvidence, pathList?: SourceEvidence[]) => {
+      setActiveEvidence(evidence);
+      if (pathList && pathList.length > 0) {
+        setPathEvidenceList(pathList);
+        const idx = pathList.findIndex((p) => p.edgeId === evidence.edgeId);
+        setActiveEvidenceIndex(idx >= 0 ? idx : 0);
+      } else {
+        setPathEvidenceList([evidence]);
+        setActiveEvidenceIndex(0);
+      }
+    },
+    []
+  );
+
+  // Switch between hops in a multi-hop evidence path
+  const handleSelectEvidenceIndex = (index: number) => {
+    const target = pathEvidenceList[index];
+    if (target) {
+      setActiveEvidence(target);
+      setActiveEvidenceIndex(index);
+    }
+  };
+
   return (
-    <main className="relative h-screen w-screen overflow-hidden bg-[#050811] text-slate-100 select-none">
-      {/* 3D Force-Directed Graph Canvas */}
-      <CommandGraph3D
-        nodes={graphData.nodes}
-        edges={graphData.edges}
-        clusters={graphData.clusters}
+    <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-[#050811] text-slate-100 font-sans">
+      {/* Top Navigation Bar */}
+      <TopBar
+        nodes={activeGraphData.nodes}
         selectedNode={selectedNode}
-        onSelectNode={setSelectedNode}
+        onSelectNode={handleSelectNode}
+        onReset={handleReset}
+        dataSource={dataSource}
+        onSelectDataSource={handleSelectDataSource}
+        isBackendConnected={isBackendConnected}
+        viewMode={viewMode}
+        onToggleViewMode={() => setViewMode((m) => (m === '3d' ? '2d' : '3d'))}
       />
 
-      {/* Subtle Command-Center Grid & Radial Vignette Overlay (non-interactive) */}
-      <div className="pointer-events-none fixed inset-0 z-10 command-grid-overlay opacity-40" />
-      <div
-        className="pointer-events-none fixed inset-0 z-10"
-        style={{
-          background:
-            'radial-gradient(circle at center, transparent 52%, rgba(3, 6, 14, 0.72) 100%)',
-        }}
-      />
+      {/* Backend Error Banner if in Live API mode and offline */}
+      {dataSource === 'live' && !isBackendConnected && (
+        <BackendErrorBanner
+          errorMessage={backendError}
+          onRetry={checkLiveBackend}
+          onSwitchToSample={() => handleSelectDataSource('sample')}
+        />
+      )}
 
-      {/* Top-Left Command Center HUD Identifier & Health Legend */}
-      <header className="pointer-events-none fixed left-5 top-5 z-20 flex flex-col gap-2">
-        <div className="flex items-center gap-2.5 rounded-xl border border-slate-800/80 bg-[#080d1a]/85 px-3.5 py-2.5 shadow-lg backdrop-blur-md">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-teal-500/30 bg-teal-500/10 text-teal-300">
-            <Terminal className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-slate-100">
-              AETHER // Command Center
-            </div>
-            <div className="font-mono text-[10px] text-slate-400">
-              3D Legacy Dependency &amp; Code-Health Topology · Click any node to inspect
-            </div>
-          </div>
+      {/* Mobile Tab Switcher (< 1024px) */}
+      <div className="flex border-b border-slate-800 bg-[#080d1a] px-4 py-1.5 lg:hidden select-none">
+        <div className="flex w-full rounded-lg border border-slate-800 bg-slate-900/80 p-0.5 text-xs font-mono">
+          <button
+            type="button"
+            onClick={() => setMobileTab('graph')}
+            className={`flex-1 rounded py-1 transition ${
+              mobileTab === 'graph'
+                ? 'bg-slate-800 text-cyan-300 shadow'
+                : 'text-slate-400'
+            }`}
+          >
+            Graph Canvas
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('inspector')}
+            className={`flex-1 rounded py-1 transition ${
+              mobileTab === 'inspector'
+                ? 'bg-slate-800 text-cyan-300 shadow'
+                : 'text-slate-400'
+            }`}
+          >
+            Inspector {selectedNode ? `(${selectedNode.name})` : ''}
+          </button>
+        </div>
+      </div>
+
+      {/* Main Workspace Area */}
+      <main className="relative flex flex-1 overflow-hidden">
+        {/* GRAPH CANVAS REGION (Dominant workspace area) */}
+        <div
+          className={`relative h-full flex-1 overflow-hidden transition-all duration-300 ${
+            mobileTab === 'inspector' ? 'hidden lg:block' : 'block'
+          }`}
+        >
+          {viewMode === '3d' ? (
+            <CommandGraph3D
+              nodes={activeGraphData.nodes}
+              edges={activeGraphData.edges}
+              clusters={activeGraphData.clusters}
+              selectedNode={selectedNode}
+              impactAnalysis={impactAnalysis}
+              selectedPathNodeIds={selectedPathNodeIds}
+              onSelectNode={handleSelectNode}
+            />
+          ) : (
+            <PlanarGraph2D
+              nodes={activeGraphData.nodes}
+              edges={activeGraphData.edges}
+              selectedNode={selectedNode}
+              impactAnalysis={impactAnalysis}
+              selectedPathNodeIds={selectedPathNodeIds}
+              onSelectNode={handleSelectNode}
+            />
+          )}
         </div>
 
-        {/* Non-Red Health Visual Key */}
-        <div className="flex items-center gap-3 rounded-lg border border-slate-800/70 bg-[#080d1a]/75 px-3 py-1.5 font-mono text-[10px] text-slate-400 backdrop-blur-md">
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[#00f5d4] shadow-[0_0_8px_#00f5d4]" />
-            Healthy (70–100)
-          </span>
-          <span className="text-slate-700">|</span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[#2dd4bf]" />
-            Moderate (40–69)
-          </span>
-          <span className="text-slate-700">|</span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[#8c642b]" />
-            Sick (0–39 · Dim Amber)
-          </span>
+        {/* RIGHT INSPECTOR REGION (Visible side-by-side on laptop screens >= 1024px) */}
+        <div
+          className={`h-full w-full lg:w-[380px] xl:w-[410px] shrink-0 border-l border-slate-800/90 z-20 ${
+            mobileTab === 'graph' ? 'hidden lg:block' : 'block'
+          }`}
+        >
+          <RightInspector
+            selectedNode={selectedNode}
+            nodesById={nodesById}
+            impactAnalysis={impactAnalysis}
+            isTracing={isTracing}
+            onTraceImpact={handleTraceImpact}
+            onSelectNode={handleSelectNode}
+            onOpenEvidence={handleOpenEvidence}
+            selectedPathNodeIds={selectedPathNodeIds}
+            onSelectPath={setSelectedPathNodeIds}
+            onClose={() => handleSelectNode(null)}
+          />
         </div>
-      </header>
 
-      {/* Top-Right Stats Card */}
-      <StatsCard
-        overallHealth={graphData.overallHealth}
-        nodeCount={graphData.nodes.length}
-        edgeCount={graphData.edges.length}
-        clusterCount={graphData.clusters.length}
-        healthyCount={healthyCount}
-        moderateCount={moderateCount}
-        sickCount={sickCount}
-        isDrawerOpen={Boolean(selectedNode)}
-      />
-
-      {/* Right-Side Node Details Drawer */}
-      <NodeDrawer
-        node={selectedNode}
-        edges={graphData.edges}
-        nodesById={nodesById}
-        onClose={() => setSelectedNode(null)}
-        onSelectNode={(target) => setSelectedNode(target)}
-      />
-    </main>
+        {/* SOURCE EVIDENCE DRAWER OVERLAY */}
+        <SourceDrawer
+          evidence={activeEvidence}
+          pathEvidenceList={pathEvidenceList}
+          activeEvidenceIndex={activeEvidenceIndex}
+          onSelectEvidenceIndex={handleSelectEvidenceIndex}
+          onClose={() => setActiveEvidence(null)}
+        />
+      </main>
+    </div>
   );
 }
 
