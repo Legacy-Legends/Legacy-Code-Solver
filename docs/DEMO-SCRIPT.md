@@ -1,7 +1,7 @@
 # Offline demo checklist
 
 1. Open two PowerShell terminals at the repository root.
-2. In terminal one, run `pnpm dev`.
+2. In terminal one, run `npm run dev -- --host 127.0.0.1 --port 5173`.
 3. In terminal two, run `.\scripts\run-api.ps1`.
 4. Open the Vite URL and confirm the graph is visible.
 5. Use the first node name from the graph for a deterministic cached query.

@@ -56,6 +56,25 @@ Open **http://127.0.0.1:5173**. The API reference is
 **http://127.0.0.1:8000/docs**; **http://127.0.0.1:8000/health** should respond
 successfully. Stop either server with Ctrl+C. No cache-generation step is needed.
 
+#### Windows PowerShell with fnm
+
+If PowerShell reports that `node` or `npm` is not recognized, Node.js may be
+installed through [fnm](https://github.com/Schniz/fnm) without its environment
+being loaded in the current terminal. Run this once in that terminal, then
+rerun the frontend commands:
+
+```powershell
+fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
+fnm install 20
+fnm use 20
+node --version
+npm --version
+```
+
+Node.js 20 or newer satisfies the prerequisite. To load fnm automatically in
+future PowerShell terminals, add the first command to your PowerShell profile
+(`$PROFILE`).
+
 ## Two-minute demo walkthrough
 
 1. On the landing page, click **Investigate SessionManager**. The small Sample
