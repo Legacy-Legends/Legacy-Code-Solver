@@ -11,8 +11,7 @@ From the repository root in PowerShell:
 .\scripts\run-api.ps1
 ```
 
-The script generates `demo-repos/cache/graph.json` and
-`demo-repos/cache/agent.json`, sets `USE_CACHED_DEMO=true`, and starts Uvicorn
+The script generates the demo caches, sets `USE_CACHED_DEMO=true`, and starts Uvicorn
 at `http://127.0.0.1:8000`.
 
 The equivalent commands are:
@@ -31,8 +30,8 @@ python -m uvicorn backend.api.main:app --reload --port 8000
 - `GET /api/projects/{id}/graph` returns the graph contract.
 - `POST /api/projects/{id}/blast` resolves an impact query.
 - `POST /api/projects/{id}/proposals` creates a modernization proposal.
-- `POST /api/proposals/{id}/apply` applies a pending proposal and updates
-  health in the in-memory graph.
+- `POST /api/proposals/{id}/apply` returns HTTP 409 for A1 previews until real
+  patch validation and health recomputation are connected.
 - `POST /api/proposals/{id}/reject` rejects a pending proposal.
 - `WS /ws/terminal` streams startup messages and accepts client messages.
 
@@ -41,6 +40,10 @@ FastAPI's generated API reference is available at `/docs`.
 ## Integration seam
 
 The blast and proposal routes receive an `Agent` through `Depends(get_agent)`.
-The deterministic `MockAgent` is the offline default. The agent module can be
-connected by replacing `get_agent` or using FastAPI's dependency overrides
-without changing route handlers.
+The default `AgentAdapter` connects `backend.agent` to these routes.
+`USE_MOCK_AGENT=true` (the default) bypasses the LLM for every agent function.
+`USE_CACHED_DEMO` selects the graph fixture independently; old cached agent
+responses are no longer read. Proposal diffs are now objects with `path`,
+`before`, and `after` fields. Live proposals require a project-aware source loader.
+See [the agent handoff](../backend/agent/README.md) for graph-summary limits,
+provider configuration, typed contracts, and the A1 preview boundary.
