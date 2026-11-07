@@ -1,0 +1,40 @@
+{
+  "blast": {
+    "BillingOrchestrator": {
+      "matched_node_ids": [
+        "node-1-1"
+      ],
+      "blast_node_ids": [
+        "node-1-1"
+      ],
+      "blast_edge_ids": [
+        "edge-1",
+        "edge-8",
+        "edge-9",
+        "edge-10",
+        "edge-11",
+        "edge-71",
+        "edge-72",
+        "edge-77",
+        "edge-81"
+      ],
+      "percent": 2.5,
+      "summary": "Cached analysis matched 1 node for: BillingOrchestrator",
+      "affected_domains": [
+        "Billing & Settlement"
+      ]
+    }
+  },
+  "proposal": {
+    "id": "cached-proposal",
+    "target_node_ids": [],
+    "rationale": "Demo proposal: isolate the selected legacy dependency behind an interface.",
+    "diffs": [
+      "// Cached demo diff: isolate the selected legacy dependency."
+    ],
+    "health_before": 59,
+    "health_after": 64,
+    "change_blast_node_ids": [],
+    "status": "pending"
+  }
+}
