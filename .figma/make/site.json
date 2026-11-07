@@ -1,0 +1,10 @@
+{
+  "description": "The app’s purpose and intended users are not specified; this project focuses on initial setup and deployment readiness rather than user-facing functionality.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
