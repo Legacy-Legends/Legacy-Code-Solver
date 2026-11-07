@@ -1,6 +1,6 @@
 tree-sitter==0.25.2
 tree-sitter-java==0.23.5
 networkx==3.4.2
-pydantic==2.10.6
-# NetworkX PageRank uses SciPy.
-scipy==1.15.2
+pydantic>=2.10.6,<3
+# NetworkX PageRank uses SciPy. Keep this compatible with Python 3.14 wheels.
+scipy>=1.16.0,<2

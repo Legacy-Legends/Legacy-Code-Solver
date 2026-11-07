@@ -1,4 +1,5 @@
 fastapi>=0.115,<1
 pydantic>=2.7,<3
 uvicorn[standard]>=0.30,<1
+-r analysis/requirements.txt
 -r agent/requirements.txt
