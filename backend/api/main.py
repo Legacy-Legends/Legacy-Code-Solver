@@ -205,6 +205,27 @@ PROPOSALS: dict[str, Proposal] = {}
 GRAPH_STATE = load_graph()
 
 
+@app.get("/")
+def root() -> dict[str, str]:
+    return {
+        "name": app.title,
+        "status": "ok",
+        "docs": "/docs",
+        "graph": "/api/graph",
+    }
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/api/graph", response_model=GraphData)
+def get_demo_graph() -> GraphData:
+    """Compatibility route used by the frontend's backend adapter."""
+    return clone_graph(GRAPH_STATE)
+
+
 @app.get("/api/projects", response_model=list[ProjectInfo])
 def list_projects() -> list[ProjectInfo]:
     return list(PROJECTS.values())
