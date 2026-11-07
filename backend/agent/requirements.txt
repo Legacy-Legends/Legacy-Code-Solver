@@ -1,0 +1,2 @@
+-r ../analysis/requirements.txt
+openai==1.68.2
