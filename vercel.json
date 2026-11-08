@@ -17,12 +17,12 @@
     "agent": {
       "root": "backend/agent",
       "runtime": "python",
-      "entrypoint": "main.py" 
+      "entrypoint": "main.py"
     },
     "analysis": {
       "root": "backend/analysis",
       "runtime": "python",
-      "entrypoint": "main.py"
+      "entrypoint": "__main__.py"
     }
   },
   "rewrites": [
