@@ -280,6 +280,45 @@ appropriate `AGENT_MODEL` (default `gpt-4o-mini` when unset).
 
 ## Troubleshooting
 
+### Windows: WinError 10013 (socket access forbidden)
+
+This occurs while binding the server port, before any Groq request. Windows may
+reserve that port, another process may hold it exclusively, or local security
+policy may block the bind. The pip upgrade notice is unrelated.
+
+Try a different port without the reload subprocess:
+
+```powershell
+# Backend terminal, from the repository root:
+.\scripts\run-api.cmd -Live -Port 8765 -NoReload
+```
+
+In the frontend terminal, stop Vite with Ctrl+C and restart it with a matching
+proxy target:
+
+```powershell
+$env:API_PROXY_TARGET = "http://127.0.0.1:8765"
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+Open `http://127.0.0.1:8765/health` to confirm the backend started. Use
+`http://127.0.0.1:8765/docs` for API requests. If `.env.local` sets `VITE_API_URL`
+to the old backend port, remove that override to use the proxy, or update it.
+
+If binding still fails, inspect the selected port (replace 8765 if needed):
+
+```powershell
+Get-NetTCPConnection -LocalPort 8765 -ErrorAction SilentlyContinue
+netsh interface ipv4 show excludedportrange protocol=tcp
+```
+
+Choose an unused port outside any excluded ranges. If an unreserved port also
+fails, local security software or policy needs investigation; send the error
+and port diagnostics without any credentials. The launcher accepts `-Port`
+(1–65535) and `-NoReload`; default behavior remains port 8000 with reload enabled.
+
+### Other setup issues
+
 - **Backend offline:** open `/api/projects` on port 8000 and check the backend
   terminal. Ensure the UI's data source is FastAPI.
 - **Backend address:** by default Vite proxies `/backend` HTTP and WebSocket
