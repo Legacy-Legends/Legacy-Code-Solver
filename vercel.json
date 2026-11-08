@@ -1,41 +1,50 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "services": {
-    "legacy-code-solver-api": {
+    "frontend": {
       "root": ".",
       "framework": "vite",
-      "buildCommand": "pip install -r backend/requirements.txt"
+      "installCommand": "npm ci",
+      "buildCommand": "npm run build",
+      "outputDirectory": "dist"
     },
     "backend": {
-      "root": "backend",
+      "root": ".",
+      "runtime": "python",
       "framework": "fastapi",
-      "bindings": [
-        { "type": "service", "service": "agent", "format": "url", "env": "AGENT_URL" },
-        { "type": "service", "service": "analysis", "format": "url", "env": "ANALYSIS_URL" }
-      ]
-    },
-    "agent": {
-      "root": "backend/agent",
-      "runtime": "python",
-      "entrypoint": "main.py"
-    },
-    "analysis": {
-      "root": "backend/analysis",
-      "runtime": "python",
-      "entrypoint": "__main__.py"
+      "entrypoint": "backend.api.main:app",
+      "installCommand": "pip install -r backend/requirements.txt"
     }
   },
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/:path*",
       "destination": {
         "service": "backend"
       }
     },
     {
-      "source": "/(.*)",
+      "source": "/health",
       "destination": {
-        "service": "legacy-code-solver-api"
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/docs",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/openapi.json",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/:path*",
+      "destination": {
+        "service": "frontend"
       }
     }
   ]
