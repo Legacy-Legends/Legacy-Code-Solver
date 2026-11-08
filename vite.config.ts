@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { fileURLToPath } from 'node:url';
 
 const proxy = {
   '/backend': {
@@ -11,9 +12,7 @@ const proxy = {
     rewrite: (path: string) => path.replace(/^\/backend/, ''),
   },
 };
-const threeDir = decodeURIComponent(
-  new URL('./node_modules/3d-force-graph/node_modules/three', import.meta.url).pathname
-);
+const threeDir = fileURLToPath(new URL('./node_modules/three', import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
