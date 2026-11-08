@@ -188,6 +188,7 @@ PROJECTS: dict[str, ProjectInfo] = {
 PROJECT_GRAPHS: dict[str, GraphData] = {}
 PROJECT_ROOTS: dict[str, Path] = {}
 PROPOSALS: dict[str, Proposal] = {}
+PROPOSAL_PROJECTS: dict[str, str] = {}
 GRAPH_STATE = load_graph()
 
 
@@ -302,7 +303,7 @@ def integration_config() -> dict:
         return {"agent_mode": "mock" if use_mock_agent() else "live",
                 "provider": config.provider, "model": config.model,
                 "credential_configured": config.credential_configured,
-                "graph_source": "demo_fixture", "can_apply_proposals": False}
+                "graph_source": "project_analysis", "can_apply_proposals": not use_mock_agent()}
     except (AgentUnavailable, ValueError) as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -320,12 +321,20 @@ def impact(project_id: str, class_id: str) -> dict:
 def chat(project_id: str, request: ChatRequest) -> ChatResponse:
     graph = get_graph(project_id)
     try:
-        return chat_with_agent(
+        response = chat_with_agent(
             request.query,
             graph.model_dump(),
             request.selected_node_id,
             [turn.model_dump() for turn in request.history],
         )
+        if response.intent == "propose" and response.target_node_ids and project_id != "demo":
+            proposal = AgentAdapter(source_loader=source_loader(project_id)).proposal(
+                response.target_node_ids, graph
+            )
+            PROPOSALS[proposal.id] = proposal
+            PROPOSAL_PROJECTS[proposal.id] = project_id
+            response.proposal_id = proposal.id
+        return response
     except AgentUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
@@ -388,10 +397,40 @@ def apply_proposal(proposal_id: str) -> Proposal:
     proposal = get_stored_proposal(proposal_id)
     if proposal.status != "pending":
         raise HTTPException(status_code=409, detail=f"Proposal is already {proposal.status}")
-    raise HTTPException(
-        status_code=409,
-        detail="A1 proposals are previews only. Patch validation and health recomputation are required before apply.",
-    )
+    project_id = PROPOSAL_PROJECTS.get(proposal_id)
+    if not project_id or project_id == "demo" or project_id not in PROJECT_ROOTS:
+        raise HTTPException(status_code=409, detail="Upload a Java project before applying a code change")
+    root = PROJECT_ROOTS[project_id]
+    graph = get_graph(project_id)
+    originals: dict[Path, str] = {}
+    try:
+        for diff in proposal.diffs:
+            candidate = (root / Path(diff.path)).resolve()
+            if root not in candidate.parents or not candidate.is_file():
+                raise ValueError(f"Proposal path is not a file in the project: {diff.path}")
+            current = candidate.read_text(encoding="utf-8")
+            if current != diff.before:
+                raise ValueError(f"Source changed since proposal was created: {diff.path}")
+            originals[candidate] = current
+        for diff in proposal.diffs:
+            candidate = (root / Path(diff.path)).resolve()
+            candidate.write_text(diff.after, encoding="utf-8", newline="")
+        updated = GraphData.model_validate(
+            to_frontend_graph(graph_model(calculate_metrics(parse_repo(str(root)))))
+        )
+    except (OSError, ValueError) as exc:
+        for candidate, content in originals.items():
+            candidate.write_text(content, encoding="utf-8", newline="")
+        raise HTTPException(status_code=422, detail=f"Change validation failed: {exc}") from exc
+    PROJECT_GRAPHS[project_id] = updated
+    proposal.status = "applied"
+    proposal.health_after = round(updated.overallHealth)
+    return proposal
+
+
+@app.get("/api/proposals/{proposal_id}", response_model=Proposal)
+def proposal(proposal_id: str) -> Proposal:
+    return get_stored_proposal(proposal_id)
 
 
 @app.post("/api/proposals/{proposal_id}/reject", response_model=Proposal)

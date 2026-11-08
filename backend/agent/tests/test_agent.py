@@ -51,7 +51,7 @@ def test_toggle_variants(monkeypatch, value, graph):
 
 def test_toggle_default_and_invalid(monkeypatch):
     monkeypatch.delenv("USE_MOCK_AGENT", raising=False)
-    assert llm.use_mock_agent()
+    assert not llm.use_mock_agent()
     monkeypatch.setenv("USE_MOCK_AGENT", "treu")
     with pytest.raises(ValueError):
         llm.use_mock_agent()

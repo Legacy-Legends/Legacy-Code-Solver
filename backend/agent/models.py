@@ -51,6 +51,7 @@ class ChatResponse(StrictModel):
     message: str
     intent: Literal["answer", "explain", "propose"]
     target_node_ids: list[str]
+    proposal_id: str | None = None
 
 
 class DomainTag(StrictModel):

@@ -1,25 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  AgentConfig, BackendBlastResult, ChatResponse, DomainTag, PetResponse, Proposal,
-  createProposal, fetchAgentConfig, fetchChat, fetchDomains, fetchLiveBlast, fetchPet, rejectProposal, terminalUrl,
+  AgentConfig, ChatResponse, Proposal,
+  applyProposal, fetchAgentConfig, fetchChat, fetchProposal, rejectProposal, terminalUrl,
 } from '../api/backendAdapter';
 import { GraphNode } from '../types';
 
 interface Props {
   projectId: string;
   selectedNode: GraphNode | null;
-  onBlast: (result: BackendBlastResult) => void;
-  onDomains: (tags: Record<string, DomainTag>) => void;
+  onGraphChanged: () => void;
 }
 
 /** Mounted only for a loaded server graph; cancellation prevents stale UI updates. */
-export function AgentPanel({ projectId, selectedNode, onBlast, onDomains }: Props) {
+export function AgentPanel({ projectId, selectedNode, onGraphChanged }: Props) {
   const [config, setConfig] = useState<AgentConfig | null>(null);
-  const [query, setQuery] = useState('What breaks if BillingOrchestrator goes down?');
-  const [blast, setBlast] = useState<BackendBlastResult | null>(null);
   const [proposal, setProposal] = useState<Proposal | null>(null);
-  const [pet, setPet] = useState<PetResponse | null>(null);
-  const [petQuery, setPetQuery] = useState('How are we doing?');
   const [chatQuery, setChatQuery] = useState('');
   const [chat, setChat] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -67,8 +62,9 @@ export function AgentPanel({ projectId, selectedNode, onBlast, onDomains }: Prop
       const result: ChatResponse = await fetchChat(queryText, selectedNode?.id || null, chat, projectId, signal);
       if (!signal.aborted) {
         setChat(items => [...items, { role: 'assistant', content: result.message }]);
-        if (result.intent === 'propose' && result.target_node_ids.length > 0) {
-          setActivity(items => [...items.slice(-7), 'Agent identified a modernization proposal target.']);
+        if (result.proposal_id) {
+          const created = await fetchProposal(result.proposal_id, signal);
+          if (!signal.aborted) setProposal(created);
         }
       }
     });
@@ -78,22 +74,11 @@ export function AgentPanel({ projectId, selectedNode, onBlast, onDomains }: Prop
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold">Agent workspace</h2>
         <span className="text-xs rounded-full bg-emerald-50 px-3 py-1 text-emerald-900">
-          {config ? `${config.agent_mode === 'mock' ? 'Mock agent · no LLM calls' : `Live ${config.provider} · ${config.model}`} · ${projectId === 'demo' ? 'demo graph' : 'uploaded project'}` : 'Checking agent mode…'}
+          {config ? `${config.agent_mode === 'live' ? `Live ${config.provider} · ${config.model}` : 'Offline agent'} · ${projectId === 'demo' ? 'demo graph' : 'uploaded project'}` : 'Connecting to pet agent…'}
         </span>
       </div>
-      <form className="flex flex-wrap gap-2" onSubmit={e => {
-        e.preventDefault(); setBlast(null);
-        void run('Blast analysis', async signal => {
-          const result = await fetchLiveBlast(query, projectId, signal);
-          if (signal.aborted) return;
-          setBlast(result); onBlast(result);
-        });
-      }}>
-        <input aria-label="Impact question" className={input} value={query} maxLength={2000} onChange={e => setQuery(e.target.value)} required />
-        <button className={button} disabled={!!busy || !config || !query.trim()}>Ask impact</button>
-      </form>
       <section aria-label="Agent chat" className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
-        <p className="font-bold">Agent chat</p>
+        <p className="font-bold">🐾 Pet agent chat</p>
         <div className="max-h-40 space-y-2 overflow-y-auto text-sm">
           {chat.length === 0 && <p className="text-slate-600">Ask about this codebase, a class, or what to modernize next.</p>}
           {chat.map((item, index) => (
@@ -108,31 +93,11 @@ export function AgentPanel({ projectId, selectedNode, onBlast, onDomains }: Prop
           <button type="button" className={button} disabled={!!busy || !config || !chatQuery.trim()} onClick={sendChat}>Send</button>
         </div>
       </section>
-      {blast && <div role="status" className="rounded-lg bg-slate-50 p-3 text-sm space-y-1">
-        <p className="font-bold">{blast.blast_node_ids.length} affected components · {blast.percent}% (including targets)</p>
-        <p>{blast.summary}</p>
-        {blast.affected_domains.length > 0 && <p>Inferred domains: {blast.affected_domains.join(', ')}</p>}
-      </div>}
-      <div className="flex flex-wrap items-center gap-2">
-        <button className={button} disabled={!!busy || !config || !selectedNode} onClick={() => {
-          if (!selectedNode) return;
-          setProposal(null);
-          void run('Proposal preview', async signal => {
-            const result = await createProposal([selectedNode.id], projectId, signal);
-            if (!signal.aborted) setProposal(result);
-          });
-        }}>Preview refactor</button>
-        <span className="text-xs text-slate-600">Target: {selectedNode?.name || 'Select a class'}</span>
-        <button className={button} disabled={!!busy || !config} onClick={() => void run('Domain inference', async signal => {
-          const tags = await fetchDomains(projectId, signal);
-          if (!signal.aborted) onDomains(tags);
-        })}>Infer domains</button>
-      </div>
       {proposal && <article aria-label="Proposal preview" className="rounded-lg border border-slate-200 p-4 space-y-3">
-        <p className="font-semibold">Proposal · {proposal.status}</p>
+        <p className="font-semibold">Pet agent proposal · {proposal.status}</p>
         <p className="text-xs">Proposal targets: {proposal.target_node_ids.join(', ')}</p>
         <p className="text-sm">{proposal.rationale}</p>
-        <p className="text-xs">Health: {proposal.health_before} → {proposal.health_after}. No patch has been applied.</p>
+        <p className="text-xs">Health: {proposal.health_before} → {proposal.health_after}.</p>
         {proposal.diffs.map(diff => <div key={diff.path}>
           <h3 className="font-mono text-sm mb-2">{diff.path}</h3>
           <div className="grid md:grid-cols-2 gap-2">
@@ -141,27 +106,19 @@ export function AgentPanel({ projectId, selectedNode, onBlast, onDomains }: Prop
           </div>
         </div>)}
         <div className="flex gap-2">
-          <button className={button} disabled title="Patch validation and application are not implemented yet">Apply unavailable</button>
+          <button className={button} disabled={!!busy || proposal.status !== 'pending' || projectId === 'demo'} onClick={() => void run('Apply modernization', async signal => {
+            const result = await applyProposal(proposal.id, signal);
+            if (!signal.aborted) {
+              setProposal(result);
+              onGraphChanged();
+            }
+          })}>Apply change</button>
           <button className={button} disabled={!!busy || proposal.status !== 'pending'} onClick={() => void run('Proposal rejection', async signal => {
             const result = await rejectProposal(proposal.id, signal);
             if (!signal.aborted) setProposal(result);
           })}>Reject proposal</button>
         </div>
       </article>}
-      <form className="rounded-lg bg-emerald-50 p-3 space-y-2" onSubmit={e => {
-        e.preventDefault();
-        void run('Pet chat', async signal => {
-          const result = await fetchPet(petQuery, projectId, signal);
-          if (!signal.aborted) setPet(result);
-        });
-      }}>
-        <p className="font-bold">🐾 Code-health pet {pet && `· ${pet.mood}`}</p>
-        {pet && <p role="status" className="text-sm">{pet.message}</p>}
-        <div className="flex gap-2">
-          <input aria-label="Message to pet" className={input} value={petQuery} maxLength={2000} onChange={e => setPetQuery(e.target.value)} required />
-          <button className={button} disabled={!!busy || !config || !petQuery.trim()}>Chat with pet</button>
-        </div>
-      </form>
       {busy && <p role="status" className="text-sm">{busy}…</p>}
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       <details><summary className="text-xs cursor-pointer">Connection and action log</summary><pre className="text-xs whitespace-pre-wrap mt-2">{activity.join('\n')}</pre></details>

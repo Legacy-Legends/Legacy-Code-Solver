@@ -16,14 +16,11 @@ import { StartPage } from './components/StartPage';
 import { TopBar } from './components/TopBar';
 import { PlanarGraph2D } from './components/PlanarGraph2D';
 import { CommandGraph3D } from './components/CommandGraph3D';
-import { DetailPanel } from './components/DetailPanel';
 import { SourceDrawer } from './components/SourceDrawer';
 import { BackendErrorBanner } from './components/BackendErrorBanner';
 import { SettingsModal } from './components/SettingsModal';
 import { useAccessibilitySettings, registerAnnouncer, announceToScreenReader } from './lib/accessibilityStore';
 import { AgentPanel } from './components/AgentPanel';
-import { PetCompanion } from './components/PetCompanion';
-import { DomainTag } from './api/backendAdapter';
 
 type RouteView = 'start' | 'investigate';
 
@@ -317,24 +314,6 @@ export function App() {
     syncClassToUrl(null);
   };
 
-  const handleDomains = useCallback(
-    (tags: Record<string, DomainTag>) => {
-      setLiveGraphData((current) => {
-        if (!current) return current;
-        return {
-          ...current,
-          nodes: current.nodes.map((node) => {
-            const tag = tags[node.id];
-            return tag
-              ? { ...node, domain_tag: tag.domain_tag, domain_inferred: tag.domain_inferred }
-              : node;
-          }),
-        };
-      });
-    },
-    []
-  );
-
   // Open workspace from StartPage
   const handleExploreSample = (className?: string) => {
     setActiveProjectId('demo');
@@ -576,9 +555,6 @@ export function App() {
               </button>
             </div>
           )}
-          {!isLiveOffline && dataSource === 'live' && (
-            <PetCompanion nodes={activeGraphData.nodes} overallHealth={activeGraphData.overallHealth} />
-          )}
         </div>
 
         {/* 3. Single Contextual Detail Panel */}
@@ -597,33 +573,12 @@ export function App() {
             }`}
           >
             <div className="flex h-full min-h-0 flex-col">
-              <div className="min-h-0 flex-1">
-                <DetailPanel
-                  nodes={activeGraphData.nodes}
-                  edges={activeGraphData.edges}
-                  nodesById={nodesById}
-                  selectedNode={selectedNode}
-                  selectedEdge={selectedEdge}
-                  impactAnalysis={impactAnalysis}
-                  showIndirect={showIndirect}
-                  onToggleIndirect={setShowIndirect}
-                  selectedPathNodeIds={selectedPathNodeIds}
-                  onSelectPath={setSelectedPathNodeIds}
-                  onSelectNode={handleSelectNode}
-                  onSelectEdge={setSelectedEdge}
-                  onOpenEvidence={handleOpenEvidence}
-                  resolveEvidenceForEdge={resolveEvidenceForEdge}
-                />
-              </div>
               {!isLiveOffline && dataSource === 'live' && (
-                <div className="max-h-[48%] shrink-0 overflow-y-auto border-t border-[#E4E2DA]">
+                <div className="min-h-0 flex-1 overflow-y-auto">
                   <AgentPanel
                     projectId={activeProjectId}
                     selectedNode={selectedNode}
-                    onBlast={(result) => {
-                      setSelectedPathNodeIds(result.blast_node_ids);
-                    }}
-                    onDomains={handleDomains}
+                    onGraphChanged={() => void checkLiveBackend()}
                   />
                 </div>
               )}

@@ -111,6 +111,7 @@ def test_provider_errors_are_actionable_and_sanitized(monkeypatch, status, expec
 
 def test_mock_functions_never_construct_a_provider(monkeypatch):
     import openai
+    monkeypatch.setenv("USE_MOCK_AGENT", "true")
     def fail(*args, **kwargs):
         pytest.fail('Mock mode constructed an LLM client')
     monkeypatch.setattr(groq, 'Groq', fail)
@@ -155,4 +156,4 @@ def test_live_check_requires_explicit_live_mode(monkeypatch, capsys):
     from backend.agent.check_provider import main
     monkeypatch.setattr(sys, 'argv', ['check_provider', '--live'])
     assert main() == 1
-    assert 'USE_MOCK_AGENT=false' in capsys.readouterr().err
+    assert 'GROQ_API_KEY' in capsys.readouterr().err

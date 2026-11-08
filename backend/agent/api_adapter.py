@@ -31,8 +31,13 @@ class AgentAdapter:
     def proposal(self, target_node_ids: list[str], graph: GraphLike) -> Proposal:
         from .llm import use_mock_agent
         try:
-            sources = self.source_loader(target_node_ids) if self.source_loader and not use_mock_agent() else {}
-            return generate_proposal(target_node_ids, graph.model_dump(), sources)
+            graph_data = graph.model_dump()
+            target_paths = [
+                node["path"] for node in graph_data["nodes"]
+                if node["id"] in target_node_ids and node.get("path")
+            ]
+            sources = self.source_loader(target_paths) if self.source_loader and not use_mock_agent() else {}
+            return generate_proposal(target_node_ids, graph_data, sources)
         except AgentUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         except ValueError as exc:
