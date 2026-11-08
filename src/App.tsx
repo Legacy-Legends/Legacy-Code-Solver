@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { fetchLiveGraphData } from './api/backendAdapter';
+import { exportProjectUrl, fetchLiveGraphData, uploadProject } from './api/backendAdapter';
 import { GraphData, GraphNode, GraphEdge, ImpactAnalysis, SourceEvidence } from './types/index';
 import { computeImpactAnalysis } from './lib/impactAnalysis';
 import { StartPage } from './components/StartPage';
@@ -59,6 +59,9 @@ export function App() {
   const [pathEvidenceList, setPathEvidenceList] = useState<SourceEvidence[]>([]);
   const [activeEvidenceIndex, setActiveEvidenceIndex] = useState(0);
   const [isAgentOpen, setIsAgentOpen] = useState(false);
+  const [activeProjectId, setActiveProjectId] = useState(() => localStorage.getItem('legacy-code-solver-project') || 'demo');
+  const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
+  const [hasModernized, setHasModernized] = useState(() => localStorage.getItem('legacy-code-solver-modernized') === 'true');
 
   // Keep the graph and agent on the same backend project; never silently swap fixtures.
   const [activeGraphData, setActiveGraphData] = useState<GraphData>({ nodes: [], edges: [], clusters: [], overallHealth: 0 });
@@ -69,12 +72,12 @@ export function App() {
     const controller = new AbortController();
     setGraphLoading(true);
     setGraphError(null);
-    fetchLiveGraphData('demo', controller.signal)
+    fetchLiveGraphData(activeProjectId, controller.signal)
       .then(graph => { if (!controller.signal.aborted) setActiveGraphData(graph); })
       .catch(error => { if (!controller.signal.aborted) setGraphError(error instanceof Error ? error.message : 'Unable to load graph.'); })
       .finally(() => { if (!controller.signal.aborted) setGraphLoading(false); });
     return () => controller.abort();
-  }, [loadAttempt]);
+  }, [activeProjectId, loadAttempt]);
 
   const nodesById = useMemo(() => {
     const map = new Map<string, GraphNode>();
@@ -172,6 +175,22 @@ export function App() {
     setRoute('investigate');
   };
 
+  const handleUpload = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    try {
+      const project = await uploadProject(file);
+      localStorage.setItem('legacy-code-solver-project', project.id);
+      setActiveProjectId(project.id);
+      setHighlightedNodeIds([]);
+      setHasModernized(false);
+      localStorage.removeItem('legacy-code-solver-modernized');
+      setRoute('investigate');
+    } catch (error) {
+      setGraphError(error instanceof Error ? error.message : 'Unable to upload project.');
+    }
+  };
+
   const handleOpenEvidence = useCallback((evidence: SourceEvidence, pathList?: SourceEvidence[]) => {
     setActiveEvidence(evidence);
     if (pathList && pathList.length > 0) {
@@ -191,6 +210,7 @@ export function App() {
         <StartPage
           onOpenWorkspace={handleOpenWorkspace}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onUpload={handleUpload}
         />
         <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={settings} onUpdateSetting={updateSetting} onResetSettings={resetSettings} />
       </div>
@@ -241,6 +261,7 @@ export function App() {
               impactAnalysis={impactAnalysis}
               showIndirect={showIndirect}
               selectedPathNodeIds={selectedPathNodeIds}
+              highlightedNodeIds={highlightedNodeIds}
               fitSignal={fitSignal}
               onSelectNode={handleSelectNode}
               onSelectEdge={setSelectedEdge}
@@ -256,6 +277,7 @@ export function App() {
               selectedNode={selectedNode}
               impactAnalysis={impactAnalysis}
               selectedPathNodeIds={selectedPathNodeIds}
+              highlightedNodeIds={highlightedNodeIds}
               onSelectNode={handleSelectNode}
               onFallbackTo2D={() => setViewMode('2d')}
               reducedMotion={settings.reducedMotion}
@@ -267,7 +289,7 @@ export function App() {
 
         {/* Dynamic Sidebar Container */}
         {isSidebarOpen && (
-          <aside aria-label="Workspace details" className={`h-full w-full md:w-[360px] lg:w-[420px] shrink-0 border-l border-white/60 dark:border-white/10 bg-[var(--bg-surface)] backdrop-blur-2xl backdrop-saturate-150 shadow-[-8px_0_32px_-4px_rgba(15,23,42,0.06)] dark:shadow-[-12px_0_40px_-4px_rgba(0,0,0,0.6)] z-20 transition-all duration-300 ${mobileView === 'graph' ? 'hidden md:block' : 'block'}`}>
+          <aside aria-label="Workspace details" className={`h-full w-full ${isAgentOpen ? 'md:w-1/2' : 'md:w-[360px] lg:w-[420px]'} shrink-0 border-l border-white/60 dark:border-white/10 bg-[var(--bg-surface)] backdrop-blur-2xl backdrop-saturate-150 shadow-[-8px_0_32px_-4px_rgba(15,23,42,0.06)] dark:shadow-[-12px_0_40px_-4px_rgba(0,0,0,0.6)] z-20 transition-all duration-300 ${mobileView === 'graph' ? 'hidden md:block' : 'block'}`}>
             <div className="flex h-full min-h-0 flex-col">
               {activeEvidence && !isAgentOpen ? (
                 <SourceDrawer
@@ -303,14 +325,19 @@ export function App() {
 
                   {/* The agent uses the full drawer height */}
                   {isAgentOpen && (
-                    <div id="agent-workspace" className="min-h-0 flex-1 pb-24">
+                    <div id="agent-workspace" className="min-h-0 flex-1">
                       <AgentPanel
                         onClose={() => { setIsAgentOpen(false); setMobileView('graph'); }}
-                        projectId="demo"
+                        projectId={activeProjectId}
                         selectedNode={selectedNode}
                         onBlast={(result) => setSelectedPathNodeIds(result.blast_node_ids)}
                         overallHealth={activeGraphData.overallHealth}
-                        onGraphUpdated={() => setLoadAttempt(n => n + 1)}
+                        onGraphUpdated={(ids) => {
+                          setHighlightedNodeIds(ids);
+                          setHasModernized(true);
+                          localStorage.setItem('legacy-code-solver-modernized', 'true');
+                          setLoadAttempt(n => n + 1);
+                        }}
                       />
                     </div>
                   )}
@@ -321,6 +348,13 @@ export function App() {
         )}
       </main>
 
+      {!graphLoading && !graphError && activeProjectId !== 'demo' && hasModernized && <a
+        href={exportProjectUrl(activeProjectId)}
+        download
+        className="fixed right-6 top-20 z-30 rounded-lg bg-[var(--bg-surface)] px-3 py-2 text-xs font-semibold shadow-lg border border-[var(--border-color)] hover:border-[var(--accent)]"
+      >
+        Export modernized ZIP
+      </a>}
       {!graphLoading && !graphError && <PetCompanion
         nodes={activeGraphData.nodes}
         overallHealth={activeGraphData.overallHealth}

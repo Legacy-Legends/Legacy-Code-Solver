@@ -11,6 +11,7 @@ interface PlanarGraph2DProps {
   impactAnalysis: ImpactAnalysis | null;
   showIndirect: boolean;
   selectedPathNodeIds: string[] | null;
+  highlightedNodeIds?: string[];
   fitSignal?: number;
   onSelectNode: (node: GraphNode | null) => void;
   onSelectEdge: (edge: GraphEdge | null) => void;
@@ -36,6 +37,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   impactAnalysis,
   showIndirect,
   selectedPathNodeIds,
+  highlightedNodeIds = [],
   fitSignal = 0,
   onSelectNode,
   onSelectEdge,
@@ -135,11 +137,11 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   const nodeStatusMap = useMemo(() => {
     const map = new Map<
       string,
-      'selected' | 'direct' | 'indirect' | 'path' | 'unrelated'
+      'selected' | 'direct' | 'indirect' | 'path' | 'changed' | 'unrelated'
     >();
 
     if (!selectedNode && !selectedEdge) {
-      nodes.forEach((n) => map.set(n.id, 'unrelated'));
+      nodes.forEach((n) => map.set(n.id, highlightedNodeIds.includes(n.id) ? 'changed' : 'unrelated'));
       return map;
     }
 
@@ -179,7 +181,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     }
 
     return map;
-  }, [selectedNode, selectedEdge, impactAnalysis, showIndirect, selectedPathNodeIds, nodes]);
+  }, [selectedNode, selectedEdge, impactAnalysis, showIndirect, selectedPathNodeIds, highlightedNodeIds, nodes]);
 
   const isEdgeInSelectedPath = useCallback(
     (sId: string, tId: string): boolean => {
@@ -477,6 +479,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             const isSelected = status === 'selected';
             const isDirect = status === 'direct';
             const isIndirect = status === 'indirect';
+            const isChanged = status === 'changed';
             const isDimmed = hasActiveFilter && status === 'unrelated';
             const isHovered = hoveredNodeId === node.id;
 
@@ -512,6 +515,14 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
               roleLabel = 'INDIRECT CALLER';
               badgeBg = darkMode ? 'rgba(129, 140, 248, 0.25)' : '#E0E7FF';
               badgeText = darkMode ? '#C7D2FE' : '#4338CA';
+            } else if (isChanged) {
+              cardBg = darkMode ? '#451A03' : '#FFFBEB';
+              cardBorder = darkMode ? '#F59E0B' : '#D97706';
+              borderWidth = 2.5;
+              titleColor = darkMode ? '#FCD34D' : '#92400E';
+              roleLabel = 'JUST MODERNIZED';
+              badgeBg = darkMode ? 'rgba(245, 158, 11, 0.25)' : '#FEF3C7';
+              badgeText = darkMode ? '#FCD34D' : '#92400E';
             } else if (isHovered && !hasActiveFilter) {
               cardBg = darkMode ? '#1E293B' : '#F8FAFC';
               cardBorder = darkMode ? '#38BDF8' : '#0284C7';

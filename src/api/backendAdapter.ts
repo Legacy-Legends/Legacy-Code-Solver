@@ -127,6 +127,9 @@ export async function uploadProject(file: File, signal?: AbortSignal): Promise<{
     signal?.removeEventListener('abort', cancel);
   }
 }
+export function exportProjectUrl(projectId: string): string {
+  return `${BACKEND_URL}/api/projects/${encodeURIComponent(projectId)}/export`;
+}
 
 export function terminalUrl(): string {
   const url = new URL(`${BACKEND_URL}/ws/terminal`, window.location.href);

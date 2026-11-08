@@ -12,6 +12,7 @@ interface CommandGraph3DProps {
   selectedNode: GraphNode | null;
   impactAnalysis: ImpactAnalysis | null;
   selectedPathNodeIds: string[] | null;
+  highlightedNodeIds?: string[];
   onSelectNode: (node: GraphNode | null) => void;
   onFallbackTo2D?: () => void;
   reducedMotion?: boolean;

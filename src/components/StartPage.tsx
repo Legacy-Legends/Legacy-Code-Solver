@@ -1,12 +1,13 @@
-import { GitFork, FileJson, Sliders, ArrowRight } from 'lucide-react';
+import { GitFork, FileJson, Sliders, ArrowRight, Upload } from 'lucide-react';
 
 interface StartPageProps {
   onOpenWorkspace: () => void;
   onOpenSettings: () => void;
+  onUpload: (files: FileList | null) => void;
 }
 
 /** The presentation uses one checked-in mock file, served by the backend. */
-export function StartPage({ onOpenWorkspace, onOpenSettings }: StartPageProps) {
+export function StartPage({ onOpenWorkspace, onOpenSettings, onUpload }: StartPageProps) {
   return (
     <div className="min-h-screen text-[var(--text-primary)]">
       <header className="flex items-center justify-between gap-4 border-b border-slate-200/70 dark:border-white/10 px-6 py-5 sm:px-10">
@@ -33,6 +34,10 @@ export function StartPage({ onOpenWorkspace, onOpenSettings }: StartPageProps) {
           <button type="button" onClick={onOpenWorkspace} className="mt-8 flex items-center gap-3 rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow-lg transition hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-500">
             Open mock graph <ArrowRight className="h-5 w-5" />
           </button>
+          <label className="mt-4 flex cursor-pointer items-center gap-2 rounded-xl border border-indigo-200 px-5 py-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-50">
+            <Upload className="h-4 w-4" /> Upload CrownBank ZIP
+            <input type="file" accept=".zip,application/zip" className="sr-only" onChange={event => onUpload(event.target.files)} />
+          </label>
         </section>
       </main>
     </div>

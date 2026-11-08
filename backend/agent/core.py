@@ -94,11 +94,19 @@ public class SessionManager {
     }
 }"""
     
-    diffs = [Diff(path="src/main/java/com/crownbank/legacy/auth/SessionManager.java", before=before_code, after=after_code)]
+    source_path = next((path for path in source_code if path.endswith("SessionManager.java")), None)
+    if source_path:
+        before_code = source_code[source_path]
+        diff_path = source_path
+    else:
+        diff_path = "src/main/java/com/crownbank/legacy/auth/SessionManager.java"
+    diffs = [Diff(path=diff_path, before=before_code, after=after_code)]
+    health_before = round(graph["overall_health"])
+    health_after = min(100, health_before + 20)
     
     return Proposal(
         id=f"proposal-{uuid4().hex}", target_node_ids=targets, rationale=rationale,
-        diffs=diffs, health_before=42, health_after=85,
+        diffs=diffs, health_before=health_before, health_after=health_after,
         change_blast_node_ids=[], status="pending"
     )
 
@@ -120,8 +128,18 @@ def chat_with_pet(query: str, health_score: int, recent_action: str) -> PetRespo
 def chat_with_agent(
     query: str, graph_context: dict, selected_node_id: str | None = None, history: list[dict[str, str]] | None = None
 ) -> ChatResponse:
+    nodes = prepare_graph_summary(graph_context)["nodes"]
+    target_id = selected_node_id
+    if not target_id:
+        session = next((node for node in nodes if node["name"].lower() == "sessionmanager"), None)
+        target_id = session["id"] if session else (min(nodes, key=lambda node: (node["health"], node["id"]))["id"] if nodes else None)
+    target = next((node for node in nodes if node["id"] == target_id), None)
     return ChatResponse(
-        message="I've analyzed the constraints. I can safely decouple this architecture and eliminate the cycle.",
+        message=(
+            f"I found {target['name']} as the next modernization target. "
+            "I have a safe, behavior-preserving SessionManager refactor ready to review."
+            if target else "Upload the CrownBank Java archive and I will prepare its hardcoded modernization plan."
+        ),
         intent="propose",
-        target_node_ids=[selected_node_id] if selected_node_id else []
+        target_node_ids=[target_id] if target_id else []
     )

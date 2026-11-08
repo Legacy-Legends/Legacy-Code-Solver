@@ -13,7 +13,7 @@ interface Props {
   selectedNode: GraphNode | null;
   overallHealth: number;
   onBlast: (result: BackendBlastResult) => void;
-  onGraphUpdated: () => void;
+  onGraphUpdated: (changedNodeIds: string[]) => void;
 }
 type Message = { role: 'user' | 'assistant'; content: string };
 const welcome: Message = { role: 'assistant', content: 'Let’s make this code easier to live with. Ask about the architecture, trace a dependency, or select a class to review a refactor.' };
@@ -82,7 +82,7 @@ export function AgentPanel({ onClose, projectId, selectedNode, overallHealth, on
   const approve = () => proposal && run(async signal => {
     if (projectId === 'demo') throw new Error('This mock graph has no editable Java source. A source-backed project is required to apply a refactor.');
     const applied = await applyProposal(proposal.id, signal);
-    if (!signal.aborted) { setProposal(applied); setPreview(false); onGraphUpdated(); append('Change applied. Refreshing measured codebase health.'); }
+    if (!signal.aborted) { setProposal(applied); setPreview(false); onGraphUpdated(proposal.target_node_ids); append('Change applied. Refreshing measured codebase health.'); }
   });
   const reject = () => proposal && run(async signal => {
     const rejected = await rejectProposal(proposal.id, signal);

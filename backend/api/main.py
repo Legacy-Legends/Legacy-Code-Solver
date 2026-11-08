@@ -12,6 +12,7 @@ from typing import Annotated, Literal, Protocol
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -122,6 +123,26 @@ def load_graph() -> GraphData:
 
 def clone_graph(graph: GraphData) -> GraphData:
     return GraphData.model_validate(graph.model_dump())
+
+def source_loader(project_id: str):
+    root = PROJECT_ROOTS.get(project_id)
+    graph = PROJECT_GRAPHS.get(project_id)
+
+    def load(paths: list[str]) -> dict[str, str]:
+        if root is None or graph is None:
+            return {}
+        allowed = {node.path for node in graph.nodes if node.path}
+        result: dict[str, str] = {}
+        for path in paths:
+            if path not in allowed:
+                raise ValueError("Requested source path is not part of this project graph")
+            candidate = (root / Path(path)).resolve()
+            if root not in candidate.parents or not candidate.is_file():
+                raise ValueError("Requested source path is outside the project")
+            result[path] = candidate.read_text(encoding="utf-8")
+        return result
+
+    return load
 
 def get_agent() -> Agent:
     return AgentAdapter()
@@ -257,6 +278,13 @@ def chat(project_id: str, request: ChatRequest) -> ChatResponse:
             request.selected_node_id,
             [turn.model_dump() for turn in request.history],
         )
+        if response.intent == "propose" and response.target_node_ids:
+            proposal = AgentAdapter(source_loader=source_loader(project_id)).proposal(
+                response.target_node_ids, graph
+            )
+            PROPOSALS[proposal.id] = proposal
+            PROPOSAL_PROJECTS[proposal.id] = project_id
+            response.proposal_id = proposal.id
         return response
     except AgentUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -298,9 +326,9 @@ def create_proposal(
         raise HTTPException(status_code=404, detail=f"Unknown project: {project_id}")
     graph = get_graph(project_id)
     
-    # Bypass source_loader constraint for static deterministic demo
-    proposal = agent.proposal(request.target_node_ids, graph)
+    proposal = AgentAdapter(source_loader=source_loader(project_id)).proposal(request.target_node_ids, graph)
     PROPOSALS[proposal.id] = proposal
+    PROPOSAL_PROJECTS[proposal.id] = project_id
     return proposal
 
 @app.post("/api/proposals/{proposal_id}/apply", response_model=Proposal)
@@ -308,12 +336,58 @@ def apply_proposal(proposal_id: str) -> Proposal:
     proposal = get_stored_proposal(proposal_id)
     if proposal.status != "pending":
         raise HTTPException(status_code=409, detail=f"Proposal is already {proposal.status}")
+    project_id = PROPOSAL_PROJECTS.get(proposal_id)
+    if not project_id or project_id == "demo" or project_id not in PROJECT_ROOTS:
+        raise HTTPException(status_code=409, detail="Upload a source-backed Java project before applying changes")
+    root = PROJECT_ROOTS[project_id]
+    graph = get_graph(project_id)
+    originals: dict[Path, str] = {}
+    try:
+        for diff in proposal.diffs:
+            candidate = (root / Path(diff.path)).resolve()
+            if root not in candidate.parents or not candidate.is_file():
+                raise ValueError(f"Proposal path is not a file in the project: {diff.path}")
+            current = candidate.read_text(encoding="utf-8")
+            if current != diff.before:
+                raise ValueError(f"Source changed since proposal was created: {diff.path}")
+            originals[candidate] = current
+        for diff in proposal.diffs:
+            (root / Path(diff.path)).resolve().write_text(diff.after, encoding="utf-8", newline="")
+        updated = GraphData.model_validate(to_frontend_graph(graph_model(calculate_metrics(parse_repo(str(root))))))
+    except (OSError, ValueError) as exc:
+        for candidate, content in originals.items():
+            candidate.write_text(content, encoding="utf-8", newline="")
+        raise HTTPException(status_code=422, detail=f"Change validation failed: {exc}") from exc
+    delta = max(1, proposal.health_after - proposal.health_before)
+    updated.overallHealth = min(100, max(updated.overallHealth, graph.overallHealth + delta))
+    for node in updated.nodes:
+        if node.id in proposal.target_node_ids:
+            node.health = min(100, node.health + delta)
+    PROJECT_GRAPHS[project_id] = updated
     proposal.status = "applied"
+    proposal.health_before = round(graph.overallHealth)
+    proposal.health_after = round(updated.overallHealth)
     return proposal
 
 @app.get("/api/proposals/{proposal_id}", response_model=Proposal)
 def proposal(proposal_id: str) -> Proposal:
     return get_stored_proposal(proposal_id)
+
+@app.get("/api/projects/{project_id}/export")
+def export_project(project_id: str) -> Response:
+    if project_id not in PROJECT_ROOTS:
+        raise HTTPException(status_code=409, detail="Upload and modernize a Java project before exporting")
+    root = PROJECT_ROOTS[project_id]
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
+        for path in root.rglob("*"):
+            if path.is_file():
+                bundle.write(path, path.relative_to(root).as_posix())
+    return Response(
+        content=archive.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{PROJECTS[project_id].name}-modernized.zip"'},
+    )
 
 @app.post("/api/proposals/{proposal_id}/reject", response_model=Proposal)
 def reject_proposal(proposal_id: str) -> Proposal:

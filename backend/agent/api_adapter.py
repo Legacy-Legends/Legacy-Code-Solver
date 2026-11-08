@@ -36,7 +36,7 @@ class AgentAdapter:
                 node["path"] for node in graph_data["nodes"]
                 if node["id"] in target_node_ids and node.get("path")
             ]
-            sources = self.source_loader(target_paths) if self.source_loader and not use_mock_agent() else {}
+            sources = self.source_loader(target_paths) if self.source_loader else {}
             return generate_proposal(target_node_ids, graph_data, sources)
         except AgentUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
