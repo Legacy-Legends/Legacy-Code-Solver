@@ -16,11 +16,13 @@
     },
     "agent": {
       "root": "backend/agent",
-      "runtime": "python"
+      "runtime": "python",
+      "entrypoint": "main.py" 
     },
     "analysis": {
       "root": "backend/analysis",
-      "runtime": "python"
+      "runtime": "python",
+      "entrypoint": "main.py"
     }
   },
   "rewrites": [
