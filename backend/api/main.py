@@ -124,6 +124,23 @@ def load_graph() -> GraphData:
 def clone_graph(graph: GraphData) -> GraphData:
     return GraphData.model_validate(graph.model_dump())
 
+def resolve_project_file(root: Path, relative_path: str) -> Path:
+    """Resolve graph paths for archives with or without a top-level folder."""
+    requested = Path(relative_path)
+    if requested.is_absolute() or ".." in requested.parts:
+        raise ValueError(f"Invalid project source path: {relative_path}")
+    direct = (root / requested).resolve()
+    if root in direct.parents and direct.is_file():
+        return direct
+    matches = [
+        path for path in root.rglob(requested.name)
+        if path.is_file()
+        and path.resolve().relative_to(root).as_posix().endswith(f"/{requested.as_posix()}")
+    ]
+    if len(matches) == 1:
+        return matches[0].resolve()
+    raise ValueError(f"Project source file was not found: {relative_path}")
+
 def source_loader(project_id: str):
     root = PROJECT_ROOTS.get(project_id)
     graph = PROJECT_GRAPHS.get(project_id)
@@ -131,14 +148,12 @@ def source_loader(project_id: str):
     def load(paths: list[str]) -> dict[str, str]:
         if root is None or graph is None:
             return {}
-        allowed = {node.path for node in graph.nodes if node.path}
         result: dict[str, str] = {}
         for path in paths:
-            if path not in allowed:
-                raise ValueError("Requested source path is not part of this project graph")
-            candidate = (root / Path(path)).resolve()
-            if root not in candidate.parents or not candidate.is_file():
-                raise ValueError("Requested source path is outside the project")
+            try:
+                candidate = resolve_project_file(root, path)
+            except ValueError as exc:
+                raise ValueError(str(exc)) from exc
             result[path] = candidate.read_text(encoding="utf-8")
         return result
 
@@ -342,17 +357,20 @@ def apply_proposal(proposal_id: str) -> Proposal:
     root = PROJECT_ROOTS[project_id]
     graph = get_graph(project_id)
     originals: dict[Path, str] = {}
+    resolved_files: dict[str, Path] = {}
     try:
         for diff in proposal.diffs:
-            candidate = (root / Path(diff.path)).resolve()
-            if root not in candidate.parents or not candidate.is_file():
-                raise ValueError(f"Proposal path is not a file in the project: {diff.path}")
+            try:
+                candidate = resolve_project_file(root, diff.path)
+            except ValueError as exc:
+                raise ValueError(f"Proposal path is not a file in the project: {diff.path}") from exc
             current = candidate.read_text(encoding="utf-8")
             if current != diff.before:
                 raise ValueError(f"Source changed since proposal was created: {diff.path}")
             originals[candidate] = current
+            resolved_files[diff.path] = candidate
         for diff in proposal.diffs:
-            (root / Path(diff.path)).resolve().write_text(diff.after, encoding="utf-8", newline="")
+            resolved_files[diff.path].write_text(diff.after, encoding="utf-8", newline="")
         updated = GraphData.model_validate(to_frontend_graph(graph_model(calculate_metrics(parse_repo(str(root))))))
     except (OSError, ValueError) as exc:
         for candidate, content in originals.items():

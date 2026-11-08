@@ -62,6 +62,7 @@ export function App() {
   const [activeProjectId, setActiveProjectId] = useState(() => localStorage.getItem('legacy-code-solver-project') || 'demo');
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
   const [hasModernized, setHasModernized] = useState(() => localStorage.getItem('legacy-code-solver-modernized') === 'true');
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Keep the graph and agent on the same backend project; never silently swap fixtures.
   const [activeGraphData, setActiveGraphData] = useState<GraphData>({ nodes: [], edges: [], clusters: [], overallHealth: 0 });
@@ -178,6 +179,8 @@ export function App() {
   const handleUpload = async (files: FileList | null) => {
     const file = files?.[0];
     if (!file) return;
+    setGraphError(null);
+    setGraphLoading(true);
     try {
       const project = await uploadProject(file);
       localStorage.setItem('legacy-code-solver-project', project.id);
@@ -186,8 +189,12 @@ export function App() {
       setHasModernized(false);
       localStorage.removeItem('legacy-code-solver-modernized');
       setRoute('investigate');
+      window.location.hash = '#/investigate';
     } catch (error) {
-      setGraphError(error instanceof Error ? error.message : 'Unable to upload project.');
+      const message = error instanceof Error ? error.message : 'Unable to upload project.';
+      setGraphError(message);
+      setGraphLoading(false);
+      throw error;
     }
   };
 
@@ -210,7 +217,15 @@ export function App() {
         <StartPage
           onOpenWorkspace={handleOpenWorkspace}
           onOpenSettings={() => setIsSettingsOpen(true)}
-          onUpload={handleUpload}
+          onUpload={async (files) => {
+            setUploadError(null);
+            try {
+              await handleUpload(files);
+            } catch (error) {
+              setUploadError(error instanceof Error ? error.message : 'Unable to upload project.');
+            }
+          }}
+          uploadError={uploadError}
         />
         <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={settings} onUpdateSetting={updateSetting} onResetSettings={resetSettings} />
       </div>
@@ -284,7 +299,15 @@ export function App() {
               darkMode={settings.darkMode}
             />
           )}
-
+          {!graphLoading && !graphError && activeProjectId !== 'demo' && hasModernized && (
+            <a
+              href={exportProjectUrl(activeProjectId)}
+              download
+              className="absolute left-4 top-4 z-10 rounded-lg bg-[var(--bg-surface)] px-3 py-2 text-xs font-semibold shadow-lg border border-[var(--border-color)] hover:border-[var(--accent)]"
+            >
+              Export modernized ZIP
+            </a>
+          )}
         </div>
 
         {/* Dynamic Sidebar Container */}
@@ -348,13 +371,6 @@ export function App() {
         )}
       </main>
 
-      {!graphLoading && !graphError && activeProjectId !== 'demo' && hasModernized && <a
-        href={exportProjectUrl(activeProjectId)}
-        download
-        className="fixed right-6 top-20 z-30 rounded-lg bg-[var(--bg-surface)] px-3 py-2 text-xs font-semibold shadow-lg border border-[var(--border-color)] hover:border-[var(--accent)]"
-      >
-        Export modernized ZIP
-      </a>}
       {!graphLoading && !graphError && <PetCompanion
         nodes={activeGraphData.nodes}
         overallHealth={activeGraphData.overallHealth}

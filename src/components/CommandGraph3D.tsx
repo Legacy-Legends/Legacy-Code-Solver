@@ -217,9 +217,11 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
   }, [darkMode, isWebGLSupported]);
 
   useEffect(() => {
-    const timer = setTimeout(() => fgRef.current?.zoomToFit(reducedMotion ? 0 : 500, 50), 350);
+    // Wait for the container and force layout to settle before fitting the camera.
+    // A small padding keeps the graph readable without leaving excessive empty space.
+    const timer = setTimeout(() => fgRef.current?.zoomToFit(reducedMotion ? 0 : 500, 10), 800);
     return () => clearTimeout(timer);
-  }, [nodes, reducedMotion]);
+  }, [nodes, dimensions, reducedMotion]);
 
   useEffect(() => {
     if (!selectedNode || !fgRef.current) return;
@@ -253,7 +255,7 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
   const handleFitView = useCallback(() => {
     const fg = fgRef.current;
     if (!fg) return;
-    fg.zoomToFit(reducedMotion ? 0 : 500, 40);
+    fg.zoomToFit(reducedMotion ? 0 : 500, 10);
   }, [reducedMotion]);
 
   const handleZoomIn = useCallback(() => {

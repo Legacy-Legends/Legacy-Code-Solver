@@ -36,7 +36,16 @@ class AgentAdapter:
                 node["path"] for node in graph_data["nodes"]
                 if node["id"] in target_node_ids and node.get("path")
             ]
-            sources = self.source_loader(target_paths) if self.source_loader else {}
+            proposal_path = "src/main/java/com/crownbank/legacy/auth/SessionManager.java"
+            source_paths = list(dict.fromkeys([*target_paths, proposal_path]))
+            sources: dict[str, str] = {}
+            if self.source_loader:
+                for path in source_paths:
+                    try:
+                        sources.update(self.source_loader([path]))
+                    except ValueError:
+                        if path != proposal_path:
+                            raise
             return generate_proposal(target_node_ids, graph_data, sources)
         except AgentUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc

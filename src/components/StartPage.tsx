@@ -4,10 +4,10 @@ interface StartPageProps {
   onOpenWorkspace: () => void;
   onOpenSettings: () => void;
   onUpload: (files: FileList | null) => void;
+  uploadError?: string | null;
 }
 
-/** The presentation uses one checked-in mock file, served by the backend. */
-export function StartPage({ onOpenWorkspace, onOpenSettings, onUpload }: StartPageProps) {
+export function StartPage({ onOpenWorkspace, onOpenSettings, onUpload, uploadError }: StartPageProps) {
   return (
     <div className="min-h-screen text-[var(--text-primary)]">
       <header className="flex items-center justify-between gap-4 border-b border-slate-200/70 dark:border-white/10 px-6 py-5 sm:px-10">
@@ -24,20 +24,21 @@ export function StartPage({ onOpenWorkspace, onOpenSettings, onUpload }: StartPa
         <p className="mt-6 max-w-2xl text-lg text-[var(--text-muted)]">
           Explore dependencies, trace what a change affects, and talk to your code-health pet.
         </p>
-        <section aria-label="Mock codebase" className="mt-12 flex w-full flex-col items-center rounded-3xl border-2 border-dashed border-indigo-300 dark:border-indigo-700 bg-white/60 dark:bg-slate-900/60 px-6 py-16 text-center shadow-sm">
+        <section aria-label="Upload codebase" className="mt-12 flex w-full flex-col items-center rounded-3xl border-2 border-dashed border-indigo-300 dark:border-indigo-700 bg-white/60 dark:bg-slate-900/60 px-6 py-16 text-center shadow-sm">
           <FileJson className="mb-5 h-14 w-14 text-indigo-600 dark:text-indigo-400" />
-          <h2 className="text-2xl font-semibold">Your mock codebase is ready</h2>
-          <p className="mt-3 font-mono text-sm text-[var(--text-muted)]">graph.json</p>
+          <h2 className="text-2xl font-semibold">Upload a Java codebase</h2>
+          <p className="mt-3 font-mono text-sm text-[var(--text-muted)]">.zip archive</p>
           <p className="mt-3 max-w-lg text-[var(--text-muted)]">
-            Open the included mock file to explore its classes, dependency cycles, and health scores.
+            Upload the demo Java archive to analyze its classes, build the knowledge graph, and start with the hardcoded modernization plan.
           </p>
-          <button type="button" onClick={onOpenWorkspace} className="mt-8 flex items-center gap-3 rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow-lg transition hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-500">
-            Open mock graph <ArrowRight className="h-5 w-5" />
-          </button>
-          <label className="mt-4 flex cursor-pointer items-center gap-2 rounded-xl border border-indigo-200 px-5 py-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-50">
-            <Upload className="h-4 w-4" /> Upload CrownBank ZIP
+          {uploadError && <p role="alert" className="mt-4 max-w-lg text-sm font-medium text-red-600">{uploadError}</p>}
+          <label className="mt-8 flex cursor-pointer items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow-lg transition hover:bg-indigo-700">
+            <Upload className="h-4 w-4" /> Upload code files ZIP
             <input type="file" accept=".zip,application/zip" className="sr-only" onChange={event => onUpload(event.target.files)} />
           </label>
+          <button type="button" onClick={onOpenWorkspace} className="mt-4 flex items-center gap-3 rounded-xl border border-indigo-200 px-5 py-3 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-300 dark:hover:bg-indigo-950">
+            Open mock graph <ArrowRight className="h-5 w-5" />
+          </button>
         </section>
       </main>
     </div>
