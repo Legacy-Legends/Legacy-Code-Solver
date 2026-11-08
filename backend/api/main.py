@@ -7,6 +7,7 @@ import io
 import os
 import shutil
 import zipfile
+import tempfile
 from pathlib import Path
 from typing import Annotated, Literal, Protocol
 from uuid import uuid4
@@ -25,7 +26,8 @@ from backend.analysis import calculate_metrics, graph_model, parse_repo, to_fron
 ROOT = Path(__file__).resolve().parents[2]
 CACHE_GRAPH = ROOT / "demo-repos" / "cache" / "graph.json"
 FRONTEND_GRAPH = ROOT / "src" / "mocks" / "graph.json"
-UPLOAD_ROOT = ROOT / "demo-repos" / "uploads"
+UPLOAD_ROOT = (Path(tempfile.gettempdir()) / "legacy-code-solver" / "uploads"
+               if os.getenv("VERCEL") else ROOT / "demo-repos" / "uploads")
 MAX_ARCHIVE_BYTES = 25 * 1024 * 1024
 MAX_EXTRACTED_BYTES = 100 * 1024 * 1024
 USE_CACHED_DEMO = os.getenv("USE_CACHED_DEMO", "").lower() in {"1", "true", "yes"}
