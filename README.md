@@ -75,6 +75,41 @@ Node.js 20 or newer satisfies the prerequisite. To load fnm automatically in
 future PowerShell terminals, add the first command to your PowerShell profile
 (`$PROFILE`).
 
+## Render deployment with Groq
+
+`render.yaml` configures a single Python web service that serves the built React
+app and FastAPI from the same HTTPS origin. For the existing Render web service,
+use these settings (repository root directory):
+
+- **Build command:** `npm ci && npm run build && pip install -r backend/requirements.txt`
+- **Start command:** `python -m uvicorn backend.web:app --host 0.0.0.0 --port $PORT`
+- **Health check:** `/health`
+- **Environment:** `LLM_PROVIDER=groq`, `AGENT_MODEL=openai/gpt-oss-20b`,
+  `USE_MOCK_AGENT=false`, `USE_CACHED_DEMO=true`.
+- Set **`GROQ_API_KEY` privately in Render → Environment**. It is a server secret;
+  never use a `VITE_` prefix or put it in Git. Redeploy after changing settings.
+- Leave `VITE_API_URL` unset for this single-service setup. Remove any old
+  localhost value and rebuild; production requests use `/api` on the site origin.
+
+If the current site is a **Render Static Site**, it cannot execute Python. Either
+use the web service above, or keep the static site and deploy FastAPI separately,
+setting `VITE_API_URL` to that backend's HTTPS origin before building. The current backend permits cross-origin requests.
+
+After deploying, check `/health`, `/api/config`, and **Open mock graph → pet →
+chat**. `/api/config` should report `agent_mode: live`, `provider: groq`, and
+`credential_configured: true`. A successful chat verifies the key actually works.
+No LLM credential is required for graph rendering or theme changes.
+
+The mock graph supports live Groq questions and blast-radius explanations. It
+has no associated Java source, so live refactor generation/application still
+requires a source-backed project. Proposal previews show the backend's supplied
+health scores; equal scores mean no measured improvement yet. Hover or focus
+**Approve change** to preview a score, and leave it to restore current health.
+
+**Appearance:** Settings → Appearance offers System, Light, and Dark. System
+tracks changes without overwriting your preference; manual choices persist.
+The pixel pet honors reduced-motion settings. Both graph views share theme tokens.
+
 ## Demo walkthrough
 
 1. Click **Open mock graph**. The included `graph.json` is loaded through FastAPI;
@@ -84,7 +119,7 @@ future PowerShell terminals, add the first command to your PowerShell profile
    pan, scroll to zoom, or use **View → Fit graph to screen**.
 3. Click a class to inspect its callers. Press Escape or use **View → Reset view
    & selection** to restore the full canvas. Use **2D / 3D** to switch views.
-4. Click the pet in the bottom-right corner to open **Agent Chat**. Send it a
+4. Click the pet in the bottom-right corner to open **Chat**. Send it a
    message, or select a class first to enable **Track Blast Radius** and
    **Modernize Class**. Close the drawer using its close button, the pet, or Escape.
 5. Agent chat and graph requests use the same `demo` backend project. If the
@@ -109,9 +144,11 @@ returns 100% because reverse reachability covers this densely connected fixture;
 that is computed demo data, not an LLM estimate. Copy the returned proposal `id`
 into `/api/proposals/{proposal_id}/reject` to complete the preview/reject flow.
 
-Proposals contain typed `{path,before,after}` previews. A1 does **not** apply code
-or validate a refactor; `/apply` returns 409. `/reject` works. Health remains
-unchanged until a real patch-validation and recomputation pipeline is connected.
+Proposals contain typed `{path,before,after}` previews. The `demo` project has no
+editable source, so `/apply` returns 409; `/reject` works. Uploaded source-backed
+projects support exact-source checks, applying changes and re-analysis. Compilation
+and behavioral validation remain unfinished. Health previews stay unchanged
+until a measured score is available.
 Pet chat and domain inference are exposed through
 `POST /api/projects/demo/pet` and `/api/projects/demo/domains`. The pet mood
 is computed from backend health; inferred domain tags persist in memory until restart.
@@ -133,18 +170,18 @@ churn and vulnerability scanning remain future work.
 
 ## What is still missing for the full product?
 
-The connected upload → analyze → AI refactor → apply → re-score workflow is
-implemented for uploaded Java ZIP projects:
+The API has upload, analysis, proposal and apply endpoints for Java ZIP projects.
+The presentation UI currently opens only the mock graph:
 
 | Capability | Current state / missing work |
 | --- | --- |
 | Upload or clone a Java project | Safe ZIP ingestion and per-project in-memory analysis are implemented. Git clone and durable storage remain future work. |
-| Real graphs in the UI | Uploaded Java projects are parsed and served as project-specific graphs. |
+| Real graphs in the UI | The API serves uploaded graphs; the current UI needs a source-project selection/upload flow restored. |
 | Complete Java dependencies | Parser handles imports, inheritance and class-qualified calls. Instance dispatch and full symbol resolution remain incomplete. |
 | Agent UI | The pet is the project-aware chat agent. It answers graph questions, creates proposals, and exposes explicit apply/reject actions. |
 | Apply and validate proposals | Uploaded-project proposals verify exact source contents, write only proposed files, re-analyze Java, and update health. |
 | Live LLM | Groq support is implemented. Configure `GROQ_API_KEY`, `LLM_PROVIDER=groq`, and `USE_MOCK_AGENT=false` on the backend. |
-| Pet evolution | The pet identity and modernization status are in the agent panel. Durable progression and movement history remain. |
+| Pet evolution | Animated sprite, health, moods and proposal-score previews are connected. Measured preview scoring and durable progression remain. |
 | Measured risk signals | Churn and vulnerability scanning are not implemented. Demo scores/signals are synthetic. |
 | Persistence and terminal progress | Projects/proposals are in-memory and reset on restart. WebSocket currently sends startup text, not analysis/agent job progress. |
 
@@ -184,6 +221,12 @@ TEST_PYTHON="$PWD/.venv/bin/python" npm run test:e2e
 npx playwright install chromium
 $env:TEST_PYTHON = (Resolve-Path .\.venv\Scripts\python.exe).Path
 npm run test:e2e
+```
+
+Production smoke test (builds the app and serves it on port 8013 without Vite):
+
+```sh
+TEST_PYTHON="$PWD/.venv/bin/python" npx playwright test --config playwright.production.config.ts
 ```
 
 For an existing Chromium installation, optionally set

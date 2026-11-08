@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { organicLayout } from '../lib/organicLayout';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { GraphNode, GraphEdge, ImpactAnalysis, SourceEvidence } from '../types/index';
 
@@ -86,109 +87,17 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     return () => ro.disconnect();
   }, []);
 
-  const positionedNodes = useMemo(() => {
-    if (nodes.length === 0) return [];
-
-    const inDegree = new Map<string, number>();
-    const outDegree = new Map<string, number>();
-    nodes.forEach((n) => {
-      inDegree.set(n.id, 0);
-      outDegree.set(n.id, 0);
-    });
-    edges.forEach((e) => {
-      const s = resolveId(e.source);
-      const t = resolveId(e.target);
-      outDegree.set(s, (outDegree.get(s) || 0) + 1);
-      inDegree.set(t, (inDegree.get(t) || 0) + 1);
-    });
-
-    const clusters = new Map<string, GraphNode[]>();
-    nodes.forEach((n) => {
-      const list = clusters.get(n.clusterId) || [];
-      list.push(n);
-      clusters.set(n.clusterId, list);
-    });
-
-    const clusterEntries = Array.from(clusters.entries());
-    const posMap = new Map<string, { x: number; y: number }>();
-
-    // Apply deterministic procedural jitter to break up the perfect grid
-    if (clusterEntries.length > 1) {
-      const colSpacing = 520;
-      const rowSpacing = 146;
-      clusterEntries.forEach(([, clusterNodes], cIdx) => {
-        const colX = (cIdx - (clusterEntries.length - 1) / 2) * colSpacing;
-        clusterNodes.forEach((n, rIdx) => {
-          const rowY = (rIdx - (clusterNodes.length - 1) / 2) * rowSpacing;
-          const hash = n.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-          const jitterX = Math.sin(hash) * 45;
-          const jitterY = Math.cos(hash) * 35;
-          posMap.set(n.id, { x: colX + jitterX, y: rowY + jitterY });
-        });
-      });
-    } else {
-      const cols = Math.ceil(Math.sqrt(nodes.length));
-      const rows = Math.ceil(nodes.length / cols);
-      nodes.forEach((n, idx) => {
-        const c = idx % cols;
-        const r = Math.floor(idx / cols);
-        const hash = n.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const jitterX = Math.sin(hash) * 40;
-        const jitterY = Math.cos(hash) * 40;
-        posMap.set(n.id, {
-          x: (c - (cols - 1) / 2) * 480 + jitterX,
-          y: (r - (rows - 1) / 2) * 146 + jitterY,
-        });
-      });
-    }
-
-    // Apply manual drag overrides (these take precedence over procedural positions)
-    return nodes.map((n) => {
-      const override = nodeOverrides[n.id];
-      return {
-        ...n,
-        posX: override ? override.x : (posMap.get(n.id)?.x ?? 0),
-        posY: override ? override.y : (posMap.get(n.id)?.y ?? 0),
-      };
-    });
-  }, [nodes, edges, nodeOverrides]);
+  const initialPositions = useMemo(() => organicLayout(nodes, CARD_W, CARD_H), [nodes]);
+  const positionedNodes = useMemo(() => nodes.map(node => {
+    const position = nodeOverrides[node.id] || initialPositions.get(node.id) || { x: 0, y: 0 };
+    return { ...node, posX: position.x, posY: position.y };
+  }), [nodes, initialPositions, nodeOverrides]);
 
   const positionedNodesById = useMemo(() => {
     const map = new Map<string, (typeof positionedNodes)[0]>();
     positionedNodes.forEach((n) => map.set(n.id, n));
     return map;
   }, [positionedNodes]);
-
-  const clusterColumns = useMemo(() => {
-    if (nodes.length <= 6) return [];
-    const clusters = new Map<string, GraphNode[]>();
-    nodes.forEach((n) => {
-      const list = clusters.get(n.clusterId) || [];
-      list.push(n);
-      clusters.set(n.clusterId, list);
-    });
-    const clusterEntries = Array.from(clusters.entries());
-    if (clusterEntries.length <= 1) return [];
-
-    const colSpacing = 520;
-    const rowSpacing = 146;
-    const domainColors = ['#F59E0B', '#0EA5E9', '#10B981', '#8B5CF6', '#6366F1'];
-
-    return clusterEntries.map(([clusterId, clusterNodes], cIdx) => {
-      const colX = (cIdx - (clusterEntries.length - 1) / 2) * colSpacing;
-      const topNodeY = (0 - (clusterNodes.length - 1) / 2) * rowSpacing;
-      const headerY = topNodeY - HALF_H - 46;
-      const color = domainColors[cIdx % domainColors.length];
-      return {
-        clusterId,
-        name: clusterNodes[0]?.clusterName || 'Domain',
-        count: clusterNodes.length,
-        colX,
-        headerY,
-        color,
-      };
-    });
-  }, [nodes]);
 
   const fitGraphToViewport = useCallback(() => {
     if (positionedNodes.length === 0 || dimensions.width === 0 || dimensions.height === 0) {
@@ -200,7 +109,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     const ys = positionedNodes.map((n) => n.posY);
     const minX = Math.min(...xs) - HALF_W - 32;
     const maxX = Math.max(...xs) + HALF_W + 32;
-    const minY = Math.min(...ys) - HALF_H - (clusterColumns.length > 0 ? 84 : 36);
+    const minY = Math.min(...ys) - HALF_H - 36;
     const maxY = Math.max(...ys) + HALF_H + 36;
 
     const contentW = Math.max(1, maxX - minX);
@@ -213,8 +122,8 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     const idealZoom = Math.max(0.3, Math.min(1.0, Math.min(scaleX, scaleY)));
 
     setZoom(Number(idealZoom.toFixed(2)));
-    setPan({ x: 0, y: clusterColumns.length > 0 ? 20 : 0 });
-  }, [positionedNodes, dimensions.width, dimensions.height, clusterColumns.length]);
+    setPan({ x: -(minX + maxX) / 2 * idealZoom, y: -(minY + maxY) / 2 * idealZoom });
+  }, [positionedNodes, dimensions.width, dimensions.height]);
 
   // Drag overrides update geometry, but must not refit the viewport on every move.
   const fitRef = useRef(fitGraphToViewport);
@@ -415,7 +324,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
               viewH / 2 + pan.y * 0.45
             }) scale(${0.65 + zoom * 0.35})`}
           >
-            <circle cx="12" cy="12" r="1.0" fill={darkMode ? '#1E293B' : '#CFCAC0'} opacity={darkMode ? 0.6 : 0.7} />
+            <circle cx="12" cy="12" r="1.0" fill={'var(--dot-minor)'} opacity={darkMode ? 0.6 : 0.7} />
           </pattern>
 
           <pattern
@@ -436,7 +345,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                     cx={gx}
                     cy={gy}
                     r={isMajor ? 2.1 : 1.3}
-                    fill={darkMode ? (isMajor ? '#475569' : '#1E293B') : (isMajor ? '#8A8375' : '#BDB7AA')}
+                    fill={isMajor ? 'var(--dot-major)' : 'var(--dot-minor)'}
                     opacity={darkMode ? (isMajor ? 0.9 : 0.7) : (isMajor ? 0.85 : 0.75)}
                   />
                 );
@@ -481,10 +390,10 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             const isActiveIndirect = !isActiveDirect && isIndirectCallerEdge;
             const isHighlighted = isActiveDirect || isActiveIndirect || isHoverPreview;
 
-            let strokeColor = darkMode ? '#334155' : '#CBD5E1';
+            let strokeColor = 'var(--graph-edge)';
             let strokeWidth = 1.2;
             let marker = 'url(#arrow-default)';
-            let opacity = hasActiveFilter ? 0.03 : 0.18;
+            let opacity = hasActiveFilter ? 0.06 : 0.45;
 
             if (isActiveDirect) {
               strokeColor = darkMode ? '#38BDF8' : '#0284C7';
@@ -553,7 +462,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                 <path d={pathD} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} strokeOpacity={opacity} strokeDasharray={isActiveIndirect && !inSelectedPath ? '5,4' : undefined} markerEnd={marker} />
                 {(isHighlighted || (!hasActiveFilter && nodes.length <= 6)) && (
                   <g transform={`translate(${labelX}, ${labelY})`}>
-                    <rect x="-34" y="-9" width="68" height="18" rx="5" fill={darkMode ? '#0A101D' : '#FFFFFF'} stroke={isHighlighted ? (isActiveIndirect ? '#818CF8' : '#38BDF8') : (darkMode ? '#334155' : '#D6D3CD')} strokeWidth={isHighlighted ? 1.5 : 1} />
+                    <rect x="-34" y="-9" width="68" height="18" rx="5" fill={darkMode ? '#0A101D' : '#FFFFFF'} stroke={isHighlighted ? (isActiveIndirect ? '#818CF8' : '#38BDF8') : ('var(--border-color)')} strokeWidth={isHighlighted ? 1.5 : 1} />
                     <text x="0" y="3.5" fill={isHighlighted ? (isActiveIndirect ? '#C7D2FE' : '#38BDF8') : (darkMode ? '#94A3B8' : '#4B5563')} fontSize="9.5" fontFamily="JetBrains Mono, monospace" fontWeight={isHighlighted ? '700' : '500'} textAnchor="middle">
                       {edge.callSiteLine ? `calls :${edge.callSiteLine}` : edge.type}
                     </text>
@@ -571,13 +480,13 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             const isDimmed = hasActiveFilter && status === 'unrelated';
             const isHovered = hoveredNodeId === node.id;
 
-            let cardBg = darkMode ? '#111827' : '#FFFFFF';
-            let cardBorder = darkMode ? '#334155' : '#D6D3CD';
+            let cardBg = 'var(--bg-surface)';
+            let cardBorder = 'var(--border-color)';
             let borderWidth = 1.5;
-            let titleColor = darkMode ? '#F8FAFC' : '#0F172A';
+            let titleColor = 'var(--text-primary)';
             let roleLabel = node.clusterName;
-            let badgeBg = darkMode ? '#1E293B' : '#F1F5F9';
-            let badgeText = darkMode ? '#94A3B8' : '#475569';
+            let badgeBg = 'var(--bg-muted)';
+            let badgeText = 'var(--text-muted)';
 
             if (isSelected) {
               cardBg = darkMode ? '#064E3B' : '#ECFDF5';

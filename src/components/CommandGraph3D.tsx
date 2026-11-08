@@ -15,6 +15,7 @@ interface CommandGraph3DProps {
   onSelectNode: (node: GraphNode | null) => void;
   onFallbackTo2D?: () => void;
   reducedMotion?: boolean;
+  darkMode?: boolean;
 }
 
 function resolveId(endpoint: unknown): string {
@@ -131,6 +132,7 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
   onSelectNode,
   onFallbackTo2D,
   reducedMotion = false,
+  darkMode = false,
 }) => {
   const fgRef = useRef<ForceGraphMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -182,87 +184,41 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
     return map;
   }, [selectedNode, impactAnalysis, selectedPathNodeIds, nodes]);
 
-  // Adds lights AND 3D spatial dots
+  // A transparent renderer preserves the CSS grid; spatial points add depth as the camera orbits.
   useEffect(() => {
-    let active = true;
+    let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
-
-    const initScene = () => {
-      const fg = fgRef.current;
-      if (!fg) {
-        if (active) timer = setTimeout(initScene, 60);
-        return;
-      }
-
-      try {
-        const scene = fg.scene?.();
-        if (scene && !(scene as unknown as { __lightsAdded?: boolean }).__lightsAdded) {
-          const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
-          scene.add(ambientLight);
-
-          const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
-          dirLight.position.set(120, 200, 160);
-          scene.add(dirLight);
-
-          const pointLight = new THREE.PointLight(0x10b981, 3.0, 500);
-          pointLight.position.set(0, 0, 120);
-          scene.add(pointLight);
-
-          // 3D Spatial Dots System
-          const dotCount = 1200;
-          const geometry = new THREE.BufferGeometry();
-          const positions = new Float32Array(dotCount * 3);
-          
-          for(let i = 0; i < dotCount * 3; i++) {
-            // Distribute in a spherical volume
-            positions[i] = (Math.random() - 0.5) * 1200;
-          }
-          
-          geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-          
-          // Use circular sprite for dot
-          const circleCanvas = document.createElement('canvas');
-          circleCanvas.width = 16;
-          circleCanvas.height = 16;
-          const ctx = circleCanvas.getContext('2d');
-          if (ctx) {
-             ctx.beginPath();
-             ctx.arc(8, 8, 8, 0, 2 * Math.PI);
-             ctx.fillStyle = '#ffffff';
-             ctx.fill();
-          }
-          
-          const material = new THREE.PointsMaterial({
-             size: 2,
-             map: new THREE.CanvasTexture(circleCanvas),
-             transparent: true,
-             opacity: 0.15,
-             color: 0x475569, // Slate 600
-             alphaTest: 0.05
-          });
-
-          const dots = new THREE.Points(geometry, material);
-          scene.add(dots);
-
-          (scene as unknown as { __lightsAdded?: boolean }).__lightsAdded = true;
+    let dispose = () => {};
+    const initialize = () => {
+      const graph = fgRef.current;
+      if (!graph) { if (!cancelled) timer = setTimeout(initialize, 60); return; }
+      const scene = graph.scene();
+      const light = new THREE.AmbientLight(0xffffff, 2);
+      const positions: number[] = [];
+      for (let z = -500; z <= 500; z += 125) {
+        for (let x = -750; x <= 750; x += 75) {
+          for (let y = -500; y <= 500; y += 75) positions.push(x, y, z);
         }
-      } catch {
-        // Graceful fallback
       }
-
-      setTimeout(() => {
-        if (active && fgRef.current) {
-          fgRef.current.zoomToFit(reducedMotion ? 0 : 500, 50);
-        }
-      }, 250);
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      const material = new THREE.PointsMaterial({
+        color: getComputedStyle(document.documentElement).getPropertyValue('--dot-major').trim(),
+        size: 1.8, sizeAttenuation: false, transparent: true, opacity: 0.5, depthWrite: false,
+      });
+      const dots = new THREE.Points(geometry, material);
+      dots.name = 'spatial-background-dots';
+      scene.add(light, dots);
+      dispose = () => { scene.remove(light, dots); geometry.dispose(); material.dispose(); light.dispose(); };
     };
+    if (isWebGLSupported) initialize();
+    return () => { cancelled = true; clearTimeout(timer); dispose(); };
+  }, [darkMode, isWebGLSupported]);
 
-    initScene();
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [reducedMotion]);
+  useEffect(() => {
+    const timer = setTimeout(() => fgRef.current?.zoomToFit(reducedMotion ? 0 : 500, 50), 350);
+    return () => clearTimeout(timer);
+  }, [nodes, reducedMotion]);
 
   useEffect(() => {
     if (!selectedNode || !fgRef.current) return;
@@ -462,14 +418,15 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
   }
 
   return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-[var(--bg-canvas)] select-none">
+    <div ref={containerRef} data-testid="graph-3d" className="spatial-dot-canvas spatial-dot-3d relative h-full w-full overflow-hidden select-none">
       <WebGLErrorBoundary fallback={fallbackUI}>
         <ForceGraph3D
           ref={fgRef}
           width={dimensions.width}
           height={dimensions.height}
           graphData={graphData}
-          backgroundColor={window.document.documentElement.classList.contains('dark') ? '#090D16' : '#F7F5F0'}
+          backgroundColor="rgba(0,0,0,0)"
+          rendererConfig={{ alpha: true, antialias: true }}
           showNavInfo={false}
           enableNodeDrag={true}
           nodeThreeObject={renderNodeObject}
@@ -506,7 +463,7 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
             const link = rawLink as GraphEdge;
             const sId = resolveId(link.source);
             const tId = resolveId(link.target);
-            const isDark = window.document.documentElement.classList.contains('dark');
+            const isDark = darkMode;
 
             if (selectedNode) {
               const isTraced = tId === selectedNode.id && nodeStatusMap.get(sId) === 'direct';

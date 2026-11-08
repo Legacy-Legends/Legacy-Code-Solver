@@ -10,8 +10,6 @@ import {
   Type,
   SunMoon,
   Volume2,
-  Moon,
-  Sun,
 } from 'lucide-react';
 import {
   AccessibilitySettings,
@@ -119,36 +117,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-800">
           {activeTab === 'display' && (
             <div className="space-y-5">
-              {/* Dark Mode Toggle */}
-              <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                <div className="flex items-start space-x-3">
-                  {settings.darkMode ? (
-                    <Moon className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-                  ) : (
-                    <Sun className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                  )}
-                  <div>
-                    <span className="text-xs font-bold text-slate-900">Dark Mode</span>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Switch between clean paper canvas and obsidian night theme.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={settings.darkMode}
-                  onClick={() => onUpdateSetting('darkMode', !settings.darkMode)}
-                  className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
-                    settings.darkMode ? 'bg-indigo-600' : 'bg-slate-300'
-                  }`}
-                >
-                  <span
-                    className={`block w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
-                      settings.darkMode ? 'translate-x-5' : 'translate-x-0.5'
-                    }`}
-                  />
-                </button>
+              <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-muted)] p-4">
+                <label htmlFor="theme-preference" className="text-sm font-semibold">Appearance</label>
+                <p className="mb-3 mt-1 text-xs text-[var(--text-muted)]">Follow your device or choose a theme for this workspace.</p>
+                <select id="theme-preference" value={settings.theme} onChange={e => onUpdateSetting('theme', e.target.value as 'system' | 'light' | 'dark')} className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] p-2 text-sm text-[var(--text-primary)]">
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
               </div>
 
               {/* High Contrast Toggle */}

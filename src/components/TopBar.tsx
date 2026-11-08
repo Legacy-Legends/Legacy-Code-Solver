@@ -50,7 +50,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   }, []);
 
   return (
-    <header className="relative z-30 flex flex-wrap sm:flex-nowrap min-h-16 sm:h-16 w-full shrink-0 items-center justify-between gap-4 border-b border-white/60 dark:border-white/10 bg-white/70 dark:bg-slate-900/65 backdrop-blur-xl backdrop-saturate-150 px-6 sm:px-8 py-2 sm:py-0 select-none shadow-[0_4px_24px_-4px_rgba(15,23,42,0.06)] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] transition-colors duration-200">
+    <header className="relative z-30 flex flex-wrap sm:flex-nowrap min-h-16 sm:h-16 w-full shrink-0 items-center justify-between gap-4 border-b border-white/60 dark:border-white/10 bg-[var(--glass-bg)] backdrop-blur-xl backdrop-saturate-150 px-6 sm:px-8 py-2 sm:py-0 select-none shadow-[0_4px_24px_-4px_rgba(15,23,42,0.06)] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] transition-colors duration-200">
       <div className="flex items-center gap-3 sm:gap-4 shrink-0">
         <button
           type="button"
@@ -60,7 +60,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#3730A3] to-[#4338CA] dark:from-indigo-600 dark:to-indigo-800 text-white shadow-sm ring-1 ring-white/20 group-hover:scale-105 transition-transform">
             <GitFork className="h-4 w-4 text-emerald-400" />
           </div>
-          <span className="font-sans text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+          <span className="font-sans text-sm font-bold tracking-tight text-[var(--text-primary)] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
             Legacy Code Solver
           </span>
         </button>
@@ -82,7 +82,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             className={`rounded-lg px-3 py-1.5 transition cursor-pointer flex items-center gap-1.5 font-medium ${
               viewMode === '2d'
                 ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-950 dark:text-white font-bold shadow-xs ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-md'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                : 'text-[var(--text-muted)] hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <Network className="h-3.5 w-3.5 text-indigo-700 dark:text-indigo-400" />
@@ -94,7 +94,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             className={`rounded-lg px-3 py-1.5 transition cursor-pointer flex items-center gap-1.5 font-medium ${
               viewMode === '3d'
                 ? 'bg-white/90 dark:bg-slate-800/90 text-emerald-950 dark:text-emerald-300 font-bold shadow-xs ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-md'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                : 'text-[var(--text-muted)] hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <Box className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />

@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback } from 'react';
 
 export type ColorblindMode = 'none' | 'protanopia' | 'tritanopia';
+export type ThemePreference = 'system' | 'light' | 'dark';
 export type TextScale = 'normal' | 'large' | 'xlarge';
 
 export interface AccessibilitySettings {
@@ -9,6 +10,8 @@ export interface AccessibilitySettings {
   colorblindMode: ColorblindMode;
   textScale: TextScale;
   screenReaderAnnouncements: boolean;
+  theme: ThemePreference;
+  /** Resolved theme, retained for existing graph renderers. */
   darkMode: boolean;
 }
 
@@ -20,32 +23,34 @@ export const DEFAULT_SETTINGS: AccessibilitySettings = {
   colorblindMode: 'none',
   textScale: 'normal',
   screenReaderAnnouncements: true,
+  theme: 'system',
   darkMode: false,
 };
 
+function resolveDark(theme: ThemePreference): boolean {
+  return theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+}
+
 export function loadSettings(): AccessibilitySettings {
+  const defaults = { ...DEFAULT_SETTINGS, reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches };
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-    }
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    // Migrate the previous boolean setting; unrelated saved preferences never disable System mode.
+    const theme: ThemePreference = ['system', 'light', 'dark'].includes(raw.theme)
+      ? raw.theme : typeof raw.darkMode === 'boolean' ? (raw.darkMode ? 'dark' : 'light') : 'system';
+    return {
+      ...defaults,
+      theme,
+      darkMode: resolveDark(theme),
+      highContrast: typeof raw.highContrast === 'boolean' ? raw.highContrast : defaults.highContrast,
+      reducedMotion: typeof raw.reducedMotion === 'boolean' ? raw.reducedMotion : defaults.reducedMotion,
+      screenReaderAnnouncements: typeof raw.screenReaderAnnouncements === 'boolean' ? raw.screenReaderAnnouncements : true,
+      textScale: ['normal', 'large', 'xlarge'].includes(raw.textScale) ? raw.textScale : 'normal',
+      colorblindMode: ['none', 'protanopia', 'tritanopia'].includes(raw.colorblindMode) ? raw.colorblindMode : 'none',
+    };
   } catch {
-    // Fallback to system preferences
+    return { ...defaults, darkMode: resolveDark('system') };
   }
-
-  const systemPrefersReducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-
-  const systemPrefersDark =
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-color-scheme: dark)')?.matches;
-
-  return {
-    ...DEFAULT_SETTINGS,
-    reducedMotion: !!systemPrefersReducedMotion,
-    darkMode: !!systemPrefersDark,
-  };
 }
 
 export function saveSettings(settings: AccessibilitySettings): void {
@@ -62,7 +67,8 @@ export function useAccessibilitySettings() {
   const updateSetting = useCallback(
     <K extends keyof AccessibilitySettings>(key: K, value: AccessibilitySettings[K]) => {
       setSettings((prev) => {
-        const next = { ...prev, [key]: value };
+        const theme = key === 'theme' ? value as ThemePreference : key === 'darkMode' ? (value ? 'dark' : 'light') : prev.theme;
+        const next = { ...prev, [key]: value, theme, darkMode: resolveDark(theme) };
         saveSettings(next);
         return next;
       });
@@ -71,24 +77,26 @@ export function useAccessibilitySettings() {
   );
 
   const resetSettings = useCallback(() => {
-    setSettings(DEFAULT_SETTINGS);
-    saveSettings(DEFAULT_SETTINGS);
+    const next = { ...DEFAULT_SETTINGS, darkMode: resolveDark('system'), reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches };
+    setSettings(next);
+    saveSettings(next);
   }, []);
 
-  // System dark mode listener
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      // Only auto-update if the user hasn't explicitly set a preference in localStorage
-      if (!localStorage.getItem(STORAGE_KEY)) {
-        updateSetting('darkMode', e.matches);
-      }
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => setSettings(prev => prev.theme === 'system' ? { ...prev, darkMode: media.matches } : prev);
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === STORAGE_KEY || event.key === null) setSettings(loadSettings());
     };
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [updateSetting]);
+    media.addEventListener('change', handleChange);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      media.removeEventListener('change', handleChange);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement;
 
     if (settings.highContrast) root.classList.add('high-contrast');
@@ -103,19 +111,9 @@ export function useAccessibilitySettings() {
     root.classList.remove('cb-none', 'cb-protanopia', 'cb-tritanopia');
     root.classList.add(`cb-${settings.colorblindMode}`);
 
-    if (settings.darkMode) {
-      root.classList.add('dark');
-      document.body?.classList.add('dark');
-      root.style.setProperty('--bg-canvas', '#090D16');
-      root.style.setProperty('--bg-surface', '#0F172A');
-      root.style.setProperty('--border-color', '#334155');
-    } else {
-      root.classList.remove('dark');
-      document.body?.classList.remove('dark');
-      root.style.setProperty('--bg-canvas', '#F7F5F0');
-      root.style.setProperty('--bg-surface', '#FFFFFF');
-      root.style.setProperty('--border-color', '#E4E2DA');
-    }
+    root.classList.toggle('dark', settings.darkMode);
+    root.dataset.theme = settings.darkMode ? 'dark' : 'light';
+    root.dataset.themePreference = settings.theme;
   }, [settings]);
 
   return { settings, updateSetting, resetSettings };

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: legacy-code-solver
+    runtime: python
+    buildCommand: npm ci && npm run build && pip install -r backend/requirements.txt
+    startCommand: python -m uvicorn backend.web:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: LLM_PROVIDER
+        value: groq
+      - key: AGENT_MODEL
+        value: openai/gpt-oss-20b
+      - key: USE_MOCK_AGENT
+        value: "false"
+      - key: USE_CACHED_DEMO
+        value: "true"
+      - key: GROQ_API_KEY
+        sync: false

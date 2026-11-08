@@ -1,202 +1,144 @@
 import { useEffect, useRef, useState } from 'react';
-import { Sparkles, Send, Box, Target, FileDiff, X, RefreshCw } from 'lucide-react';
+import { Sparkles, ArrowUp, Target, FileDiff, X, Plus, RefreshCw, ChevronDown } from 'lucide-react';
 import {
-  BackendBlastResult, Proposal,
-  createProposal, fetchChat, fetchLiveBlast,
+  BackendBlastResult, Proposal, AgentConfig, createProposal, fetchChat, fetchLiveBlast,
+  fetchAgentConfig, fetchProposal, applyProposal, rejectProposal,
 } from '../api/backendAdapter';
 import { GraphNode } from '../types';
+import { PetHealth } from './PixelPet';
 
 interface Props {
   onClose: () => void;
   projectId: string;
   selectedNode: GraphNode | null;
+  overallHealth: number;
   onBlast: (result: BackendBlastResult) => void;
-  hoveredProposalHealth: (delta: number | null) => void;
+  onGraphUpdated: () => void;
 }
+type Message = { role: 'user' | 'assistant'; content: string };
+const welcome: Message = { role: 'assistant', content: 'Let’s make this code easier to live with. Ask about the architecture, trace a dependency, or select a class to review a refactor.' };
 
-export function AgentPanel({ onClose, projectId, selectedNode, onBlast, hoveredProposalHealth }: Props) {
-  const [chatQuery, setChatQuery] = useState('');
-  
-  // Initialize with a welcome message mimicking Copilot
-  const [chat, setChat] = useState<{ role: 'user' | 'assistant'; content: string | React.ReactNode }[]>([
-    { role: 'assistant', content: 'Hi! I am your AI architecture assistant. Ask me to map dependencies, analyze blast radii, or propose safe refactors for legacy code.' }
-  ]);
-  
+export function AgentPanel({ onClose, projectId, selectedNode, overallHealth, onBlast, onGraphUpdated }: Props) {
+  const [query, setQuery] = useState('');
+  const [chat, setChat] = useState<Message[]>([welcome]);
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [preview, setPreview] = useState(false);
   const [busy, setBusy] = useState(false);
-  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [config, setConfig] = useState<AgentConfig | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll chat to bottom
   useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    const controller = new AbortController();
+    fetchAgentConfig(controller.signal).then(setConfig).catch(error => {
+      if (!controller.signal.aborted) setError(error instanceof Error ? error.message : 'Agent configuration unavailable.');
+    });
+    return () => { controller.abort(); requestRef.current?.abort(); };
+  }, [projectId]);
+  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }); }, [chat, busy, proposal]);
+
+  const append = (content: string) => setChat(previous => [...previous, { role: 'assistant', content }]);
+  const run = async (action: (signal: AbortSignal) => Promise<void>) => {
+    if (requestRef.current) return;
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setBusy(true); setError(null);
+    try { await action(controller.signal); }
+    catch (error) { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : 'Agent request failed. Please retry.'); }
+    finally {
+      if (!controller.signal.aborted) setBusy(false);
+      if (requestRef.current === controller) requestRef.current = null;
     }
-  }, [chat]);
-
-  const appendAssistant = (content: React.ReactNode) => {
-    setChat(prev => [...prev, { role: 'assistant', content }]);
   };
-
-  const handleAction = async (action: 'blast' | 'propose') => {
-    if (busy || !selectedNode) return;
-    setBusy(true);
-    try {
-      if (action === 'blast') {
-        appendAssistant(`Analyzing blast radius for ${selectedNode.name}...`);
-        const res = await fetchLiveBlast(`What breaks if ${selectedNode.name} fails?`, projectId, new AbortController().signal);
-        onBlast(res);
-        appendAssistant(
-          <div className="space-y-1">
-            <div className="font-bold text-rose-600 dark:text-rose-400">Critical Path Identified</div>
-            <div>Found {res.blast_node_ids.length} affected components. {res.summary}</div>
-            {res.affected_domains.length > 0 && <div className="text-[11px] text-slate-500 mt-1">Domains: {res.affected_domains.join(', ')}</div>}
-          </div>
-        );
-      } else if (action === 'propose') {
-        appendAssistant(`Generating modernization diff for ${selectedNode.name}...`);
-        const res = await createProposal([selectedNode.id], projectId, new AbortController().signal);
-        setProposal(res);
-        appendAssistant(`Proposal ready for ${selectedNode.name}.`);
+  const propose = () => selectedNode && run(async signal => {
+    const result = await createProposal([selectedNode.id], projectId, signal);
+    if (signal.aborted) return;
+    setProposal(result); setPreview(false);
+    append(`A change is ready for review: ${selectedNode.name}. Expand the file to inspect the diff. Hover or focus Approve change to preview its health score.`);
+  });
+  const blast = () => selectedNode && run(async signal => {
+    const result = await fetchLiveBlast(`What breaks if ${selectedNode.name} fails?`, projectId, signal);
+    if (signal.aborted) return;
+    onBlast(result);
+    append(`Critical Path Identified\n${result.summary}\n${result.blast_node_ids.length} affected components · ${result.percent.toFixed(1)}% of the graph${result.affected_domains.length ? `\nDomains: ${result.affected_domains.join(', ')}` : ''}`);
+  });
+  const send = () => {
+    if (!query.trim() || busy) return;
+    const text = query.trim();
+    // The server accepts eight turns; keep long conversations within that contract.
+    const history = chat.slice(-8).map(turn => ({ ...turn, content: turn.content.slice(0, 2000) }));
+    setChat(previous => [...previous, { role: 'user', content: text }]); setQuery('');
+    void run(async signal => {
+      const result = await fetchChat(text, selectedNode?.id || null, history, projectId, signal);
+      if (signal.aborted) return;
+      append(result.message);
+      if (result.proposal_id) {
+        const draft = await fetchProposal(result.proposal_id, signal);
+        if (!signal.aborted) { setProposal(draft); setPreview(false); }
       }
-    } catch (e) {
-      appendAssistant(<span className="text-red-500">Operation failed.</span>);
-    } finally {
-      setBusy(false);
-    }
+    });
   };
+  const approve = () => proposal && run(async signal => {
+    if (projectId === 'demo') throw new Error('This mock graph has no editable Java source. A source-backed project is required to apply a refactor.');
+    const applied = await applyProposal(proposal.id, signal);
+    if (!signal.aborted) { setProposal(applied); setPreview(false); onGraphUpdated(); append('Change applied. Refreshing measured codebase health.'); }
+  });
+  const reject = () => proposal && run(async signal => {
+    const rejected = await rejectProposal(proposal.id, signal);
+    if (!signal.aborted) { setProposal(rejected); setPreview(false); }
+  });
 
-  const sendChat = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = chatQuery.trim();
-    if (!query || busy) return;
-    
-    setChatQuery('');
-    setChat(prev => [...prev, { role: 'user', content: query }]);
-    setBusy(true);
-    
-    try {
-      // Clean chat history of ReactNodes before sending to API
-      const safeHistory = chat.map(c => ({ 
-        role: c.role, 
-        content: typeof c.content === 'string' ? c.content : '[System Action Executed]' 
-      }));
-      
-      const result = await fetchChat(query, selectedNode?.id || null, safeHistory, projectId, new AbortController().signal);
-      appendAssistant(result.message);
-    } catch {
-      appendAssistant(<span className="text-red-500">Failed to connect to agent.</span>);
-    } finally {
-      setBusy(false);
-    }
-  };
-
+  const projectedHealth = preview && proposal?.status === 'pending' ? proposal.health_after : null;
   return (
-    <section aria-label="Pet and AI agent" className="flex flex-col h-full bg-white dark:bg-[#090D16] border-t border-slate-200 dark:border-slate-800">
-      
-      {/* VS Code Copilot style Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-          <h2 className="text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-wide uppercase">Agent Chat</h2>
+    <section aria-label="Pet and AI agent" className="agent-panel">
+      <header className="agent-header">
+        <div className="flex items-center gap-2"><Sparkles size={15} className="text-[var(--accent)]" /><h2>CHAT</h2></div>
+        <div className="flex items-center gap-1">
+          <button type="button" aria-label="New chat" disabled={busy} onClick={() => { setChat([welcome]); setProposal(null); setPreview(false); setError(null); }}><Plus size={16} /></button>
+          <button type="button" onClick={onClose} aria-label="Close agent"><X size={16} /></button>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close agent" className="rounded p-2 hover:bg-slate-200 dark:hover:bg-slate-800"><X className="h-4 w-4" /></button>
-        {selectedNode && (
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-200/50 dark:bg-slate-800 text-[10px] font-mono text-slate-600 dark:text-slate-400">
-            <Target className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-            {selectedNode.name}
-          </div>
-        )}
+      </header>
+      <div className="agent-context"><Target size={13} /><span className="truncate">{selectedNode ? selectedNode.path || selectedNode.name : 'Workspace · dependency graph'}</span></div>
+      <div ref={scrollRef} className="agent-thread" role="log" aria-label="Conversation" aria-live="polite">
+        {chat.map((message, index) => <article key={index} className={`agent-message agent-message-${message.role}`}>
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold">{message.role === 'assistant' && <Sparkles size={13} className="text-[var(--accent)]" />}{message.role === 'assistant' ? 'Code companion' : 'You'}</div>
+          <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+        </article>)}
+        {selectedNode && <div className="agent-actions">
+          <button disabled={busy} onClick={blast}><Target size={13} />Track Blast Radius</button>
+          <button disabled={busy} onClick={propose}><FileDiff size={13} />Modernize Class</button>
+        </div>}
+        {busy && <p role="status" className="flex items-center gap-2 text-xs text-[var(--text-muted)]"><RefreshCw size={13} className="animate-spin" />Working on it…</p>}
+        {error && <p role="alert" className="agent-error">{error}</p>}
+        {proposal && <div className="proposal-card">
+          <div className="mb-2 flex justify-between gap-2 text-xs font-semibold"><span>Suggested changes</span><span className="capitalize">{proposal.status}</span></div>
+          <p className="mb-3 text-xs leading-relaxed">{proposal.rationale}</p>
+          {proposal.diffs.map(diff => <details key={diff.path} className="proposal-file">
+            <summary><FileDiff size={13} /><span className="break-all">{diff.path}</span></summary>
+            <div className="diff-before"><span>Before</span><pre>{diff.before}</pre></div>
+            <div className="diff-after"><span>After</span><pre>{diff.after}</pre></div>
+          </details>)}
+          <p className="my-3 text-xs text-[var(--text-muted)]">Health preview: {proposal.health_before} → {proposal.health_after}/100. {proposal.health_before === proposal.health_after ? 'No measured improvement yet.' : 'Estimate until the change is validated.'}</p>
+          {proposal.status === 'pending' && <div className="flex flex-wrap gap-2">
+            <button className="agent-primary" disabled={busy} onMouseEnter={() => setPreview(true)} onMouseLeave={() => setPreview(false)} onFocus={() => setPreview(true)} onBlur={() => setPreview(false)} onPointerDown={() => setPreview(true)} onClick={approve}>Approve change</button>
+            <button className="agent-secondary" disabled={busy} onClick={reject}>Reject</button>
+          </div>}
+        </div>}
       </div>
-
-      {/* Main Chat Thread Window */}
-      <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-5 text-sm">
-        {chat.map((msg, i) => (
-          <div key={i} className={`flex gap-3 max-w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {msg.role === 'assistant' && (
-              <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
-                <Sparkles className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-              </div>
-            )}
-            
-            <div className={`px-3.5 py-2.5 rounded-2xl ${
-              msg.role === 'user' 
-                ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-tr-sm max-w-[85%]'
-                : 'bg-transparent text-slate-800 dark:text-slate-200 w-full'
-            }`}>
-              {msg.content}
-              
-              {/* Inject Action Buttons directly into assistant flow if it's the latest welcome/context message */}
-              {msg.role === 'assistant' && i === 0 && selectedNode && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  <button 
-                    onClick={() => handleAction('blast')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium cursor-pointer transition-colors"
-                  >
-                    <Box className="w-3.5 h-3.5" /> Track Blast Radius
-                  </button>
-                  <button 
-                    onClick={() => handleAction('propose')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium cursor-pointer transition-colors"
-                  >
-                    <FileDiff className="w-3.5 h-3.5" /> Modernize Class
-                  </button>
-                </div>
-              )}
-            </div>
+      <footer className="agent-composer">
+        <PetHealth health={preview && proposal ? proposal.health_before : overallHealth} projectedHealth={projectedHealth} />
+        <form onSubmit={event => { event.preventDefault(); send(); }} className="agent-input-box">
+          <textarea aria-label="Message the pet" rows={2} maxLength={2000} value={query} disabled={busy} onChange={event => setQuery(event.target.value)} onKeyDown={event => {
+            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(); }
+          }} placeholder={selectedNode ? `Ask about ${selectedNode.name}…` : 'Ask about your code…'} />
+          <div className="flex items-center justify-between gap-2 px-2 pb-2">
+            <span className="flex min-w-0 items-center gap-1 text-[11px] text-[var(--text-muted)]"><Sparkles size={12} />Agent<ChevronDown size={12} /><span className="ml-2 truncate">{config?.agent_mode === 'live' ? `${config.provider === 'groq' ? 'Groq' : 'OpenAI'} · ${config.model}` : ''}</span></span>
+            <button type="submit" aria-label="Send message" disabled={busy || !query.trim()} className="agent-send"><ArrowUp size={16} /></button>
           </div>
-        ))}
-        {busy && (
-          <div className="flex gap-3 items-center opacity-70">
-            <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
-              <RefreshCw className="w-3 h-3 text-indigo-600 dark:text-indigo-400 animate-spin" />
-            </div>
-            <span className="text-xs text-slate-500">Agent is thinking...</span>
-          </div>
-        )}
-      </div>
-
-      {/* Proposal Diff Viewer (Sliding Panel logic inside chat) */}
-      {proposal && (
-        <div className="mx-4 mb-4 rounded-xl border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-950/20 p-3 shadow-sm">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs font-bold text-indigo-900 dark:text-indigo-300">Modernization Diff</span>
-            <button onClick={() => setProposal(null)} className="text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>
-          </div>
-          <p className="text-xs text-slate-700 dark:text-slate-300 mb-3">{proposal.rationale}</p>
-          <div className="flex gap-2">
-            <button 
-              onMouseEnter={() => hoveredProposalHealth(proposal.health_after - proposal.health_before)}
-              onMouseLeave={() => hoveredProposalHealth(null)}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold py-1.5 rounded-md cursor-pointer transition-colors"
-            >
-              Apply Refactor
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Bottom Input Area */}
-      <div className="p-4 pt-0 shrink-0">
-        <form onSubmit={sendChat} className="relative flex items-center">
-          <input
-            aria-label="Message the pet"
-            type="text"
-            value={chatQuery}
-            onChange={(e) => setChatQuery(e.target.value)}
-            disabled={busy}
-            placeholder={selectedNode ? `Ask about ${selectedNode.name}...` : "Ask a question..."}
-            className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-lg pl-4 pr-10 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all disabled:opacity-50"
-          />
-          <button 
-            aria-label="Send message"
-            type="submit" 
-            disabled={!chatQuery.trim() || busy}
-            className="absolute right-2 p-1.5 rounded-md text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 cursor-pointer transition-colors"
-          >
-            <Send className="w-4 h-4" />
-          </button>
         </form>
-      </div>
+        <p className="mt-2 text-center text-[10px] text-[var(--text-muted)]">Enter to send · Shift+Enter for a new line</p>
+      </footer>
     </section>
   );
 }

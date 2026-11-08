@@ -1,7 +1,7 @@
 import { GraphData, ImpactAnalysis } from '../types/index';
 
-// Same-origin Vite proxy works when the browser is on another machine too.
-export const BACKEND_URL = (import.meta.env.VITE_API_URL || '/backend').replace(/\/$/, '');
+// Production uses the same Render origin; only development needs Vite's proxy.
+export const BACKEND_URL = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : '/backend')).replace(/\/$/, '');
 export interface BackendBlastResult {
   matched_node_ids: string[];
   blast_node_ids: string[];

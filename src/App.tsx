@@ -59,7 +59,6 @@ export function App() {
   const [pathEvidenceList, setPathEvidenceList] = useState<SourceEvidence[]>([]);
   const [activeEvidenceIndex, setActiveEvidenceIndex] = useState(0);
   const [isAgentOpen, setIsAgentOpen] = useState(false);
-  const [hoveredProposalHealth, setHoveredProposalHealth] = useState<number | null>(null);
 
   // Keep the graph and agent on the same backend project; never silently swap fixtures.
   const [activeGraphData, setActiveGraphData] = useState<GraphData>({ nodes: [], edges: [], clusters: [], overallHealth: 0 });
@@ -142,7 +141,7 @@ export function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (isAgentOpen) { setIsAgentOpen(false); setMobileView('graph'); setHoveredProposalHealth(null); }
+        if (isAgentOpen) { setIsAgentOpen(false); setMobileView('graph'); }
         else if (activeEvidence) setActiveEvidence(null);
         else if (selectedPathNodeIds) setSelectedPathNodeIds(null);
         else if (selectedEdge) setSelectedEdge(null);
@@ -163,7 +162,7 @@ export function App() {
     setPathEvidenceList([]);
     setIsAgentOpen(false);
     setMobileView('graph');
-    setHoveredProposalHealth(null);
+
     setFitSignal((s) => s + 1);
     syncClassToUrl(null);
   }, [syncClassToUrl]);
@@ -187,7 +186,7 @@ export function App() {
 
   if (route === 'start') {
     return (
-      <div className="min-h-screen w-full overflow-y-auto bg-[#F7F5F0] dark:bg-[#090D16]">
+      <div className="min-h-screen w-full overflow-y-auto bg-[var(--bg-canvas)]">
         <div className="sr-only" role="status" aria-live="polite">{announcement}</div>
         <StartPage
           onOpenWorkspace={handleOpenWorkspace}
@@ -202,7 +201,7 @@ export function App() {
   const isSidebarOpen = selectedNode !== null || selectedEdge !== null || activeEvidence !== null || isAgentOpen;
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#F7F5F0] dark:bg-[#090D16] text-[#111827] dark:text-[#F8FAFC] font-sans antialiased">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--bg-canvas)] text-[var(--text-primary)] font-sans antialiased">
       <TopBar
         nodes={activeGraphData.nodes}
         selectedNode={selectedNode}
@@ -217,8 +216,8 @@ export function App() {
 
       {isSidebarOpen && <div className="flex border-b border-white/60 dark:border-white/10 bg-white/65 dark:bg-slate-900/65 backdrop-blur-xl px-4 py-1.5 md:hidden select-none">
         <div className="glass-pill flex w-full rounded-xl p-0.5 font-sans text-xs">
-          <button type="button" onClick={() => setMobileView('graph')} className={`flex-1 rounded-lg py-1.5 font-medium transition cursor-pointer ${mobileView === 'graph' ? 'bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400'}`}>Graph</button>
-          <button type="button" onClick={() => setMobileView('details')} className={`flex-1 rounded-lg py-1.5 font-medium transition cursor-pointer ${mobileView === 'details' ? 'bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400'}`}>Details</button>
+          <button type="button" onClick={() => setMobileView('graph')} className={`flex-1 rounded-lg py-1.5 font-medium transition cursor-pointer ${mobileView === 'graph' ? 'bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white shadow-2xs' : 'text-[var(--text-muted)]'}`}>Graph</button>
+          <button type="button" onClick={() => setMobileView('details')} className={`flex-1 rounded-lg py-1.5 font-medium transition cursor-pointer ${mobileView === 'details' ? 'bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white shadow-2xs' : 'text-[var(--text-muted)]'}`}>Details</button>
         </div>
       </div>}
 
@@ -260,6 +259,7 @@ export function App() {
               onSelectNode={handleSelectNode}
               onFallbackTo2D={() => setViewMode('2d')}
               reducedMotion={settings.reducedMotion}
+              darkMode={settings.darkMode}
             />
           )}
 
@@ -267,7 +267,7 @@ export function App() {
 
         {/* Dynamic Sidebar Container */}
         {isSidebarOpen && (
-          <aside aria-label="Workspace details" className={`h-full w-full md:w-[360px] lg:w-[420px] shrink-0 border-l border-white/60 dark:border-white/10 bg-white/65 dark:bg-slate-900/60 backdrop-blur-2xl backdrop-saturate-150 shadow-[-8px_0_32px_-4px_rgba(15,23,42,0.06)] dark:shadow-[-12px_0_40px_-4px_rgba(0,0,0,0.6)] z-20 transition-all duration-300 ${mobileView === 'graph' ? 'hidden md:block' : 'block'}`}>
+          <aside aria-label="Workspace details" className={`h-full w-full md:w-[360px] lg:w-[420px] shrink-0 border-l border-white/60 dark:border-white/10 bg-[var(--bg-surface)] backdrop-blur-2xl backdrop-saturate-150 shadow-[-8px_0_32px_-4px_rgba(15,23,42,0.06)] dark:shadow-[-12px_0_40px_-4px_rgba(0,0,0,0.6)] z-20 transition-all duration-300 ${mobileView === 'graph' ? 'hidden md:block' : 'block'}`}>
             <div className="flex h-full min-h-0 flex-col">
               {activeEvidence && !isAgentOpen ? (
                 <SourceDrawer
@@ -305,11 +305,12 @@ export function App() {
                   {isAgentOpen && (
                     <div id="agent-workspace" className="min-h-0 flex-1 pb-24">
                       <AgentPanel
-                        onClose={() => { setIsAgentOpen(false); setMobileView('graph'); setHoveredProposalHealth(null); }}
+                        onClose={() => { setIsAgentOpen(false); setMobileView('graph'); }}
                         projectId="demo"
                         selectedNode={selectedNode}
                         onBlast={(result) => setSelectedPathNodeIds(result.blast_node_ids)}
-                        hoveredProposalHealth={setHoveredProposalHealth}
+                        overallHealth={activeGraphData.overallHealth}
+                        onGraphUpdated={() => setLoadAttempt(n => n + 1)}
                       />
                     </div>
                   )}
@@ -324,8 +325,7 @@ export function App() {
         nodes={activeGraphData.nodes}
         overallHealth={activeGraphData.overallHealth}
         isOpen={isAgentOpen}
-        onToggle={() => { setIsAgentOpen(!isAgentOpen); setMobileView(isAgentOpen ? 'graph' : 'details'); setHoveredProposalHealth(null); }}
-        hoverDelta={hoveredProposalHealth}
+        onToggle={() => { setIsAgentOpen(!isAgentOpen); setMobileView(isAgentOpen ? 'graph' : 'details'); }}
       />}
       <div className="sr-only" role="status" aria-live="polite">{announcement}</div>
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={settings} onUpdateSetting={updateSetting} onResetSettings={resetSettings} />
