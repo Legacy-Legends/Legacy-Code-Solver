@@ -26,3 +26,4 @@ logs/
 /test-results/
 /playwright-report/
 !.env.example
+Legacy-Code-Solver/

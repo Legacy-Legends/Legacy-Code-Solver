@@ -19,6 +19,8 @@ import { CommandGraph3D } from './components/CommandGraph3D';
 import { DetailPanel } from './components/DetailPanel';
 import { SourceDrawer } from './components/SourceDrawer';
 import { BackendErrorBanner } from './components/BackendErrorBanner';
+import { SettingsModal } from './components/SettingsModal';
+import { useAccessibilitySettings, registerAnnouncer, announceToScreenReader } from './lib/accessibilityStore';
 
 type RouteView = 'start' | 'investigate';
 
@@ -56,6 +58,18 @@ function getUrlParams(): URLSearchParams {
 }
 
 export function App() {
+  // Accessibility & Settings hook
+  const { settings, updateSetting, resetSettings } = useAccessibilitySettings();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
+
+  // Register screen reader announcer
+  useEffect(() => {
+    registerAnnouncer((msg: string) => {
+      setAnnouncement(msg);
+    });
+  }, []);
+
   // Start in 'investigate' by default (or 'start' if #/start is explicitly requested)
   const [route, setRoute] = useState<RouteView>(() => {
     if (window.location.hash === '#/start') return 'start';
@@ -340,20 +354,46 @@ export function App() {
     }
   };
 
+  const handleCustomUpload = (files: FileList | null) => {
+    if (files && files.length > 0) {
+      announceToScreenReader(`Uploaded codebase archive: ${files[0].name}. Parsing AST.`);
+    }
+  };
+
+  const toggleDarkMode = () => {
+    updateSetting('darkMode', !settings.darkMode);
+  };
+
   if (route === 'start') {
     return (
-      <StartPage
-        nodes={activeGraphData.nodes}
-        onInvestigate={handleExploreSample}
-        onOpenWorkspace={() => handleExploreSample('SessionManager')}
-      />
+      <div className="min-h-screen w-full overflow-y-auto bg-[#F7F5F0] dark:bg-[#090D16]">
+        <div className="sr-only" role="status" aria-live="polite">
+          {announcement}
+        </div>
+        <StartPage
+          nodes={activeGraphData.nodes}
+          onInvestigate={handleExploreSample}
+          onOpenWorkspace={() => handleExploreSample('SessionManager')}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onCustomUpload={handleCustomUpload}
+          darkMode={settings.darkMode}
+          onToggleDarkMode={toggleDarkMode}
+        />
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          settings={settings}
+          onUpdateSetting={updateSetting}
+          onResetSettings={resetSettings}
+        />
+      </div>
     );
   }
 
   const isLiveOffline = dataSource === 'live' && (!isBackendConnected || !liveGraphData);
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#F7F5F0] text-[#111827] font-sans antialiased">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#F7F5F0] dark:bg-[#090D16] text-[#111827] dark:text-[#F8FAFC] font-sans antialiased">
       {/* 1. Compact Header */}
       <TopBar
         nodes={activeGraphData.nodes}
@@ -372,6 +412,9 @@ export function App() {
           window.location.hash = '#/start';
           setRoute('start');
         }}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        darkMode={settings.darkMode}
+        onToggleDarkMode={toggleDarkMode}
       />
 
       {/* Backend Error Banner when Live API is unreachable */}
@@ -471,6 +514,8 @@ export function App() {
               impactAnalysis={impactAnalysis}
               selectedPathNodeIds={selectedPathNodeIds}
               onSelectNode={handleSelectNode}
+              onFallbackTo2D={() => setViewMode('2d')}
+              reducedMotion={settings.reducedMotion}
             />
           )}
 
@@ -538,6 +583,20 @@ export function App() {
           </div>
         )}
       </main>
+
+      {/* Screen Reader Live Announcement Region */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </div>
+
+      {/* Accessibility & Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onUpdateSetting={updateSetting}
+        onResetSettings={resetSettings}
+      />
     </div>
   );
 }

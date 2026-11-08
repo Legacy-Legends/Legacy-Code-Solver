@@ -26,33 +26,6 @@ const CARD_H = 60;
 const HALF_W = CARD_W / 2;
 const HALF_H = CARD_H / 2;
 
-/**
- * Computes exact intersection point on the rectangular node boundary
- * along the ray from (cx, cy) toward (targetX, targetY).
- */
-function getBoxBoundaryPoint(
-  cx: number,
-  cy: number,
-  targetX: number,
-  targetY: number,
-  pad: number = 0
-): { x: number; y: number } {
-  const dx = targetX - cx;
-  const dy = targetY - cy;
-  if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) {
-    return { x: cx, y: cy };
-  }
-  const w = HALF_W + pad;
-  const h = HALF_H + pad;
-  const tx = Math.abs(dx) > 0.001 ? w / Math.abs(dx) : Infinity;
-  const ty = Math.abs(dy) > 0.001 ? h / Math.abs(dy) : Infinity;
-  const t = Math.min(tx, ty);
-  return {
-    x: cx + dx * t,
-    y: cy + dy * t,
-  };
-}
-
 export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   nodes,
   edges,
@@ -175,8 +148,8 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     const posMap = new Map<string, { x: number; y: number }>();
 
     if (clusterEntries.length > 1) {
-      const colSpacing = 276;
-      const rowSpacing = 86;
+      const colSpacing = 500;
+      const rowSpacing = 138;
       clusterEntries.forEach(([, clusterNodes], cIdx) => {
         const colX = (cIdx - (clusterEntries.length - 1) / 2) * colSpacing;
         clusterNodes.forEach((n, rIdx) => {
@@ -191,8 +164,8 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
         const c = idx % cols;
         const r = Math.floor(idx / cols);
         posMap.set(n.id, {
-          x: (c - (cols - 1) / 2) * 270,
-          y: (r - (rows - 1) / 2) * 88,
+          x: (c - (cols - 1) / 2) * 460,
+          y: (r - (rows - 1) / 2) * 138,
         });
       });
     }
@@ -432,43 +405,43 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             )}
           </pattern>
 
-          {/* Default subtle slate arrowhead */}
+          {/* Default visible slate arrowhead */}
           <marker
             id="arrow-default"
             viewBox="0 0 10 10"
-            refX="8.5"
+            refX="9"
             refY="5"
-            markerWidth="6.5"
-            markerHeight="6.5"
+            markerWidth="9.5"
+            markerHeight="9.5"
             orient="auto"
           >
             <path d="M 0 1.5 L 9.5 5 L 0 8.5 z" fill="#94A3B8" />
           </marker>
 
-          {/* Active Indigo Arrowhead */}
+          {/* Active Direct Cyan Arrowhead */}
           <marker
             id="arrow-active"
             viewBox="0 0 10 10"
-            refX="8.5"
+            refX="9"
             refY="5"
-            markerWidth="7.5"
-            markerHeight="7.5"
+            markerWidth="11"
+            markerHeight="11"
             orient="auto"
           >
-            <path d="M 0 1 L 9.5 5 L 0 9 z" fill="#3730A3" />
+            <path d="M 0 1 L 9.5 5 L 0 9 z" fill="#38BDF8" />
           </marker>
 
-          {/* Indirect Indigo Arrowhead */}
+          {/* Indirect Purple Arrowhead */}
           <marker
             id="arrow-indirect"
             viewBox="0 0 10 10"
-            refX="8.5"
+            refX="9"
             refY="5"
-            markerWidth="7"
-            markerHeight="7"
+            markerWidth="10"
+            markerHeight="10"
             orient="auto"
           >
-            <path d="M 0 1.2 L 9.5 5 L 0 8.8 z" fill="#4F46E5" />
+            <path d="M 0 1.2 L 9.5 5 L 0 8.8 z" fill="#818CF8" />
           </marker>
         </defs>
 
@@ -521,56 +494,79 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             const isHighlighted = isActiveDirect || isActiveIndirect;
 
             let strokeColor = '#94A3B8';
-            let strokeWidth = 1.75;
+            let strokeWidth = 2.2;
             let marker = 'url(#arrow-default)';
-            let opacity = 0.75;
+            let opacity = 0.85;
 
             if (isActiveDirect) {
-              strokeColor = '#3730A3';
-              strokeWidth = 2.75;
+              strokeColor = '#38BDF8';
+              strokeWidth = 3.6;
               marker = 'url(#arrow-active)';
               opacity = 1;
             } else if (isActiveIndirect) {
-              strokeColor = '#4F46E5';
-              strokeWidth = 2.25;
+              strokeColor = '#818CF8';
+              strokeWidth = 3.0;
               marker = 'url(#arrow-indirect)';
               opacity = 0.95;
             } else if (hasActiveFilter) {
-              opacity = 0.18;
+              opacity = 0.12;
             }
 
-            // Compute exact boundary anchor points on source and target node boxes
-            const startPt = getBoxBoundaryPoint(
-              sNode.posX,
-              sNode.posY,
-              tNode.posX,
-              tNode.posY,
-              1
-            );
-            const endPt = getBoxBoundaryPoint(
-              tNode.posX,
-              tNode.posY,
-              sNode.posX,
-              sNode.posY,
-              3
-            );
+            // Compute deterministic vertical slotting offset based on edge id hash
+            const edgeHash = edge.id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+            const yOffset = ((edgeHash % 5) - 2) * 5; // -10, -5, 0, 5, 10
 
-            const sameRowAdjacent =
-              Math.abs(sNode.posY - tNode.posY) < 4 &&
-              Math.abs(sNode.posX - tNode.posX) <= 340;
+            let pathD = '';
+            let labelX = 0;
+            let labelY = 0;
 
-            const midX = (startPt.x + endPt.x) / 2;
-            const midY = (startPt.y + endPt.y) / 2;
-            const curveOffset = sameRowAdjacent ? 0 : -22;
-            const ctrlX = midX;
-            const ctrlY = midY + curveOffset;
+            const isLeftToRight = sNode.posX < tNode.posX - 20;
+            const isRightToLeft = sNode.posX > tNode.posX + 20;
 
-            const pathD = sameRowAdjacent
-              ? `M ${startPt.x} ${startPt.y} L ${endPt.x} ${endPt.y}`
-              : `M ${startPt.x} ${startPt.y} Q ${ctrlX} ${ctrlY} ${endPt.x} ${endPt.y}`;
+            if (isLeftToRight) {
+              const startX = sNode.posX + HALF_W;
+              const startY = sNode.posY + yOffset;
+              const endX = tNode.posX - HALF_W - 3;
+              const endY = tNode.posY + yOffset * 0.5;
+              const dx = endX - startX;
+              const dy = endY - startY;
 
-            const labelX = midX;
-            const labelY = sameRowAdjacent ? midY - 16 : ctrlY - 10;
+              if (Math.abs(dy) < 3 && dx <= 550) {
+                pathD = `M ${startX} ${startY} L ${endX} ${endY}`;
+                labelX = (startX + endX) / 2;
+                labelY = (startY + endY) / 2 - 12;
+              } else {
+                const curvature = Math.max(50, Math.min(220, dx * 0.45));
+                const ctrl1X = startX + curvature;
+                const ctrl1Y = startY;
+                const ctrl2X = endX - curvature;
+                const ctrl2Y = endY;
+                pathD = `M ${startX} ${startY} C ${ctrl1X} ${ctrl1Y}, ${ctrl2X} ${ctrl2Y}, ${endX} ${endY}`;
+                labelX = (startX + endX) / 2;
+                labelY = (startY + endY) / 2 - 14;
+              }
+            } else if (isRightToLeft) {
+              const startX = sNode.posX - HALF_W;
+              const startY = sNode.posY + yOffset;
+              const endX = tNode.posX + HALF_W + 3;
+              const endY = tNode.posY + yOffset * 0.5;
+              const arcY = Math.min(startY, endY) - 52;
+              pathD = `M ${startX} ${startY} C ${startX - 48} ${arcY}, ${endX + 48} ${arcY}, ${endX} ${endY}`;
+              labelX = (startX + endX) / 2;
+              labelY = arcY - 10;
+            } else {
+              // Same column (vertical link)
+              const isGoingDown = tNode.posY > sNode.posY;
+              const startX = sNode.posX + HALF_W;
+              const startY = sNode.posY;
+              const endX = tNode.posX + HALF_W + 3;
+              const endY = tNode.posY;
+              const bulgeX = startX + 48;
+              pathD = `M ${startX} ${startY} C ${bulgeX} ${startY + (isGoingDown ? 18 : -18)}, ${bulgeX} ${endY + (isGoingDown ? -18 : 18)}, ${endX} ${endY}`;
+              labelX = bulgeX + 8;
+              labelY = (startY + endY) / 2;
+            }
+
             const evidence = resolveEvidenceForEdge ? resolveEvidenceForEdge(edge) : undefined;
 
             return (

@@ -11,9 +11,84 @@ body {
   padding: 0;
   background-color: #F7F5F0;
   color: #111827;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  overflow: hidden;
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Accessibility: Text Scaling */
+html.text-scale-normal {
+  font-size: 16px;
+}
+html.text-scale-large {
+  font-size: 18px;
+}
+html.text-scale-xlarge {
+  font-size: 20px;
+}
+
+/* Accessibility: High Contrast Mode (WCAG AAA) */
+html.high-contrast body {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+html.high-contrast .glass-card,
+html.high-contrast .bg-white,
+html.high-contrast .bg-slate-50,
+html.high-contrast .bg-\[\#FCFBF8\],
+html.high-contrast .bg-\[\#F7F5F0\] {
+  background-color: #FFFFFF !important;
+  border-color: #000000 !important;
+  border-width: 2px !important;
+  box-shadow: none !important;
+}
+
+html.high-contrast text,
+html.high-contrast p,
+html.high-contrast span {
+  color: #000000 !important;
+}
+
+html.high-contrast button {
+  border: 2px solid #000000 !important;
+}
+
+/* Accessibility: Reduced Motion Mode */
+html.reduced-motion *,
+html.reduced-motion *::before,
+html.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Accessibility: Colorblind Modes */
+html.cb-protanopia .text-emerald-600,
+html.cb-protanopia .text-emerald-700,
+html.cb-protanopia .text-emerald-400,
+html.cb-protanopia .text-indigo-700,
+html.cb-protanopia .text-indigo-800 {
+  color: #2563EB !important;
+}
+html.cb-protanopia .bg-emerald-500,
+html.cb-protanopia .bg-emerald-600,
+html.cb-protanopia .bg-\[\#3730A3\] {
+  background-color: #2563EB !important;
+}
+
+html.cb-tritanopia .text-emerald-600,
+html.cb-tritanopia .text-emerald-700,
+html.cb-tritanopia .text-emerald-400,
+html.cb-tritanopia .text-indigo-700,
+html.cb-tritanopia .text-indigo-800 {
+  color: #0D9488 !important;
+}
+html.cb-tritanopia .bg-emerald-500,
+html.cb-tritanopia .bg-emerald-600,
+html.cb-tritanopia .bg-\[\#3730A3\] {
+  background-color: #0D9488 !important;
 }
 
 /* Spatial dot-grid background for canvas surfaces */
@@ -66,4 +141,87 @@ button:focus-visible, a:focus-visible, input:focus-visible {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Dark Mode Comprehensive Overrides */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #090D16 !important;
+  color: #F8FAFC !important;
+}
+
+html.dark .spatial-dot-canvas {
+  background-color: #090D16 !important;
+  background-image:
+    radial-gradient(#334155 1.45px, transparent 1.45px),
+    radial-gradient(#1E293B 1px, transparent 1px) !important;
+  background-size: 112px 112px, 28px 28px;
+}
+
+html.dark .glass-card {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-color: rgba(51, 65, 85, 0.6) !important;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6) !important;
+}
+
+html.dark header,
+html.dark .bg-white {
+  background-color: #0F172A !important;
+}
+
+html.dark .bg-\[\#FAF9F5\],
+html.dark .bg-\[\#FCFBF8\],
+html.dark .bg-\[\#F7F5F0\] {
+  background-color: #090D16 !important;
+}
+
+html.dark .bg-slate-50 {
+  background-color: #162032 !important;
+}
+
+html.dark .bg-slate-100 {
+  background-color: #1E293B !important;
+}
+
+html.dark .border-\[\#E4E2DA\],
+html.dark .border-\[\#DCD9D0\],
+html.dark .border-slate-200 {
+  border-color: #334155 !important;
+}
+
+html.dark .border-slate-300 {
+  border-color: #475569 !important;
+}
+
+html.dark .text-slate-900 {
+  color: #F8FAFC !important;
+}
+
+html.dark .text-slate-800 {
+  color: #E2E8F0 !important;
+}
+
+html.dark .text-slate-700 {
+  color: #CBD5E1 !important;
+}
+
+html.dark .text-slate-600 {
+  color: #94A3B8 !important;
+}
+
+html.dark .text-slate-500 {
+  color: #64748B !important;
+}
+
+html.dark input {
+  background-color: #162032 !important;
+  color: #F8FAFC !important;
+  border-color: #334155 !important;
+}
+
+html.dark .shadow-soft {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5) !important;
 }

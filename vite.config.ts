@@ -11,8 +11,21 @@ const proxy = {
     rewrite: (path: string) => path.replace(/^\/backend/, ''),
   },
 };
+const threeDir = decodeURIComponent(
+  new URL('./node_modules/3d-force-graph/node_modules/three', import.meta.url).pathname
+);
+
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: [
+      { find: /^three\/webgpu$/, replacement: `${threeDir}/build/three.webgpu.js` },
+      { find: /^three\/examples\/(.*)$/, replacement: `${threeDir}/examples/$1` },
+      { find: /^three\/addons\/(.*)$/, replacement: `${threeDir}/examples/jsm/$1` },
+      { find: /^three$/, replacement: `${threeDir}/build/three.module.js` },
+    ],
+    dedupe: ['three'],
+  },
   server: { host: true, proxy },
   preview: { proxy },
 });

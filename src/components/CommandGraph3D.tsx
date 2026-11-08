@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import ForceGraph3D, { ForceGraphMethods } from 'react-force-graph-3d';
 import * as THREE from 'three';
-import { Maximize2 } from 'lucide-react';
+import { Maximize2, ZoomIn, ZoomOut, Layers } from 'lucide-react';
 import { ClusterInfo, GraphEdge, GraphNode, ImpactAnalysis } from '../types/index';
 import { getHealthVisuals } from '../lib/healthColor';
 
@@ -13,13 +13,67 @@ interface CommandGraph3DProps {
   impactAnalysis: ImpactAnalysis | null;
   selectedPathNodeIds: string[] | null;
   onSelectNode: (node: GraphNode | null) => void;
+  onFallbackTo2D?: () => void;
+  reducedMotion?: boolean;
 }
 
-function resolveId(endpoint: string | GraphNode): string {
-  return typeof endpoint === 'string' ? endpoint : endpoint.id;
+function resolveId(endpoint: unknown): string {
+  if (!endpoint) return '';
+  if (typeof endpoint === 'string') return endpoint;
+  if (typeof endpoint === 'object' && endpoint !== null && 'id' in endpoint) {
+    return String((endpoint as { id: unknown }).id);
+  }
+  return '';
 }
 
-function createTextSprite(text: string, color: string, bgColor: string, borderColor: string) {
+function checkWebGLSupport(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const canvas = document.createElement('canvas');
+    return Boolean(
+      window.WebGLRenderingContext &&
+        (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+    );
+  } catch {
+    return false;
+  }
+}
+
+class WebGLErrorBoundary extends React.Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { fallback: React.ReactNode; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn('3D WebGL context error caught gracefully:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
+// In-memory cache for billboard text sprites to prevent GPU texture thrashing
+const spriteCache = new Map<string, THREE.Sprite>();
+
+function getOrCreateTextSprite(text: string, color: string, bgColor: string, borderColor: string): THREE.Sprite {
+  const key = `${text}_${color}_${bgColor}_${borderColor}`;
+  const cached = spriteCache.get(key);
+  if (cached) {
+    return cached.clone();
+  }
+
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   if (!ctx) return new THREE.Sprite();
@@ -27,16 +81,16 @@ function createTextSprite(text: string, color: string, bgColor: string, borderCo
   canvas.width = 512;
   canvas.height = 128;
 
-  // Background box with rounded corners
+  // Background rounded box
   ctx.fillStyle = bgColor;
   ctx.strokeStyle = borderColor;
   ctx.lineWidth = 6;
 
   const r = 24;
-  const x = 8;
-  const y = 8;
-  const w = canvas.width - 16;
-  const h = canvas.height - 16;
+  const x = 6;
+  const y = 6;
+  const w = canvas.width - 12;
+  const h = canvas.height - 12;
 
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -52,9 +106,9 @@ function createTextSprite(text: string, color: string, bgColor: string, borderCo
   ctx.fill();
   ctx.stroke();
 
-  // Text
+  // Typography
   ctx.fillStyle = color;
-  ctx.font = 'bold 44px JetBrains Mono, monospace';
+  ctx.font = 'bold 48px JetBrains Mono, monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
@@ -69,7 +123,8 @@ function createTextSprite(text: string, color: string, bgColor: string, borderCo
 
   const sprite = new THREE.Sprite(spriteMaterial);
   sprite.scale.set(44, 11, 1);
-  return sprite;
+  spriteCache.set(key, sprite);
+  return sprite.clone();
 }
 
 export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
@@ -79,20 +134,27 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
   impactAnalysis,
   selectedPathNodeIds,
   onSelectNode,
+  onFallbackTo2D,
+  reducedMotion = false,
 }) => {
   const fgRef = useRef<ForceGraphMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 900, height: 600 });
+  const isWebGLSupported = useMemo(() => checkWebGLSupport(), []);
+  const [dimensions, setDimensions] = useState(() => ({
+    width: typeof window !== 'undefined' ? Math.max(600, window.innerWidth - 380) : 900,
+    height: typeof window !== 'undefined' ? Math.max(400, window.innerHeight - 56) : 600,
+  }));
 
-  // Measure container size
+  // Measure container size dynamically
   useEffect(() => {
     if (!containerRef.current) return;
     const updateSize = () => {
       if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.clientWidth || 900,
-          height: containerRef.current.clientHeight || 600,
-        });
+        const w = containerRef.current.clientWidth;
+        const h = containerRef.current.clientHeight;
+        if (w > 0 && h > 0) {
+          setDimensions({ width: w, height: h });
+        }
       }
     };
     updateSize();
@@ -126,85 +188,115 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
     return map;
   }, [selectedNode, impactAnalysis, selectedPathNodeIds, nodes]);
 
-  // Set initial camera position on mount
+  // Robust Scene Initialization: adds Three.js lights and auto-fits graph
   useEffect(() => {
-    const fg = fgRef.current;
-    if (!fg) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
 
-    // Add ambient and directional lights to the 3D scene so nodes are never dark!
-    try {
-      const scene = fg.scene?.();
-      if (scene && !(scene as unknown as { __lightsAdded?: boolean }).__lightsAdded) {
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.8);
-        scene.add(ambientLight);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
-        dirLight.position.set(100, 200, 150);
-        scene.add(dirLight);
-
-        const pointLight = new THREE.PointLight(0x00f5d4, 3.5, 400);
-        pointLight.position.set(0, 0, 100);
-        scene.add(pointLight);
-
-        // 3D volumetric grid of dots in space
-        const dotPositions: number[] = [];
-        const dotColors: number[] = [];
-        const gridStep = 55;
-        const gridExtent = 330;
-        for (let x = -gridExtent; x <= gridExtent; x += gridStep) {
-          for (let y = -gridExtent; y <= gridExtent; y += gridStep) {
-            for (let z = -gridExtent; z <= gridExtent; z += gridStep) {
-              // Keep a hollow inner sphere near the graph center clear of dense dots,
-              // while creating a full 3D spatial lattice of dots around and on the reference plane
-              const dist = Math.hypot(x, y, z);
-              const isReferencePlane = y === -110;
-              if (isReferencePlane || (dist >= 140 && dist <= 480 && (Math.abs(x + y + z) % 110 === 0))) {
-                dotPositions.push(x, y, z);
-                if (isReferencePlane && x % 110 === 0 && z % 110 === 0) {
-                  dotColors.push(0.38, 0.45, 0.65);
-                } else {
-                  dotColors.push(0.22, 0.28, 0.42);
-                }
-              }
-            }
-          }
-        }
-        const dotGeo = new THREE.BufferGeometry();
-        dotGeo.setAttribute('position', new THREE.Float32BufferAttribute(dotPositions, 3));
-        dotGeo.setAttribute('color', new THREE.Float32BufferAttribute(dotColors, 3));
-        const dotMat = new THREE.PointsMaterial({
-          size: 2.2,
-          vertexColors: true,
-          transparent: true,
-          opacity: 0.65,
-          depthWrite: false,
-        });
-        const spatialDots = new THREE.Points(dotGeo, dotMat);
-        scene.add(spatialDots);
-
-        (scene as unknown as { __lightsAdded?: boolean }).__lightsAdded = true;
+    const initScene = () => {
+      const fg = fgRef.current;
+      if (!fg) {
+        if (active) timer = setTimeout(initScene, 60);
+        return;
       }
-    } catch {
-      // Graceful fallback
-    }
 
-    // Set stable camera position centered on scene
-    fg.cameraPosition({ x: 0, y: 0, z: 230 }, { x: 0, y: 0, z: 0 }, 400);
+      try {
+        const scene = fg.scene?.();
+        if (scene && !(scene as unknown as { __lightsAdded?: boolean }).__lightsAdded) {
+          const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
+          scene.add(ambientLight);
 
+          const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
+          dirLight.position.set(120, 200, 160);
+          scene.add(dirLight);
+
+          const pointLight = new THREE.PointLight(0x10b981, 3.0, 500);
+          pointLight.position.set(0, 0, 120);
+          scene.add(pointLight);
+
+          (scene as unknown as { __lightsAdded?: boolean }).__lightsAdded = true;
+        }
+      } catch {
+        // Graceful fallback
+      }
+
+      // Initial auto-fit after graph simulation starts
+      setTimeout(() => {
+        if (active && fgRef.current) {
+          fgRef.current.zoomToFit(reducedMotion ? 0 : 500, 50);
+        }
+      }, 250);
+    };
+
+    initScene();
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [reducedMotion]);
+
+  // Orbit camera toward selected node when selection changes
+  useEffect(() => {
+    if (!selectedNode || !fgRef.current) return;
+    const fg = fgRef.current;
     const timer = setTimeout(() => {
-      fg.zoomToFit(500, 40);
-    }, 350);
+      try {
+        const currentNodes =
+          (fg as unknown as { graphData?: () => { nodes: (GraphNode & { x?: number; y?: number; z?: number })[] } })
+            .graphData?.()?.nodes || (graphData.nodes as (GraphNode & { x?: number; y?: number; z?: number })[]);
+        const nodeObj = currentNodes.find((n) => n.id === selectedNode.id);
+        if (nodeObj && nodeObj.x !== undefined && nodeObj.y !== undefined && nodeObj.z !== undefined) {
+          const dist = 150;
+          const hyp = Math.hypot(nodeObj.x || 1, nodeObj.y || 1, nodeObj.z || 1);
+          const ratio = 1 + dist / hyp;
+          fg.cameraPosition(
+            { x: nodeObj.x * ratio, y: nodeObj.y * ratio, z: nodeObj.z * ratio },
+            { x: nodeObj.x, y: nodeObj.y, z: nodeObj.z },
+            reducedMotion ? 0 : 450
+          );
+        } else {
+          fg.zoomToFit(reducedMotion ? 0 : 400, 50);
+        }
+      } catch {
+        fg.zoomToFit(reducedMotion ? 0 : 400, 50);
+      }
+    }, 150);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [selectedNode, reducedMotion]);
 
   const handleFitView = useCallback(() => {
     const fg = fgRef.current;
     if (!fg) return;
-    fg.zoomToFit(600, 40);
-  }, []);
+    fg.zoomToFit(reducedMotion ? 0 : 500, 40);
+  }, [reducedMotion]);
 
-  // Build custom 3D sphere + outer glow aura + billboard label
+  const handleZoomIn = useCallback(() => {
+    const fg = fgRef.current;
+    if (!fg) return;
+    const camera = fg.camera?.();
+    const pos = camera ? camera.position : { x: 0, y: 0, z: 240 };
+    fg.cameraPosition(
+      { x: pos.x * 0.8, y: pos.y * 0.8, z: pos.z * 0.8 },
+      undefined,
+      reducedMotion ? 0 : 300
+    );
+  }, [reducedMotion]);
+
+  const handleZoomOut = useCallback(() => {
+    const fg = fgRef.current;
+    if (!fg) return;
+    const camera = fg.camera?.();
+    const pos = camera ? camera.position : { x: 0, y: 0, z: 240 };
+    fg.cameraPosition(
+      { x: pos.x * 1.25, y: pos.y * 1.25, z: pos.z * 1.25 },
+      undefined,
+      reducedMotion ? 0 : 300
+    );
+  }, [reducedMotion]);
+
+  // Build custom 3D sphere + glow halo + high-res label
   const renderNodeObject = useCallback(
     (rawNode: object) => {
       const node = rawNode as GraphNode;
@@ -217,23 +309,22 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
       const isDimmed = selectedNode !== null && status === 'unrelated';
 
       const group = new THREE.Group();
-      // Scaled baseRadius so nodes are prominent and visible
-      const baseRadius = 8.0 + Math.min(4.0, node.loc / 400);
+      const baseRadius = 8.5 + Math.min(4.0, node.loc / 350);
 
       let coreColor = visuals.coreColor;
-      let emissiveIntensity = 1.0;
+      let emissiveIntensity = 0.8;
 
       if (isSelected) {
-        coreColor = '#00f5d4';
-        emissiveIntensity = 2.0;
+        coreColor = '#10b981'; // Precision emerald
+        emissiveIntensity = 2.2;
       } else if (isDirect || isIsolated) {
-        coreColor = '#38bdf8';
+        coreColor = '#34d399';
         emissiveIntensity = 1.6;
       } else if (isIndirect) {
-        coreColor = '#818cf8';
+        coreColor = '#38bdf8'; // Sky blue
         emissiveIntensity = 1.4;
       } else if (isDimmed) {
-        coreColor = '#334155';
+        coreColor = '#475569';
         emissiveIntensity = 0.1;
       }
 
@@ -243,22 +334,22 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
         color: new THREE.Color(coreColor),
         emissive: new THREE.Color(coreColor),
         emissiveIntensity,
-        roughness: 0.2,
-        metalness: 0.1,
+        roughness: 0.25,
+        metalness: 0.15,
         transparent: isDimmed,
-        opacity: isDimmed ? 0.3 : 1.0,
+        opacity: isDimmed ? 0.35 : 1.0,
       });
       const coreMesh = new THREE.Mesh(coreGeo, coreMat);
       group.add(coreMesh);
 
       // 2. Halo Glow
       if (!isDimmed) {
-        const haloRadius = baseRadius * (isSelected ? 2.4 : 1.7);
+        const haloRadius = baseRadius * (isSelected ? 2.2 : 1.6);
         const haloGeo = new THREE.SphereGeometry(haloRadius, 16, 16);
         const haloMat = new THREE.MeshBasicMaterial({
           color: new THREE.Color(coreColor),
           transparent: true,
-          opacity: isSelected ? 0.5 : 0.25,
+          opacity: isSelected ? 0.45 : 0.2,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         });
@@ -266,13 +357,13 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
         group.add(haloMesh);
       }
 
-      // 3. Selection Indicator Ring
+      // 3. Selection Ring
       if (isSelected) {
-        const ringGeo = new THREE.TorusGeometry(baseRadius * 2.5, 0.5, 12, 48);
+        const ringGeo = new THREE.TorusGeometry(baseRadius * 2.3, 0.6, 12, 48);
         const ringMat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color('#00f5d4'),
+          color: new THREE.Color('#10b981'),
           transparent: true,
-          opacity: 0.95,
+          opacity: 0.9,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         });
@@ -280,31 +371,31 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
         group.add(ringMesh);
       }
 
-      // 4. Billboard text label
+      // 4. Crisp Billboard text label from cache
       const shouldShowLabel =
-        nodes.length <= 6 || isSelected || isDirect || isIndirect || isIsolated;
+        nodes.length <= 8 || isSelected || isDirect || isIndirect || isIsolated;
 
       if (shouldShowLabel && !isDimmed) {
-        let labelColor = '#f1f5f9';
-        let labelBg = 'rgba(11, 19, 38, 0.94)';
+        let labelColor = '#f8fafc';
+        let labelBg = 'rgba(15, 23, 42, 0.95)';
         let labelBorder = '#334155';
 
         if (isSelected) {
-          labelColor = '#00f5d4';
-          labelBg = 'rgba(7, 34, 40, 0.96)';
-          labelBorder = '#00f5d4';
+          labelColor = '#6ee7b7';
+          labelBg = 'rgba(6, 78, 59, 0.96)';
+          labelBorder = '#10b981';
         } else if (isDirect || isIsolated) {
-          labelColor = '#7dd3fc';
-          labelBg = 'rgba(8, 38, 56, 0.96)';
-          labelBorder = '#38bdf8';
+          labelColor = '#a7f3d0';
+          labelBg = 'rgba(6, 50, 40, 0.96)';
+          labelBorder = '#059669';
         } else if (isIndirect) {
-          labelColor = '#a5b4fc';
-          labelBg = 'rgba(20, 24, 58, 0.96)';
-          labelBorder = '#818cf8';
+          labelColor = '#bae6fd';
+          labelBg = 'rgba(8, 47, 73, 0.96)';
+          labelBorder = '#0284c7';
         }
 
-        const labelSprite = createTextSprite(node.name, labelColor, labelBg, labelBorder);
-        labelSprite.position.set(0, baseRadius + 12, 0);
+        const labelSprite = getOrCreateTextSprite(node.name, labelColor, labelBg, labelBorder);
+        labelSprite.position.set(0, baseRadius + 13, 0);
         group.add(labelSprite);
       }
 
@@ -313,98 +404,163 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
     [selectedNode, nodeStatusMap, nodes.length]
   );
 
-  const graphData = useMemo(() => ({ nodes, links: edges }), [nodes, edges]);
+  // Safe cloned graphData so D3 force simulation never receives stale object references or mutates parent data
+  const graphData = useMemo(() => {
+    return {
+      nodes: nodes.map((n) => ({ ...n })),
+      links: edges.map((e) => ({
+        ...e,
+        source: resolveId(e.source),
+        target: resolveId(e.target),
+      })),
+    };
+  }, [nodes, edges]);
+
+  const fallbackUI = (
+    <div className="flex h-full w-full flex-col items-center justify-center bg-[#0A101D] p-6 text-center text-slate-200">
+      <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-4 shadow-lg">
+        <Layers className="w-6 h-6" />
+      </div>
+      <h3 className="text-base font-bold text-white mb-2">3D Force View Fallback</h3>
+      <p className="max-w-md text-xs text-slate-400 mb-5 leading-relaxed">
+        Hardware WebGL context could not be initialized in this browser session. The full dependency architecture and line-level caller tracing is fully interactive in the 2D Planar Map.
+      </p>
+      {onFallbackTo2D && (
+        <button
+          type="button"
+          onClick={onFallbackTo2D}
+          className="px-4 py-2 bg-[#3730A3] hover:bg-[#312E81] text-white text-xs font-semibold rounded-xl shadow-md transition cursor-pointer"
+        >
+          Return to 2D Planar Map
+        </button>
+      )}
+    </div>
+  );
+
+  if (!isWebGLSupported) {
+    return fallbackUI;
+  }
 
   return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-[#070b14] ambient-glow">
-      <ForceGraph3D
-        ref={fgRef}
-        width={dimensions.width}
-        height={dimensions.height}
-        graphData={graphData}
-        backgroundColor="#070b14"
-        showNavInfo={false}
-        enableNodeDrag={true}
-        nodeThreeObject={renderNodeObject}
-        nodeThreeObjectExtend={false}
-        nodeLabel={(rawNode) => {
-          const n = rawNode as GraphNode;
-          const v = getHealthVisuals(n.health);
-          return `<div style="background: rgba(13,19,34,0.95); border: 1px solid rgba(0,245,212,0.4); padding: 8px 12px; border-radius: 8px; font-family: monospace; font-size: 11px; color: #f1f5f9; box-shadow: 0 8px 24px rgba(0,0,0,0.85);">
-            <div style="font-weight: 700; color: #00f5d4; font-size: 12px;">${n.name}</div>
-            <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">${n.clusterName}</div>
-            <div style="margin-top: 4px; font-size: 10px; color: #cbd5e1;">Health: <b style="color: ${v.coreColor}">${n.health}/100</b> · Complexity: <b>${n.complexity}</b></div>
-          </div>`;
-        }}
-        onNodeClick={(rawNode) => {
-          const node = rawNode as GraphNode;
-          onSelectNode(node);
-        }}
-        onBackgroundClick={() => onSelectNode(null)}
-        linkWidth={(rawLink) => {
-          const link = rawLink as GraphEdge;
-          const sId = resolveId(link.source);
-          const tId = resolveId(link.target);
+    <div
+      ref={containerRef}
+      className="relative h-full w-full overflow-hidden bg-[#0A101D] select-none"
+    >
+      <WebGLErrorBoundary fallback={fallbackUI}>
+        <ForceGraph3D
+          ref={fgRef}
+          width={dimensions.width}
+          height={dimensions.height}
+          graphData={graphData}
+          backgroundColor="#0A101D"
+          showNavInfo={false}
+          enableNodeDrag={true}
+          nodeThreeObject={renderNodeObject}
+          nodeThreeObjectExtend={false}
+          nodeLabel={(rawNode) => {
+            const n = rawNode as GraphNode;
+            const v = getHealthVisuals(n.health);
+            return `<div style="background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(16, 185, 129, 0.4); padding: 8px 12px; border-radius: 8px; font-family: monospace; font-size: 11px; color: #f8fafc; box-shadow: 0 8px 24px rgba(0,0,0,0.85);">
+              <div style="font-weight: 700; color: #34d399; font-size: 12px;">${n.name}</div>
+              <div style="color: #94a3b8; font-size: 10px; margin-top: 2px;">${n.clusterName}</div>
+              <div style="margin-top: 4px; font-size: 10px; color: #cbd5e1;">Health: <b style="color: ${v.coreColor}">${n.health}/100</b> · Complexity: <b>${n.complexity}</b></div>
+            </div>`;
+          }}
+          onNodeClick={(rawNode) => {
+            const node = rawNode as GraphNode;
+            onSelectNode(node);
+          }}
+          onBackgroundClick={() => onSelectNode(null)}
+          linkWidth={(rawLink) => {
+            const link = rawLink as GraphEdge;
+            const sId = resolveId(link.source);
+            const tId = resolveId(link.target);
 
-          const isTraced =
-            selectedNode &&
-            (tId === selectedNode.id ||
-              nodeStatusMap.get(sId) === 'direct' ||
-              nodeStatusMap.get(sId) === 'indirect');
-
-          if (isTraced) return 3.2;
-          return 0.8;
-        }}
-        linkColor={(rawLink) => {
-          const link = rawLink as GraphEdge;
-          const sId = resolveId(link.source);
-          const tId = resolveId(link.target);
-
-          if (selectedNode) {
             const isTraced =
-              tId === selectedNode.id && nodeStatusMap.get(sId) === 'direct';
-            if (isTraced) return 'rgba(0, 245, 212, 0.95)';
+              selectedNode &&
+              (tId === selectedNode.id ||
+                nodeStatusMap.get(sId) === 'direct' ||
+                nodeStatusMap.get(sId) === 'indirect');
 
-            const isIndirect =
-              nodeStatusMap.get(sId) === 'indirect' ||
-              nodeStatusMap.get(tId) === 'direct';
-            if (isIndirect) return 'rgba(129, 140, 248, 0.85)';
+            if (isTraced) return 3.2;
+            return 1.0;
+          }}
+          linkColor={(rawLink) => {
+            const link = rawLink as GraphEdge;
+            const sId = resolveId(link.source);
+            const tId = resolveId(link.target);
 
-            return 'rgba(51, 65, 85, 0.12)';
-          }
+            if (selectedNode) {
+              const isTraced = tId === selectedNode.id && nodeStatusMap.get(sId) === 'direct';
+              if (isTraced) return 'rgba(16, 185, 129, 0.95)';
 
-          return 'rgba(71, 85, 105, 0.4)';
-        }}
-        linkDirectionalParticles={(rawLink) => {
-          const link = rawLink as GraphEdge;
-          const sId = resolveId(link.source);
-          const tId = resolveId(link.target);
+              const isIndirect =
+                nodeStatusMap.get(sId) === 'indirect' || nodeStatusMap.get(tId) === 'direct';
+              if (isIndirect) return 'rgba(56, 189, 248, 0.85)';
 
-          if (selectedNode) {
-            const isTraced =
-              tId === selectedNode.id ||
-              nodeStatusMap.get(sId) === 'direct' ||
-              nodeStatusMap.get(sId) === 'indirect';
-            return isTraced ? 5 : 0;
-          }
-          return 1;
-        }}
-        linkDirectionalParticleSpeed={0.006}
-        linkDirectionalParticleWidth={3.2}
-        linkDirectionalParticleColor={() => '#00f5d4'}
-      />
+              return 'rgba(51, 65, 85, 0.15)';
+            }
+
+            return 'rgba(100, 116, 139, 0.45)';
+          }}
+          linkDirectionalParticles={(rawLink) => {
+            if (reducedMotion) return 0; // Turn off particles in reduced motion mode
+
+            const link = rawLink as GraphEdge;
+            const sId = resolveId(link.source);
+            const tId = resolveId(link.target);
+
+            if (selectedNode) {
+              const isTraced =
+                tId === selectedNode.id ||
+                nodeStatusMap.get(sId) === 'direct' ||
+                nodeStatusMap.get(sId) === 'indirect';
+              return isTraced ? 5 : 0;
+            }
+            return 1;
+          }}
+          linkDirectionalParticleSpeed={0.007}
+          linkDirectionalParticleWidth={3.0}
+          linkDirectionalParticleColor={() => '#34d399'}
+        />
+      </WebGLErrorBoundary>
 
       {/* Floating Canvas Controls */}
-      <div className="absolute bottom-4 left-4 flex items-center gap-1 rounded-xl glass-panel p-1 text-slate-300 shadow-xl backdrop-blur-xl">
+      <div className="absolute bottom-4 left-4 flex items-center gap-1 rounded-xl bg-slate-900/80 border border-slate-700/80 p-1 text-slate-300 shadow-xl backdrop-blur-md">
+        <button
+          type="button"
+          onClick={handleZoomIn}
+          aria-label="Zoom in 3D graph"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition cursor-pointer"
+          title="Zoom in"
+        >
+          <ZoomIn className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={handleZoomOut}
+          aria-label="Zoom out 3D graph"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition cursor-pointer"
+          title="Zoom out"
+        >
+          <ZoomOut className="h-4 w-4" />
+        </button>
         <button
           type="button"
           onClick={handleFitView}
-          aria-label="Fit view"
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition"
-          title="Fit view / center graph"
+          aria-label="Fit view / center 3D graph"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition cursor-pointer"
+          title="Center and fit 3D graph"
         >
           <Maximize2 className="h-4 w-4" />
         </button>
+      </div>
+
+      {/* Legend Badge */}
+      <div className="absolute top-4 left-4 flex items-center gap-2 rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-1.5 text-xs font-mono text-slate-300 shadow-md backdrop-blur-md">
+        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span>3D AST Force View</span>
+        <span className="text-slate-500">· Click sphere to inspect callers</span>
       </div>
     </div>
   );
