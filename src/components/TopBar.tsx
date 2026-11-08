@@ -50,7 +50,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   }, []);
 
   return (
-    <header className="relative z-30 flex flex-wrap sm:flex-nowrap min-h-16 h-16 w-full shrink-0 items-center justify-between gap-4 border-b border-white/60 dark:border-white/10 bg-white/70 dark:bg-slate-900/65 backdrop-blur-xl backdrop-saturate-150 px-6 sm:px-8 py-2 sm:py-0 select-none shadow-[0_4px_24px_-4px_rgba(15,23,42,0.06)] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] transition-colors duration-200">
+    <header className="relative z-30 flex flex-wrap sm:flex-nowrap min-h-16 sm:h-16 w-full shrink-0 items-center justify-between gap-4 border-b border-white/60 dark:border-white/10 bg-white/70 dark:bg-slate-900/65 backdrop-blur-xl backdrop-saturate-150 px-6 sm:px-8 py-2 sm:py-0 select-none shadow-[0_4px_24px_-4px_rgba(15,23,42,0.06)] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] transition-colors duration-200">
       <div className="flex items-center gap-3 sm:gap-4 shrink-0">
         <button
           type="button"

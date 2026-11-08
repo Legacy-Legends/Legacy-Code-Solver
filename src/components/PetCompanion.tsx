@@ -31,7 +31,9 @@ export const PetCompanion: React.FC<PetCompanionProps> = ({ nodes, overallHealth
       type="button"
       onClick={onToggle}
       aria-label="Toggle Agent Workspace"
-      className="absolute bottom-6 right-6 z-30 group cursor-pointer"
+      aria-expanded={isOpen}
+      aria-controls="agent-workspace"
+      className="fixed bottom-6 right-6 z-30 group cursor-pointer"
     >
       <div className="flex items-center gap-3 transition-transform duration-300 ease-in-out hover:scale-105">
         

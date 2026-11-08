@@ -47,7 +47,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const hasInitialFitRef = useRef(false);
 
   // Dragging State for Graph Panning
   const pointerStateRef = useRef<{
@@ -69,7 +68,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
 
   // Dragging State for Individual Node Placement
   const [nodeOverrides, setNodeOverrides] = useState<Record<string, { x: number; y: number }>>({});
-  const dragNodeRef = useRef<{ id: string; startX: number; startY: number } | null>(null);
+  const dragNodeRef = useRef<{ id: string; startX: number; startY: number; clientX: number; clientY: number } | null>(null);
   const [isDraggingNode, setIsDraggingNode] = useState(false);
 
   useEffect(() => {
@@ -217,18 +216,12 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     setPan({ x: 0, y: clusterColumns.length > 0 ? 20 : 0 });
   }, [positionedNodes, dimensions.width, dimensions.height, clusterColumns.length]);
 
+  // Drag overrides update geometry, but must not refit the viewport on every move.
+  const fitRef = useRef(fitGraphToViewport);
+  fitRef.current = fitGraphToViewport;
   useEffect(() => {
-    if (dimensions.width > 0 && dimensions.height > 0 && !hasInitialFitRef.current) {
-      hasInitialFitRef.current = true;
-      fitGraphToViewport();
-    }
-  }, [dimensions.width, dimensions.height, fitGraphToViewport]);
-
-  useEffect(() => {
-    if (dimensions.width > 0 && dimensions.height > 0) {
-      fitGraphToViewport();
-    }
-  }, [nodes.length, fitSignal, fitGraphToViewport]);
+    if (dimensions.width > 0 && dimensions.height > 0) fitRef.current();
+  }, [nodes.length, fitSignal, dimensions.width, dimensions.height]);
 
   const nodeStatusMap = useMemo(() => {
     const map = new Map<
@@ -295,9 +288,10 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   const viewW = dimensions.width || 960;
   const viewH = dimensions.height || 640;
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
       if (e.button !== 0) return;
+      containerRef.current?.setPointerCapture(e.pointerId);
       pointerStateRef.current = {
         isDown: true,
         didDrag: false,
@@ -310,8 +304,11 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     [pan]
   );
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (dragNodeRef.current && containerRef.current) {
+      const drag = dragNodeRef.current;
+      if (!pointerStateRef.current.didDrag && Math.hypot(e.clientX - drag.clientX, e.clientY - drag.clientY) <= 4) return;
+      pointerStateRef.current.didDrag = true;
       const rect = containerRef.current.getBoundingClientRect();
       const worldX = (e.clientX - rect.left - (viewW / 2 + pan.x)) / zoom;
       const worldY = (e.clientY - rect.top - (viewH / 2 + pan.y)) / zoom;
@@ -343,11 +340,11 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     }
   }, [pan, zoom, viewW, viewH, isDraggingNode]);
 
-  const handleMouseUp = useCallback(() => {
+  const handlePointerUp = useCallback(() => {
     pointerStateRef.current.isDown = false;
     dragNodeRef.current = null;
     setIsDraggingCanvas(false);
-    setTimeout(() => setIsDraggingNode(false), 50);
+    setIsDraggingNode(false);
   }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -362,19 +359,21 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   return (
     <div
       ref={containerRef}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onLostPointerCapture={handlePointerUp}
+      data-testid="graph-canvas"
       onWheel={handleWheel}
       onClick={() => {
-        if (!pointerStateRef.current.didDrag && !isDraggingNode) {
+        if (!pointerStateRef.current.didDrag) {
           onSelectNode(null);
           onSelectEdge(null);
         }
       }}
       className={`relative h-full w-full overflow-hidden select-none transition-colors duration-200 bg-[var(--bg-canvas)]`}
-      style={{ cursor: isDraggingCanvas ? 'grabbing' : 'grab' }}
+      style={{ cursor: isDraggingCanvas || isDraggingNode ? 'grabbing' : 'grab', touchAction: 'none' }}
     >
       <div className="absolute top-3.5 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
         <div
@@ -539,8 +538,9 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             return (
               <g
                 key={edge.id}
+                data-edge-id={edge.id}
                 className="cursor-pointer"
-                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectEdge(edge);
@@ -614,6 +614,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             return (
               <g
                 key={node.id}
+                data-node-id={node.id}
                 role="button"
                 tabIndex={0}
                 aria-label={`Class ${node.name}, ${roleLabel}`}
@@ -622,21 +623,29 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                 className="cursor-pointer transition-opacity duration-200"
                 onMouseEnter={() => setHoveredNodeId(node.id)}
                 onMouseLeave={() => setHoveredNodeId(null)}
-                onMouseDown={(e) => {
+                onPointerDown={(e) => {
+                  if (e.button !== 0) return;
                   e.stopPropagation();
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  pointerStateRef.current.didDrag = false;
                   const rect = containerRef.current?.getBoundingClientRect();
                   if (!rect) return;
                   const worldX = (e.clientX - rect.left - (viewW / 2 + pan.x)) / zoom;
                   const worldY = (e.clientY - rect.top - (viewH / 2 + pan.y)) / zoom;
                   dragNodeRef.current = {
                     id: node.id,
+                    clientX: e.clientX,
+                    clientY: e.clientY,
                     startX: worldX - node.posX,
                     startY: worldY - node.posY,
                   };
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectNode(node); }
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (!isDraggingNode) onSelectNode(node);
+                  if (!pointerStateRef.current.didDrag) onSelectNode(node);
                 }}
               >
                 <rect
@@ -672,7 +681,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
         </g>
       </svg>
 
-      <div className={`absolute bottom-4 left-4 z-20 flex items-center gap-1 rounded-xl p-1 shadow-md backdrop-blur-md border ${darkMode ? 'bg-slate-900/90 border-slate-700/80 text-slate-300' : 'bg-white/90 border-slate-200/90 text-slate-700'}`}>
+      <div onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} className={`absolute bottom-4 left-4 z-20 flex items-center gap-1 rounded-xl p-1 shadow-md backdrop-blur-md border ${darkMode ? 'bg-slate-900/90 border-slate-700/80 text-slate-300' : 'bg-white/90 border-slate-200/90 text-slate-700'}`}>
         <button type="button" onClick={() => setZoom((z) => Number(Math.min(2.2, z + 0.15).toFixed(2)))} aria-label="Zoom in" className={`rounded-lg p-1.5 transition cursor-pointer ${darkMode ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}><ZoomIn className="h-4 w-4" /></button>
         <button type="button" onClick={() => setZoom((z) => Number(Math.max(0.3, z - 0.15).toFixed(2)))} aria-label="Zoom out" className={`rounded-lg p-1.5 transition cursor-pointer ${darkMode ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}><ZoomOut className="h-4 w-4" /></button>
         <div className={`h-4 w-px my-auto ${darkMode ? 'bg-slate-700' : 'bg-slate-200'}`} />

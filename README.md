@@ -77,17 +77,18 @@ future PowerShell terminals, add the first command to your PowerShell profile
 
 ## Demo walkthrough
 
-1. Click **Explore sample project** on the landing page. Select a class or edge
-   in the graph to inspect callers and the checked-in sample evidence.
-2. Use the **Project selector** to switch between `Sample: order-service`,
-   `Enterprise: acme-legacy (40)`, and `Live: FastAPI`.
-3. Choose `Live: FastAPI` to fetch the demo graph from the backend. This is still
-   fixture data; the current UI does not upload or analyze a Java project.
-4. Use **View → 2D dependency graph** or **View → 3D force view** to switch views.
-   The app and renderer share Three.js 0.187.0.
-5. Open **http://127.0.0.1:8000/docs** to try the agent endpoints below. The latest
-   UI redesign no longer mounts the existing agent/pet panel, so those features
-   currently require the API reference or a client request.
+1. Click **Open mock graph**. The included `graph.json` is loaded through FastAPI;
+   this presentation UI examines only that mock file. Start both servers above.
+2. The 2D canvas fills the workspace until you select a class or open the pet.
+   Drag tiles freely: connected arrows follow as you move. Drag empty space to
+   pan, scroll to zoom, or use **View → Fit graph to screen**.
+3. Click a class to inspect its callers. Press Escape or use **View → Reset view
+   & selection** to restore the full canvas. Use **2D / 3D** to switch views.
+4. Click the pet in the bottom-right corner to open **Agent Chat**. Send it a
+   message, or select a class first to enable **Track Blast Radius** and
+   **Modernize Class**. Close the drawer using its close button, the pet, or Escape.
+5. Agent chat and graph requests use the same `demo` backend project. If the
+   backend cannot be reached, the workspace shows an error and **Retry**.
 
 `USE_MOCK_AGENT=true` keeps these API operations offline. For real Groq responses,
 follow **Enable Groq** below. Turning off mock mode changes LLM behavior; it does
@@ -117,8 +118,9 @@ is computed from backend health; inferred domain tags persist in memory until re
 
 ## Analyze your own Java checkout
 
-The UI/API can upload a Java ZIP, analyze it into a project-specific graph, and
-serve that graph to the agent workspace. To analyze Java locally:
+The API supports uploading a Java ZIP and analyzing it into a project-specific
+graph. The presentation UI is currently restricted to the included mock file.
+To analyze Java locally:
 
 ```sh
 # Windows: replace .venv/bin/python with .\.venv\Scripts\python.exe

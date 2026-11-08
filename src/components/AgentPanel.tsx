@@ -7,13 +7,14 @@ import {
 import { GraphNode } from '../types';
 
 interface Props {
+  onClose: () => void;
   projectId: string;
   selectedNode: GraphNode | null;
   onBlast: (result: BackendBlastResult) => void;
   hoveredProposalHealth: (delta: number | null) => void;
 }
 
-export function AgentPanel({ projectId, selectedNode, onBlast, hoveredProposalHealth }: Props) {
+export function AgentPanel({ onClose, projectId, selectedNode, onBlast, hoveredProposalHealth }: Props) {
   const [chatQuery, setChatQuery] = useState('');
   
   // Initialize with a welcome message mimicking Copilot
@@ -90,7 +91,7 @@ export function AgentPanel({ projectId, selectedNode, onBlast, hoveredProposalHe
   };
 
   return (
-    <section className="flex flex-col h-full bg-white dark:bg-[#090D16] border-t border-slate-200 dark:border-slate-800">
+    <section aria-label="Pet and AI agent" className="flex flex-col h-full bg-white dark:bg-[#090D16] border-t border-slate-200 dark:border-slate-800">
       
       {/* VS Code Copilot style Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
@@ -98,6 +99,7 @@ export function AgentPanel({ projectId, selectedNode, onBlast, hoveredProposalHe
           <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
           <h2 className="text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-wide uppercase">Agent Chat</h2>
         </div>
+        <button type="button" onClick={onClose} aria-label="Close agent" className="rounded p-2 hover:bg-slate-200 dark:hover:bg-slate-800"><X className="h-4 w-4" /></button>
         {selectedNode && (
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-200/50 dark:bg-slate-800 text-[10px] font-mono text-slate-600 dark:text-slate-400">
             <Target className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
@@ -177,6 +179,7 @@ export function AgentPanel({ projectId, selectedNode, onBlast, hoveredProposalHe
       <div className="p-4 pt-0 shrink-0">
         <form onSubmit={sendChat} className="relative flex items-center">
           <input
+            aria-label="Message the pet"
             type="text"
             value={chatQuery}
             onChange={(e) => setChatQuery(e.target.value)}
@@ -185,6 +188,7 @@ export function AgentPanel({ projectId, selectedNode, onBlast, hoveredProposalHe
             className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-lg pl-4 pr-10 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all disabled:opacity-50"
           />
           <button 
+            aria-label="Send message"
             type="submit" 
             disabled={!chatQuery.trim() || busy}
             className="absolute right-2 p-1.5 rounded-md text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 cursor-pointer transition-colors"

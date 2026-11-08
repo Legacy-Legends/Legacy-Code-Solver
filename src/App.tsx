@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import rawGraphData from './mocks/graph.json';
+import { fetchLiveGraphData } from './api/backendAdapter';
 import { GraphData, GraphNode, GraphEdge, ImpactAnalysis, SourceEvidence } from './types/index';
-import { SAMPLE_EVIDENCE_MAP } from './data/sampleProject';
 import { computeImpactAnalysis } from './lib/impactAnalysis';
 import { StartPage } from './components/StartPage';
 import { TopBar } from './components/TopBar';
@@ -10,7 +9,7 @@ import { CommandGraph3D } from './components/CommandGraph3D';
 import { DetailPanel } from './components/DetailPanel';
 import { SourceDrawer } from './components/SourceDrawer';
 import { SettingsModal } from './components/SettingsModal';
-import { useAccessibilitySettings, registerAnnouncer, announceToScreenReader } from './lib/accessibilityStore';
+import { useAccessibilitySettings, registerAnnouncer } from './lib/accessibilityStore';
 import { AgentPanel } from './components/AgentPanel';
 import { PetCompanion } from './components/PetCompanion';
 
@@ -62,8 +61,21 @@ export function App() {
   const [isAgentOpen, setIsAgentOpen] = useState(false);
   const [hoveredProposalHealth, setHoveredProposalHealth] = useState<number | null>(null);
 
-  // Force single mock dataset as requested
-  const [activeGraphData] = useState<GraphData>(() => JSON.parse(JSON.stringify(rawGraphData)));
+  // Keep the graph and agent on the same backend project; never silently swap fixtures.
+  const [activeGraphData, setActiveGraphData] = useState<GraphData>({ nodes: [], edges: [], clusters: [], overallHealth: 0 });
+  const [graphLoading, setGraphLoading] = useState(true);
+  const [graphError, setGraphError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    setGraphLoading(true);
+    setGraphError(null);
+    fetchLiveGraphData('demo', controller.signal)
+      .then(graph => { if (!controller.signal.aborted) setActiveGraphData(graph); })
+      .catch(error => { if (!controller.signal.aborted) setGraphError(error instanceof Error ? error.message : 'Unable to load graph.'); })
+      .finally(() => { if (!controller.signal.aborted) setGraphLoading(false); });
+    return () => controller.abort();
+  }, [loadAttempt]);
 
   const nodesById = useMemo(() => {
     const map = new Map<string, GraphNode>();
@@ -72,7 +84,9 @@ export function App() {
   }, [activeGraphData.nodes]);
 
   const resolveEvidenceForEdge = useCallback((edge: GraphEdge): SourceEvidence | undefined => {
-    return SAMPLE_EVIDENCE_MAP[edge.id];
+    // The mock graph has no verified source snippets.
+    void edge;
+    return undefined;
   }, []);
 
   const syncClassToUrl = useCallback((node: GraphNode | null) => {
@@ -128,7 +142,8 @@ export function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (activeEvidence) setActiveEvidence(null);
+        if (isAgentOpen) { setIsAgentOpen(false); setMobileView('graph'); setHoveredProposalHealth(null); }
+        else if (activeEvidence) setActiveEvidence(null);
         else if (selectedPathNodeIds) setSelectedPathNodeIds(null);
         else if (selectedEdge) setSelectedEdge(null);
         else if (selectedNode) handleSelectNode(null);
@@ -136,7 +151,7 @@ export function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeEvidence, selectedPathNodeIds, selectedEdge, selectedNode, handleSelectNode]);
+  }, [isAgentOpen, activeEvidence, selectedPathNodeIds, selectedEdge, selectedNode, handleSelectNode]);
 
   const handleReset = useCallback(() => {
     setSelectedNode(null);
@@ -146,18 +161,15 @@ export function App() {
     setSelectedPathNodeIds(null);
     setActiveEvidence(null);
     setPathEvidenceList([]);
+    setIsAgentOpen(false);
+    setMobileView('graph');
+    setHoveredProposalHealth(null);
     setFitSignal((s) => s + 1);
     syncClassToUrl(null);
   }, [syncClassToUrl]);
 
-  const handleExploreSample = (className?: string) => {
-    const targetName = className || activeGraphData.nodes[0]?.name;
-    const target = activeGraphData.nodes.find((n) => n.name.toLowerCase() === targetName.toLowerCase()) || activeGraphData.nodes[0];
-    if (target) {
-      setSelectedNode(target);
-      setImpactAnalysis(computeImpactAnalysis(target, activeGraphData, true));
-      syncClassToUrl(target);
-    }
+  const handleOpenWorkspace = () => {
+    handleReset();
     setRoute('investigate');
   };
 
@@ -173,26 +185,13 @@ export function App() {
     }
   }, []);
 
-  const handleCustomUpload = async (files: FileList | null) => {
-    const file = files?.[0];
-    if (!file) return;
-    announceToScreenReader(`Uploaded codebase archive: ${file.name}. Parsing AST.`);
-    setTimeout(() => {
-      syncClassToUrl(null);
-      setRoute('investigate');
-    }, 1500);
-  };
-
   if (route === 'start') {
     return (
       <div className="min-h-screen w-full overflow-y-auto bg-[#F7F5F0] dark:bg-[#090D16]">
         <div className="sr-only" role="status" aria-live="polite">{announcement}</div>
         <StartPage
-          nodes={activeGraphData.nodes}
-          onInvestigate={handleExploreSample}
-          onOpenWorkspace={() => handleExploreSample()}
+          onOpenWorkspace={handleOpenWorkspace}
           onOpenSettings={() => setIsSettingsOpen(true)}
-          onCustomUpload={handleCustomUpload}
         />
         <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={settings} onUpdateSetting={updateSetting} onResetSettings={resetSettings} />
       </div>
@@ -216,17 +215,25 @@ export function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
-      <div className="flex border-b border-white/60 dark:border-white/10 bg-white/65 dark:bg-slate-900/65 backdrop-blur-xl px-4 py-1.5 md:hidden select-none">
+      {isSidebarOpen && <div className="flex border-b border-white/60 dark:border-white/10 bg-white/65 dark:bg-slate-900/65 backdrop-blur-xl px-4 py-1.5 md:hidden select-none">
         <div className="glass-pill flex w-full rounded-xl p-0.5 font-sans text-xs">
           <button type="button" onClick={() => setMobileView('graph')} className={`flex-1 rounded-lg py-1.5 font-medium transition cursor-pointer ${mobileView === 'graph' ? 'bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400'}`}>Graph</button>
           <button type="button" onClick={() => setMobileView('details')} className={`flex-1 rounded-lg py-1.5 font-medium transition cursor-pointer ${mobileView === 'details' ? 'bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400'}`}>Details</button>
         </div>
-      </div>
+      </div>}
 
       <main className="relative flex flex-1 overflow-hidden">
         {/* Dynamic Width Canvas: Expands to full screen when sidebar collapses */}
-        <div className={`relative h-full flex-1 overflow-hidden transition-all duration-300 ease-in-out ${mobileView === 'details' ? 'hidden md:block' : 'block'}`}>
-          {viewMode === '2d' ? (
+        <div className={`relative h-full flex-1 overflow-hidden transition-all duration-300 ease-in-out ${mobileView === 'details' && isSidebarOpen ? 'hidden md:block' : 'block'}`}>
+          {graphLoading ? (
+            <p role="status" className="p-8">Loading mock graph…</p>
+          ) : graphError ? (
+            <div role="alert" className="p-8">
+              <p>{graphError}</p>
+              <p className="mt-2">Start the backend, then try again.</p>
+              <button onClick={() => setLoadAttempt(n => n + 1)} className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-white">Retry</button>
+            </div>
+          ) : viewMode === '2d' ? (
             <PlanarGraph2D
               nodes={activeGraphData.nodes}
               edges={activeGraphData.edges}
@@ -256,21 +263,13 @@ export function App() {
             />
           )}
 
-          {/* Draggable Pet is now a standalone trigger inside the graph canvas */}
-          <PetCompanion
-            nodes={activeGraphData.nodes}
-            overallHealth={activeGraphData.overallHealth}
-            isOpen={isAgentOpen}
-            onToggle={() => setIsAgentOpen((v) => !v)}
-            hoverDelta={hoveredProposalHealth}
-          />
         </div>
 
         {/* Dynamic Sidebar Container */}
         {isSidebarOpen && (
-          <div className={`h-full w-full md:w-[360px] lg:w-[420px] shrink-0 border-l border-white/60 dark:border-white/10 bg-white/65 dark:bg-slate-900/60 backdrop-blur-2xl backdrop-saturate-150 shadow-[-8px_0_32px_-4px_rgba(15,23,42,0.06)] dark:shadow-[-12px_0_40px_-4px_rgba(0,0,0,0.6)] z-20 transition-all duration-300 ${mobileView === 'graph' ? 'hidden md:block' : 'block'}`}>
+          <aside aria-label="Workspace details" className={`h-full w-full md:w-[360px] lg:w-[420px] shrink-0 border-l border-white/60 dark:border-white/10 bg-white/65 dark:bg-slate-900/60 backdrop-blur-2xl backdrop-saturate-150 shadow-[-8px_0_32px_-4px_rgba(15,23,42,0.06)] dark:shadow-[-12px_0_40px_-4px_rgba(0,0,0,0.6)] z-20 transition-all duration-300 ${mobileView === 'graph' ? 'hidden md:block' : 'block'}`}>
             <div className="flex h-full min-h-0 flex-col">
-              {activeEvidence ? (
+              {activeEvidence && !isAgentOpen ? (
                 <SourceDrawer
                   evidence={activeEvidence}
                   pathEvidenceList={pathEvidenceList}
@@ -280,8 +279,8 @@ export function App() {
                 />
               ) : (
                 <>
-                  {/* If a node is selected, show its details on top */}
-                  {(selectedNode || selectedEdge) && (
+                  {/* Show details when the agent drawer is closed */}
+                  {!isAgentOpen && (selectedNode || selectedEdge) && (
                     <div className="min-h-0 flex-1">
                       <DetailPanel
                         nodes={activeGraphData.nodes}
@@ -302,10 +301,11 @@ export function App() {
                     </div>
                   )}
 
-                  {/* If Agent is toggled ON, show it (either stacked below details or full-height) */}
+                  {/* The agent uses the full drawer height */}
                   {isAgentOpen && (
-                    <div className={`shrink-0 overflow-y-auto ${selectedNode || selectedEdge ? 'max-h-[48%] border-t border-white/60 dark:border-white/10 p-3' : 'h-full p-4'}`}>
+                    <div id="agent-workspace" className="min-h-0 flex-1 pb-24">
                       <AgentPanel
+                        onClose={() => { setIsAgentOpen(false); setMobileView('graph'); setHoveredProposalHealth(null); }}
                         projectId="demo"
                         selectedNode={selectedNode}
                         onBlast={(result) => setSelectedPathNodeIds(result.blast_node_ids)}
@@ -316,10 +316,17 @@ export function App() {
                 </>
               )}
             </div>
-          </div>
+          </aside>
         )}
       </main>
 
+      {!graphLoading && !graphError && <PetCompanion
+        nodes={activeGraphData.nodes}
+        overallHealth={activeGraphData.overallHealth}
+        isOpen={isAgentOpen}
+        onToggle={() => { setIsAgentOpen(!isAgentOpen); setMobileView(isAgentOpen ? 'graph' : 'details'); setHoveredProposalHealth(null); }}
+        hoverDelta={hoveredProposalHealth}
+      />}
       <div className="sr-only" role="status" aria-live="polite">{announcement}</div>
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={settings} onUpdateSetting={updateSetting} onResetSettings={resetSettings} />
     </div>
