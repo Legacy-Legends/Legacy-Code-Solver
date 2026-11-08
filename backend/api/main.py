@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.agent.api_adapter import AgentAdapter
 from backend.agent.models import BlastResult, Proposal, PetResponse, DomainTag
 from backend.agent import chat_with_pet, infer_domains
-from backend.agent.llm import AgentUnavailable, use_mock_agent
+from backend.agent.llm import AgentUnavailable, use_mock_agent, provider_config
 from backend.api.integration import impact_for_node
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -198,8 +198,14 @@ def get_graph(project_id: str) -> GraphData:
 
 @app.get("/api/config")
 def integration_config() -> dict:
-    return {"agent_mode": "mock" if use_mock_agent() else "live",
-            "graph_source": "demo_fixture", "can_apply_proposals": False}
+    try:
+        config = provider_config()
+        return {"agent_mode": "mock" if use_mock_agent() else "live",
+                "provider": config.provider, "model": config.model,
+                "credential_configured": config.credential_configured,
+                "graph_source": "demo_fixture", "can_apply_proposals": False}
+    except (AgentUnavailable, ValueError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.get("/api/projects/{project_id}/impact", response_model=ImpactResult)

@@ -91,3 +91,17 @@ proxy (default target `http://127.0.0.1:8000`):
 Sample/Enterprise modes remain local fixtures. FastAPI mode does not fall back
 to a local graph after an error. Apply remains unavailable, and all registered
 projects still share the demo graph pending real project ingestion/storage.
+
+
+## Live Groq configuration
+
+The API now defaults to the Groq provider when live mode is selected. Supply
+`GROQ_API_KEY` privately and set `LLM_PROVIDER=groq`,
+`AGENT_MODEL=openai/gpt-oss-20b`, and `USE_MOCK_AGENT=false`. The Windows launcher
+accepts `-Live` and loads a root `.env` when present. Offline mode remains the
+default without configuration. `GET /api/config` includes provider/model and
+credential-presence metadata, never a credential value.
+
+The latest frontend redesign removed the AgentPanel mount. Backend functions
+can be tested through `/docs`; restoring the panel and replacing shared demo
+graphs with uploaded-project analysis are separate implementation tasks.
