@@ -246,6 +246,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .pet-meter > div { height: 100%; background: var(--accent); transition: width .25s ease; }
 .pixel-pet { width: 58px; height: 58px; flex-shrink: 0; --pet-outline: #182638; --pet-highlight: #ffffff55; }
 .pet-launcher .pixel-pet { width: 42px; height: 42px; }
+.pet-launcher { right: 1.5rem; transition: right 300ms ease, left 300ms ease; }
+.pet-launcher-open { right: calc(50% + 1rem); }
+@media (max-width: 767px) {
+  .pet-launcher-open { right: auto; left: 1rem; }
+}
 .pet-sick { --pet-color: #fbbf24; }
 .pet-okay { --pet-color: #a5a0ff; }
 .pet-healthy { --pet-color: #6ee7b7; }
