@@ -455,15 +455,15 @@ export function App() {
       )}
 
       {/* Mobile View Switcher (< 768px) */}
-      <div className="flex border-b border-[#E4E2DA] bg-white px-4 py-1.5 md:hidden select-none">
-        <div className="flex w-full rounded-lg bg-[#F7F5F0] p-0.5 font-sans text-xs">
+      <div className="flex border-b border-white/60 dark:border-white/10 bg-white/65 dark:bg-slate-900/65 backdrop-blur-xl px-4 py-1.5 md:hidden select-none">
+        <div className="glass-pill flex w-full rounded-xl p-0.5 font-sans text-xs">
           <button
             type="button"
             onClick={() => setMobileView('graph')}
-            className={`flex-1 rounded-md py-1.5 font-medium transition cursor-pointer ${
+            className={`flex-1 rounded-lg py-1.5 font-medium transition cursor-pointer ${
               mobileView === 'graph'
-                ? 'bg-white text-slate-900 shadow-2xs'
-                : 'text-slate-600'
+                ? 'bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white shadow-2xs'
+                : 'text-slate-600 dark:text-slate-400'
             }`}
           >
             Graph ({activeGraphData.nodes.length})
@@ -471,10 +471,10 @@ export function App() {
           <button
             type="button"
             onClick={() => setMobileView('details')}
-            className={`flex-1 rounded-md py-1.5 font-medium transition cursor-pointer ${
+            className={`flex-1 rounded-lg py-1.5 font-medium transition cursor-pointer ${
               mobileView === 'details'
-                ? 'bg-white text-slate-900 shadow-2xs'
-                : 'text-slate-600'
+                ? 'bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white shadow-2xs'
+                : 'text-slate-600 dark:text-slate-400'
             }`}
           >
             Details {selectedNode ? `(${selectedNode.name})` : ''}
@@ -491,27 +491,27 @@ export function App() {
           }`}
         >
           {isLiveOffline ? (
-            <div className="flex h-full w-full flex-col items-center justify-center bg-[#F7F5F0] p-6 text-center">
-              <div className="max-w-md rounded-2xl border border-[#E4E2DA] bg-white p-6 shadow-soft">
-                <h2 className="font-sans text-base font-semibold text-slate-900">
+            <div className="spatial-dot-canvas flex h-full w-full flex-col items-center justify-center p-6 text-center">
+              <div className="glass-card max-w-md rounded-2xl p-6">
+                <h2 className="font-sans text-base font-semibold text-slate-900 dark:text-white">
                   Live backend unavailable
                 </h2>
-                <p className="mt-1.5 font-sans text-xs leading-relaxed text-slate-600">
+                <p className="mt-1.5 font-sans text-xs leading-relaxed text-slate-600 dark:text-slate-400">
                   No live graph is displayed because the FastAPI server at{' '}
-                  <code className="font-mono text-slate-800">http://localhost:8000</code> could not be reached. Mock graphs are never shown under a Live label.
+                  <code className="font-mono text-slate-800 dark:text-slate-200">http://localhost:8000</code> could not be reached. Mock graphs are never shown under a Live label.
                 </p>
                 <div className="mt-4 flex items-center justify-center gap-2.5">
                   <button
                     type="button"
                     onClick={checkLiveBackend}
-                    className="rounded-lg border border-[#DCD9D0] bg-white px-3 py-1.5 font-sans text-xs font-medium text-slate-800 hover:bg-slate-50 cursor-pointer"
+                    className="glass-pill rounded-xl px-3 py-1.5 font-sans text-xs font-medium text-slate-800 dark:text-slate-200 hover:bg-white/80 dark:hover:bg-slate-800/80 cursor-pointer"
                   >
                     Retry connection
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSelectDataSource('sample')}
-                    className="rounded-lg bg-[#3730A3] px-3.5 py-1.5 font-sans text-xs font-semibold text-white hover:bg-[#312E81] cursor-pointer"
+                    className="rounded-xl bg-[#3730A3]/90 dark:bg-indigo-600/90 backdrop-blur-md px-3.5 py-1.5 font-sans text-xs font-semibold text-white shadow-xs ring-1 ring-white/15 hover:bg-[#312E81] dark:hover:bg-indigo-500 cursor-pointer"
                   >
                     Switch to Sample project
                   </button>
@@ -552,10 +552,10 @@ export function App() {
           {selectedNode && mobileView === 'graph' && (
             <div className="glass-card absolute inset-x-3 bottom-16 z-20 flex items-center justify-between gap-3 rounded-xl p-3 md:hidden">
               <div className="min-w-0">
-                <div className="font-mono text-xs font-bold text-slate-900 truncate">
+                <div className="font-mono text-xs font-bold text-slate-900 dark:text-white truncate">
                   {selectedNode.name}
                 </div>
-                <div className="font-sans text-[11px] text-slate-600 truncate">
+                <div className="font-sans text-[11px] text-slate-600 dark:text-slate-400 truncate">
                   {impactAnalysis && impactAnalysis.directDependents.length > 0
                     ? `${impactAnalysis.directDependents.length} direct caller${
                         impactAnalysis.directDependents.length === 1 ? '' : 's'
@@ -592,7 +592,7 @@ export function App() {
           />
         ) : (
           <div
-            className={`h-full w-full md:w-[360px] lg:w-[420px] shrink-0 border-l border-[#E4E2DA] bg-[#FCFBF8] z-20 ${
+            className={`h-full w-full md:w-[360px] lg:w-[420px] shrink-0 border-l border-white/60 dark:border-white/10 bg-white/65 dark:bg-slate-900/60 backdrop-blur-2xl backdrop-saturate-150 shadow-[-8px_0_32px_-4px_rgba(15,23,42,0.06)] dark:shadow-[-12px_0_40px_-4px_rgba(0,0,0,0.6)] z-20 ${
               mobileView === 'graph' ? 'hidden md:block' : 'block'
             }`}
           >
@@ -616,7 +616,7 @@ export function App() {
                 />
               </div>
               {!isLiveOffline && dataSource === 'live' && (
-                <div className="max-h-[48%] shrink-0 overflow-y-auto border-t border-[#E4E2DA]">
+                <div className="max-h-[48%] shrink-0 overflow-y-auto border-t border-white/60 dark:border-white/10 p-3">
                   <AgentPanel
                     projectId={activeProjectId}
                     selectedNode={selectedNode}

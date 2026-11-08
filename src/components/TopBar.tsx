@@ -57,7 +57,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   }, []);
 
   return (
-    <header className="relative z-30 flex flex-wrap sm:flex-nowrap min-h-16 h-16 w-full shrink-0 items-center justify-between gap-4 border-b border-[#E4E2DA] dark:border-slate-800 bg-white/95 dark:bg-[#0D131F]/95 backdrop-blur-sm px-6 sm:px-8 py-2 sm:py-0 select-none shadow-xs transition-colors duration-200">
+    <header className="relative z-30 flex flex-wrap sm:flex-nowrap min-h-16 h-16 w-full shrink-0 items-center justify-between gap-4 border-b border-white/60 dark:border-white/10 bg-white/70 dark:bg-slate-900/65 backdrop-blur-xl backdrop-saturate-150 px-6 sm:px-8 py-2 sm:py-0 select-none shadow-[0_4px_24px_-4px_rgba(15,23,42,0.06)] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] transition-colors duration-200">
       {/* 1. Product Name & Return to Start */}
       <div className="flex items-center gap-3 sm:gap-4 shrink-0">
         <button
@@ -66,7 +66,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           className="group flex items-center gap-2.5 rounded-xl py-1 pr-1 text-left text-slate-900 transition cursor-pointer"
           title="Legacy Code Solver — Return to start page"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#3730A3] to-[#4338CA] dark:from-indigo-600 dark:to-indigo-800 text-white shadow-xs group-hover:scale-105 transition-transform">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#3730A3] to-[#4338CA] dark:from-indigo-600 dark:to-indigo-800 text-white shadow-sm ring-1 ring-white/20 group-hover:scale-105 transition-transform">
             <GitFork className="h-4 w-4 text-emerald-400" />
           </div>
           <span className="font-sans text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
@@ -74,20 +74,20 @@ export const TopBar: React.FC<TopBarProps> = ({
           </span>
         </button>
 
-        <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
+        <div className="h-5 w-px bg-slate-300/60 dark:bg-white/10 hidden sm:block" />
 
-        {/* Accessible Segmented Dataset Selector (Supports test automation + keyboard navigation) */}
+        {/* Accessible Segmented Dataset Selector */}
         <div
           role="group"
           aria-label="Dataset selector"
-          className="flex items-center rounded-xl border border-[#DCD9D0] dark:border-slate-700 bg-[#FAF9F5] dark:bg-slate-800/80 p-1 text-xs font-mono gap-1 shadow-2xs"
+          className="glass-pill flex items-center rounded-xl p-1 text-xs font-mono gap-1 shadow-inner"
         >
           <button
             type="button"
             onClick={() => onSelectDataSource('sample')}
             className={`rounded-lg px-3 py-1.5 transition cursor-pointer font-medium ${
               dataSource === 'sample'
-                ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-white font-bold shadow-xs'
+                ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-950 dark:text-white font-bold shadow-xs ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-md'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
@@ -98,7 +98,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             onClick={() => onSelectDataSource('enterprise')}
             className={`hidden sm:inline-block rounded-lg px-3 py-1.5 transition cursor-pointer font-medium ${
               dataSource === 'enterprise'
-                ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-white font-bold shadow-xs'
+                ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-950 dark:text-white font-bold shadow-xs ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-md'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
@@ -109,7 +109,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             onClick={() => onSelectDataSource('live')}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition cursor-pointer font-medium ${
               dataSource === 'live'
-                ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-white font-bold shadow-xs'
+                ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-950 dark:text-white font-bold shadow-xs ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-md'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
@@ -137,7 +137,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         <div
           role="group"
           aria-label="Canvas mode"
-          className="flex items-center rounded-xl border border-[#DCD9D0] dark:border-slate-700 bg-[#FAF9F5] dark:bg-slate-800/80 p-1 text-xs font-mono gap-1 shadow-2xs"
+          className="glass-pill flex items-center rounded-xl p-1 text-xs font-mono gap-1 shadow-inner"
         >
           <button
             type="button"
@@ -145,7 +145,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             title="Switch 2D Planar Map / 3D Orbit Canvas"
             className={`rounded-lg px-3 py-1.5 transition cursor-pointer flex items-center gap-1.5 font-medium ${
               viewMode === '2d'
-                ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-white font-bold shadow-xs'
+                ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-950 dark:text-white font-bold shadow-xs ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-md'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
@@ -158,7 +158,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             title="Switch 2D Planar Map / 3D Orbit Canvas"
             className={`rounded-lg px-3 py-1.5 transition cursor-pointer flex items-center gap-1.5 font-medium ${
               viewMode === '3d'
-                ? 'bg-white dark:bg-slate-900 text-emerald-950 dark:text-emerald-300 font-bold shadow-xs'
+                ? 'bg-white/90 dark:bg-slate-800/90 text-emerald-950 dark:text-emerald-300 font-bold shadow-xs ring-1 ring-black/5 dark:ring-white/10 backdrop-blur-md'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
@@ -173,7 +173,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           onClick={() => setViewMenuOpen((v) => !v)}
           aria-expanded={viewMenuOpen}
           aria-haspopup="menu"
-          className="flex h-9 items-center gap-1.5 rounded-xl border border-[#DCD9D0] dark:border-slate-700 bg-white dark:bg-slate-800/90 px-3.5 font-sans text-xs font-medium text-slate-800 dark:text-slate-200 transition hover:bg-[#FAF9F5] dark:hover:bg-slate-700 shadow-2xs cursor-pointer"
+          className="glass-pill flex h-9 items-center gap-1.5 rounded-xl px-3.5 font-sans text-xs font-medium text-slate-800 dark:text-slate-200 transition hover:bg-white/80 dark:hover:bg-slate-800/80 shadow-xs cursor-pointer"
         >
           <span>View</span>
           <ChevronDown className={`h-3.5 w-3.5 text-slate-500 dark:text-slate-400 transition-transform ${viewMenuOpen ? 'rotate-180' : ''}`} />
@@ -183,7 +183,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           <div
             role="menu"
             aria-label="View options"
-            className="absolute right-0 top-full z-50 mt-2 w-56 rounded-2xl border border-[#DCD9D0] dark:border-slate-700 bg-white dark:bg-slate-800 p-2 shadow-xl font-sans text-xs text-slate-800 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-100"
+            className="glass-card absolute right-0 top-full z-50 mt-2 w-56 rounded-2xl p-2 font-sans text-xs text-slate-800 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-100"
           >
             <button
               type="button"
@@ -192,7 +192,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 onFitGraph();
                 setViewMenuOpen(false);
               }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-slate-900/5 dark:hover:bg-white/10 cursor-pointer"
             >
               <Maximize2 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               <span>Fit graph to screen</span>
@@ -205,13 +205,13 @@ export const TopBar: React.FC<TopBarProps> = ({
                 onReset();
                 setViewMenuOpen(false);
               }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-slate-900/5 dark:hover:bg-white/10 cursor-pointer"
             >
               <RotateCcw className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               <span>Reset view &amp; selection</span>
             </button>
 
-            <div className="my-1.5 h-px bg-slate-200 dark:bg-slate-700" />
+            <div className="my-1.5 h-px bg-slate-200/70 dark:bg-white/10" />
 
             <button
               type="button"
@@ -220,7 +220,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 onToggleViewMode('2d');
                 setViewMenuOpen(false);
               }}
-              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-slate-900/5 dark:hover:bg-white/10 cursor-pointer"
             >
               <span className="flex items-center gap-2.5">
                 <Network className="h-4 w-4 text-slate-500 dark:text-slate-400" />
@@ -236,7 +236,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 onToggleViewMode('3d');
                 setViewMenuOpen(false);
               }}
-              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-slate-900/5 dark:hover:bg-white/10 cursor-pointer"
             >
               <span className="flex items-center gap-2.5">
                 <Box className="h-4 w-4 text-slate-500 dark:text-slate-400" />
@@ -245,7 +245,7 @@ export const TopBar: React.FC<TopBarProps> = ({
               {viewMode === '3d' && <Check className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
             </button>
 
-            <div className="my-1.5 h-px bg-slate-200 dark:bg-slate-700" />
+            <div className="my-1.5 h-px bg-slate-200/70 dark:bg-white/10" />
 
             <button
               type="button"
@@ -254,7 +254,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 onBackToStart();
                 setViewMenuOpen(false);
               }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-slate-600 dark:text-slate-300 transition hover:bg-slate-900/5 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white cursor-pointer"
             >
               <Home className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               <span>Start overview</span>
@@ -267,7 +267,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           <button
             type="button"
             onClick={onOpenSettings}
-            className="flex h-9 items-center gap-1.5 rounded-xl border border-[#DCD9D0] dark:border-slate-700 bg-white dark:bg-slate-800/90 px-3.5 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-[#FAF9F5] dark:hover:bg-slate-700 transition shadow-2xs cursor-pointer"
+            className="glass-pill flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-white/80 dark:hover:bg-slate-800/80 transition shadow-xs cursor-pointer"
             title="Open Accessibility & Settings"
           >
             <Sliders className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />

@@ -11,9 +11,7 @@ const proxy = {
     rewrite: (path: string) => path.replace(/^\/backend/, ''),
   },
 };
-const threeDir = decodeURIComponent(
-  new URL('./node_modules/3d-force-graph/node_modules/three', import.meta.url).pathname
-);
+const threeDir = decodeURIComponent(new URL('./node_modules/three', import.meta.url).pathname);
 
 export default defineConfig({
   plugins: [react()],

@@ -80,7 +80,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   return (
     <div className="relative w-full">
       <div className="relative flex items-center">
-        <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
+        <Search className="pointer-events-none absolute left-3.5 h-4 w-4 text-slate-400 dark:text-slate-500 z-10" />
         <input
           ref={inputRef}
           type="text"
@@ -93,7 +93,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           onKeyDown={handleKeyDown}
           aria-label="Search class by name"
           placeholder="Search class (e.g. AuthTokenValidator, SessionManager)..."
-          className="h-9 w-full rounded-xl border border-[#DCD9D0] dark:border-slate-700 bg-[#FAF9F5] dark:bg-slate-800/80 pl-10 pr-12 font-sans text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none transition focus:border-indigo-600 dark:focus:border-indigo-400 focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/15"
+          className="glass-pill h-9 w-full rounded-xl pl-10 pr-12 font-sans text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none transition focus:border-indigo-500/80 dark:focus:border-indigo-400/80 focus:bg-white/85 dark:focus:bg-slate-900/85 focus:ring-2 focus:ring-indigo-500/20 shadow-inner"
         />
 
         {query ? (
@@ -103,13 +103,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               setQuery('');
               setIsOpen(false);
             }}
-            className="absolute right-3 p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+            className="absolute right-3 p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer z-10"
             aria-label="Clear search"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         ) : (
-          <kbd className="pointer-events-none absolute right-3 hidden select-none rounded border border-[#DCD9D0] dark:border-slate-700 bg-white dark:bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-slate-400 dark:text-slate-500 sm:inline-block">
+          <kbd className="pointer-events-none absolute right-3 hidden select-none rounded-md border border-slate-300/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 backdrop-blur-md px-1.5 py-0.5 font-mono text-[10px] text-slate-500 dark:text-slate-400 sm:inline-block z-10">
             /
           </kbd>
         )}
@@ -119,7 +119,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       {isOpen && query.trim() && (
         <div
           ref={dropdownRef}
-          className="absolute left-0 top-full z-50 mt-2 w-full rounded-2xl border border-[#DCD9D0] dark:border-slate-700 bg-white dark:bg-slate-800 p-2 shadow-xl"
+          className="glass-card absolute left-0 top-full z-50 mt-2 w-full rounded-2xl p-2 animate-in fade-in zoom-in-95 duration-100"
         >
           {filteredNodes.length > 0 ? (
             <div className="space-y-0.5">
@@ -134,8 +134,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                     onClick={() => handleSelect(n)}
                     className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition cursor-pointer ${
                       isSelected
-                        ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-950 dark:text-indigo-200 font-medium'
-                        : 'text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        ? 'bg-indigo-500/15 dark:bg-indigo-500/25 text-indigo-950 dark:text-indigo-200 font-medium ring-1 ring-indigo-500/20'
+                        : 'text-slate-800 dark:text-slate-200 hover:bg-slate-900/5 dark:hover:bg-white/5'
                     }`}
                   >
                     <div className="min-w-0 pr-2">
@@ -144,7 +144,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                           {n.name}
                         </span>
                         {isCurrent && (
-                          <span className="rounded bg-indigo-100 dark:bg-indigo-900/60 px-1.5 py-0.5 font-sans text-[10px] font-medium text-indigo-800 dark:text-indigo-300">
+                          <span className="rounded-md bg-indigo-500/15 dark:bg-indigo-500/30 border border-indigo-400/30 px-1.5 py-0.5 font-sans text-[10px] font-medium text-indigo-800 dark:text-indigo-300">
                             Selected
                           </span>
                         )}
@@ -155,11 +155,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 font-sans text-[10px] text-slate-600 dark:text-slate-400">
+                      <span className="glass-pill rounded-md px-1.5 py-0.5 font-sans text-[10px] text-slate-600 dark:text-slate-300">
                         {n.clusterName}
                       </span>
                       {isSelected && (
-                        <CornerDownLeft className="h-3.5 w-3.5 text-indigo-700" />
+                        <CornerDownLeft className="h-3.5 w-3.5 text-indigo-700 dark:text-indigo-400" />
                       )}
                     </div>
                   </button>
@@ -167,7 +167,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               })}
             </div>
           ) : (
-            <div className="px-4 py-3 font-sans text-xs text-slate-500 text-center">
+            <div className="px-4 py-3 font-sans text-xs text-slate-500 dark:text-slate-400 text-center">
               No Java classes found matching &quot;{query}&quot;
             </div>
           )}

@@ -49,7 +49,7 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
   return (
     <aside
       aria-label="Node Details Inspector"
-      className="fixed right-0 top-0 z-30 flex h-full w-[368px] flex-col border-l border-slate-800/90 bg-[#070c18]/95 shadow-[-16px_0_48px_rgba(0,0,0,0.85)] backdrop-blur-xl transition-transform duration-300"
+      className="fixed right-0 top-0 z-30 flex h-full w-[368px] flex-col border-l border-white/10 bg-slate-950/65 shadow-[-20px_0_60px_rgba(0,0,0,0.75)] backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-300"
     >
       {/* Top Accent Bar */}
       <div
@@ -61,13 +61,13 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
       />
 
       {/* Drawer Header */}
-      <div className="flex items-start justify-between border-b border-slate-800/80 px-5 py-4">
+      <div className="flex items-start justify-between border-b border-white/10 bg-white/[0.02] px-5 py-4">
         <div className="min-w-0 pr-2">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-teal-400/90">
               Node Inspector
             </span>
-            <span className="font-mono text-[10px] text-slate-500">#{node.id}</span>
+            <span className="font-mono text-[10px] text-slate-400">#{node.id}</span>
           </div>
           <h2 className="mt-1 truncate font-mono text-lg font-bold tracking-tight text-slate-100">
             {node.name}
@@ -78,7 +78,7 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
           type="button"
           onClick={onClose}
           aria-label="Close details drawer"
-          className="rounded-lg border border-slate-800 bg-slate-900/70 p-1.5 text-slate-400 transition-colors hover:border-slate-700 hover:bg-slate-800 hover:text-slate-100"
+          className="rounded-lg border border-white/10 bg-white/5 backdrop-blur-md p-1.5 text-slate-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-slate-100 cursor-pointer"
         >
           <X className="h-4 w-4" />
         </button>
@@ -87,7 +87,7 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
       {/* Drawer Body */}
       <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
         {/* Cluster Badge */}
-        <div className="rounded-lg border border-slate-800/80 bg-slate-900/45 p-3">
+        <div className="rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-md p-3 shadow-inner">
           <div className="flex items-center justify-between text-xs">
             <span className="flex items-center gap-1.5 text-slate-400">
               <FolderGit2 className="h-3.5 w-3.5 text-teal-400" />
@@ -103,7 +103,7 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
             <FileCode2 className="h-3.5 w-3.5 text-teal-400" />
             Source File Path
           </label>
-          <div className="mt-1.5 break-all rounded-lg border border-slate-800/90 bg-[#040710] px-3 py-2.5 font-mono text-xs leading-relaxed text-slate-300">
+          <div className="mt-1.5 break-all rounded-xl border border-white/10 bg-black/35 backdrop-blur-md px-3 py-2.5 font-mono text-xs leading-relaxed text-slate-300 shadow-inner">
             {node.path}
           </div>
         </div>
@@ -111,7 +111,7 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
         {/* Primary Metrics: Health & Complexity */}
         <div className="grid grid-cols-1 gap-3.5">
           {/* Health Card */}
-          <div className="rounded-xl border border-slate-800/90 bg-slate-900/50 p-3.5">
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-md p-3.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]">
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
                 <Activity className="h-3.5 w-3.5 text-teal-400" />
@@ -143,7 +143,7 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
               </span>
             </div>
 
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-950 p-0.5 ring-1 ring-slate-800">
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/50 p-0.5 ring-1 ring-white/10">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${visuals.barColor}`}
                 style={{ width: `${node.health}%` }}
@@ -152,7 +152,7 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
           </div>
 
           {/* Complexity Card */}
-          <div className="rounded-xl border border-slate-800/90 bg-slate-900/50 p-3.5">
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-md p-3.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]">
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
                 <Cpu className="h-3.5 w-3.5 text-amber-400/90" />
@@ -176,7 +176,7 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
               </span>
             </div>
 
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-950 ring-1 ring-slate-800">
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-black/50 ring-1 ring-white/10">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-teal-400 via-amber-400/80 to-amber-600/90 transition-all duration-500"
                 style={{ width: `${complexityPercent}%` }}
@@ -186,18 +186,18 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
         </div>
 
         {/* Connected Edges Summary */}
-        <div className="space-y-3 border-t border-slate-800/80 pt-4">
+        <div className="space-y-3 border-t border-white/10 pt-4">
           <div className="flex items-center justify-between">
             <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
               Coupling &amp; Dependencies
             </span>
             <span className="font-mono text-[11px] text-slate-400">
-              { outgoingEdges.length + incomingEdges.length } active links
+              {outgoingEdges.length + incomingEdges.length} active links
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-2 font-mono text-xs">
-            <div className="rounded-lg border border-slate-800/80 bg-slate-900/40 px-3 py-2">
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-md px-3 py-2">
               <div className="flex items-center gap-1 text-[10px] uppercase text-slate-400">
                 <ArrowUpRight className="h-3.5 w-3.5 text-teal-400" />
                 Outgoing
@@ -206,7 +206,7 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
                 {outgoingEdges.length}
               </div>
             </div>
-            <div className="rounded-lg border border-slate-800/80 bg-slate-900/40 px-3 py-2">
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-md px-3 py-2">
               <div className="flex items-center gap-1 text-[10px] uppercase text-slate-400">
                 <ArrowDownLeft className="h-3.5 w-3.5 text-amber-400/90" />
                 Incoming
@@ -229,7 +229,7 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
                   key={edge.id}
                   type="button"
                   onClick={() => onSelectNode(targetNode)}
-                  className="flex w-full items-center justify-between rounded-lg border border-slate-800/70 bg-slate-900/35 px-2.5 py-1.5 text-left transition-colors hover:border-teal-500/40 hover:bg-slate-800/60"
+                  className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-sm px-2.5 py-1.5 text-left transition-colors hover:border-teal-500/40 hover:bg-white/[0.08] cursor-pointer"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span
@@ -240,7 +240,7 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
                       {targetNode.name}
                     </span>
                   </div>
-                  <span className="ml-2 shrink-0 rounded bg-slate-800/90 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
+                  <span className="ml-2 shrink-0 rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
                     {edge.type} →
                   </span>
                 </button>
@@ -256,7 +256,7 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
                   key={edge.id}
                   type="button"
                   onClick={() => onSelectNode(sourceNode)}
-                  className="flex w-full items-center justify-between rounded-lg border border-slate-800/70 bg-slate-900/35 px-2.5 py-1.5 text-left transition-colors hover:border-teal-500/40 hover:bg-slate-800/60"
+                  className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-sm px-2.5 py-1.5 text-left transition-colors hover:border-teal-500/40 hover:bg-white/[0.08] cursor-pointer"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span
@@ -267,7 +267,7 @@ export const NodeDrawer: React.FC<NodeDrawerProps> = ({
                       {sourceNode.name}
                     </span>
                   </div>
-                  <span className="ml-2 shrink-0 rounded bg-slate-800/90 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
+                  <span className="ml-2 shrink-0 rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
                     ← {edge.type}
                   </span>
                 </button>

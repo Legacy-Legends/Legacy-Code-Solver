@@ -56,8 +56,10 @@ export function AgentPanel({ projectId, selectedNode, onBlast, onDomains }: Prop
       if (!signal.aborted) setBusy('');
     }
   }
-  const button = 'rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40';
-  const input = 'min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm';
+
+  const button = 'rounded-xl bg-slate-900/90 dark:bg-indigo-600/90 hover:bg-slate-800 dark:hover:bg-indigo-500 backdrop-blur-md px-3.5 py-2 text-sm font-semibold text-white shadow-sm ring-1 ring-white/15 transition disabled:opacity-40 cursor-pointer';
+  const input = 'min-w-0 flex-1 rounded-xl border border-slate-300/80 dark:border-white/15 bg-white/60 dark:bg-slate-900/50 backdrop-blur-md px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white/90 dark:focus:bg-slate-900/80 transition';
+
   const sendChat = () => {
     const queryText = chatQuery.trim();
     if (!queryText) return;
@@ -73,14 +75,16 @@ export function AgentPanel({ projectId, selectedNode, onBlast, onDomains }: Prop
       }
     });
   };
+
   return (
-    <section aria-label="Backend agent workspace" className="rounded-2xl border border-emerald-200 bg-white p-5 space-y-4">
+    <section aria-label="Backend agent workspace" className="glass-card rounded-2xl p-5 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold">Agent workspace</h2>
-        <span className="text-xs rounded-full bg-emerald-50 px-3 py-1 text-emerald-900">
+        <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Agent workspace</h2>
+        <span className="text-xs font-medium rounded-full border border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-950/50 backdrop-blur-md px-3 py-1 text-emerald-900 dark:text-emerald-300 shadow-2xs">
           {config ? `${config.agent_mode === 'mock' ? 'Mock agent · no LLM calls' : `Live ${config.provider} · ${config.model}`} · ${projectId === 'demo' ? 'demo graph' : 'uploaded project'}` : 'Checking agent mode…'}
         </span>
       </div>
+
       <form className="flex flex-wrap gap-2" onSubmit={e => {
         e.preventDefault(); setBlast(null);
         void run('Blast analysis', async signal => {
@@ -92,12 +96,13 @@ export function AgentPanel({ projectId, selectedNode, onBlast, onDomains }: Prop
         <input aria-label="Impact question" className={input} value={query} maxLength={2000} onChange={e => setQuery(e.target.value)} required />
         <button className={button} disabled={!!busy || !config || !query.trim()}>Ask impact</button>
       </form>
-      <section aria-label="Agent chat" className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
-        <p className="font-bold">Agent chat</p>
-        <div className="max-h-40 space-y-2 overflow-y-auto text-sm">
-          {chat.length === 0 && <p className="text-slate-600">Ask about this codebase, a class, or what to modernize next.</p>}
+
+      <section aria-label="Agent chat" className="glass-panel rounded-xl p-3.5 space-y-2.5">
+        <p className="font-bold text-sm text-slate-900 dark:text-slate-100">Agent chat</p>
+        <div className="max-h-40 space-y-2 overflow-y-auto text-sm pr-1">
+          {chat.length === 0 && <p className="text-slate-600 dark:text-slate-400">Ask about this codebase, a class, or what to modernize next.</p>}
           {chat.map((item, index) => (
-            <p key={`${item.role}-${index}`} className={item.role === 'user' ? 'text-slate-600' : 'font-medium text-slate-900'}>
+            <p key={`${item.role}-${index}`} className={item.role === 'user' ? 'text-slate-600 dark:text-slate-400' : 'font-medium text-slate-900 dark:text-slate-100'}>
               <span className="mr-1 font-semibold">{item.role === 'user' ? 'You:' : 'Agent:'}</span>{item.content}
             </p>
           ))}
@@ -108,11 +113,15 @@ export function AgentPanel({ projectId, selectedNode, onBlast, onDomains }: Prop
           <button type="button" className={button} disabled={!!busy || !config || !chatQuery.trim()} onClick={sendChat}>Send</button>
         </div>
       </section>
-      {blast && <div role="status" className="rounded-lg bg-slate-50 p-3 text-sm space-y-1">
-        <p className="font-bold">{blast.blast_node_ids.length} affected components · {blast.percent}% (including targets)</p>
-        <p>{blast.summary}</p>
-        {blast.affected_domains.length > 0 && <p>Inferred domains: {blast.affected_domains.join(', ')}</p>}
-      </div>}
+
+      {blast && (
+        <div role="status" className="glass-panel rounded-xl p-3.5 text-sm space-y-1 border-rose-300/60 dark:border-rose-500/30 bg-rose-50/50 dark:bg-rose-950/30">
+          <p className="font-bold text-rose-950 dark:text-rose-200">{blast.blast_node_ids.length} affected components · {blast.percent}% (including targets)</p>
+          <p className="text-slate-800 dark:text-slate-200">{blast.summary}</p>
+          {blast.affected_domains.length > 0 && <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Inferred domains: {blast.affected_domains.join(', ')}</p>}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         <button className={button} disabled={!!busy || !config || !selectedNode} onClick={() => {
           if (!selectedNode) return;
@@ -122,49 +131,65 @@ export function AgentPanel({ projectId, selectedNode, onBlast, onDomains }: Prop
             if (!signal.aborted) setProposal(result);
           });
         }}>Preview refactor</button>
-        <span className="text-xs text-slate-600">Target: {selectedNode?.name || 'Select a class'}</span>
+        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Target: {selectedNode?.name || 'Select a class'}</span>
         <button className={button} disabled={!!busy || !config} onClick={() => void run('Domain inference', async signal => {
           const tags = await fetchDomains(projectId, signal);
           if (!signal.aborted) onDomains(tags);
         })}>Infer domains</button>
       </div>
-      {proposal && <article aria-label="Proposal preview" className="rounded-lg border border-slate-200 p-4 space-y-3">
-        <p className="font-semibold">Proposal · {proposal.status}</p>
-        <p className="text-xs">Proposal targets: {proposal.target_node_ids.join(', ')}</p>
-        <p className="text-sm">{proposal.rationale}</p>
-        <p className="text-xs">Health: {proposal.health_before} → {proposal.health_after}. No patch has been applied.</p>
-        {proposal.diffs.map(diff => <div key={diff.path}>
-          <h3 className="font-mono text-sm mb-2">{diff.path}</h3>
-          <div className="grid md:grid-cols-2 gap-2">
-            <div><p className="text-xs font-bold">Before</p><pre className="overflow-auto max-h-64 bg-red-50 p-3 text-xs whitespace-pre-wrap">{diff.before}</pre></div>
-            <div><p className="text-xs font-bold">After</p><pre className="overflow-auto max-h-64 bg-emerald-50 p-3 text-xs whitespace-pre-wrap">{diff.after}</pre></div>
+
+      {proposal && (
+        <article aria-label="Proposal preview" className="glass-panel rounded-xl p-4 space-y-3">
+          <p className="font-semibold text-slate-900 dark:text-white">Proposal · {proposal.status}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-400">Proposal targets: {proposal.target_node_ids.join(', ')}</p>
+          <p className="text-sm text-slate-800 dark:text-slate-200">{proposal.rationale}</p>
+          <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">Health: {proposal.health_before} → {proposal.health_after}. No patch has been applied.</p>
+          {proposal.diffs.map(diff => (
+            <div key={diff.path}>
+              <h3 className="font-mono text-sm mb-2 text-slate-900 dark:text-slate-200">{diff.path}</h3>
+              <div className="grid md:grid-cols-2 gap-2">
+                <div>
+                  <p className="text-xs font-bold mb-1 text-rose-800 dark:text-rose-300">Before</p>
+                  <pre className="overflow-auto max-h-64 rounded-lg border border-rose-200/60 dark:border-rose-500/20 bg-rose-50/60 dark:bg-rose-950/40 backdrop-blur-sm p-3 text-xs whitespace-pre-wrap">{diff.before}</pre>
+                </div>
+                <div>
+                  <p className="text-xs font-bold mb-1 text-emerald-800 dark:text-emerald-300">After</p>
+                  <pre className="overflow-auto max-h-64 rounded-lg border border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50/60 dark:bg-emerald-950/40 backdrop-blur-sm p-3 text-xs whitespace-pre-wrap">{diff.after}</pre>
+                </div>
+              </div>
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <button className={button} disabled title="Patch validation and application are not implemented yet">Apply unavailable</button>
+            <button className={button} disabled={!!busy || proposal.status !== 'pending'} onClick={() => void run('Proposal rejection', async signal => {
+              const result = await rejectProposal(proposal.id, signal);
+              if (!signal.aborted) setProposal(result);
+            })}>Reject proposal</button>
           </div>
-        </div>)}
-        <div className="flex gap-2">
-          <button className={button} disabled title="Patch validation and application are not implemented yet">Apply unavailable</button>
-          <button className={button} disabled={!!busy || proposal.status !== 'pending'} onClick={() => void run('Proposal rejection', async signal => {
-            const result = await rejectProposal(proposal.id, signal);
-            if (!signal.aborted) setProposal(result);
-          })}>Reject proposal</button>
-        </div>
-      </article>}
-      <form className="rounded-lg bg-emerald-50 p-3 space-y-2" onSubmit={e => {
+        </article>
+      )}
+
+      <form className="rounded-xl border border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-50/55 dark:bg-emerald-950/35 backdrop-blur-md p-3.5 space-y-2 shadow-inner" onSubmit={e => {
         e.preventDefault();
         void run('Pet chat', async signal => {
           const result = await fetchPet(petQuery, projectId, signal);
           if (!signal.aborted) setPet(result);
         });
       }}>
-        <p className="font-bold">🐾 Code-health pet {pet && `· ${pet.mood}`}</p>
-        {pet && <p role="status" className="text-sm">{pet.message}</p>}
+        <p className="font-bold text-sm text-emerald-950 dark:text-emerald-200">🐾 Code-health pet {pet && `· ${pet.mood}`}</p>
+        {pet && <p role="status" className="text-sm text-emerald-900 dark:text-emerald-100">{pet.message}</p>}
         <div className="flex gap-2">
           <input aria-label="Message to pet" className={input} value={petQuery} maxLength={2000} onChange={e => setPetQuery(e.target.value)} required />
           <button className={button} disabled={!!busy || !config || !petQuery.trim()}>Chat with pet</button>
         </div>
       </form>
-      {busy && <p role="status" className="text-sm">{busy}…</p>}
-      {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-      <details><summary className="text-xs cursor-pointer">Connection and action log</summary><pre className="text-xs whitespace-pre-wrap mt-2">{activity.join('\n')}</pre></details>
+
+      {busy && <p role="status" className="text-sm font-medium text-indigo-700 dark:text-indigo-300 animate-pulse">{busy}…</p>}
+      {error && <p role="alert" className="rounded-xl border border-rose-300/60 bg-rose-50/80 dark:bg-rose-950/60 backdrop-blur-md p-3 text-sm text-rose-800 dark:text-rose-200">{error}</p>}
+      <details className="pt-1">
+        <summary className="text-xs font-medium text-slate-600 dark:text-slate-400 cursor-pointer hover:text-slate-900 dark:hover:text-white transition">Connection and action log</summary>
+        <pre className="glass-panel rounded-lg p-2.5 text-xs whitespace-pre-wrap mt-2 text-slate-700 dark:text-slate-300">{activity.join('\n')}</pre>
+      </details>
     </section>
   );
 }
