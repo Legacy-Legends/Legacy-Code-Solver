@@ -21,7 +21,12 @@ def test_mock_blast_and_pet_are_deterministic():
 
 
 def test_crownbank_upload_chat_apply_and_export():
-    before = "package com.crownbank.legacy.auth;\npublic class SessionManager {}\n"
+    before = """package com.crownbank.legacy.auth;
+import java.util.Hashtable;
+public class SessionManager {
+    private static Hashtable sessions = new Hashtable();
+}
+"""
     archive = io.BytesIO()
     with zipfile.ZipFile(archive, "w") as bundle:
         bundle.writestr(
@@ -40,6 +45,7 @@ def test_crownbank_upload_chat_apply_and_export():
     proposal_id = chat.json()["proposal_id"]
     proposal = client.get(f"/api/proposals/{proposal_id}").json()
     assert proposal["diffs"][0]["path"].endswith("SessionManager.java")
+    assert "ConcurrentHashMap" in proposal["diffs"][0]["after"]
     applied = client.post(f"/api/proposals/{proposal_id}/apply")
     assert applied.status_code == 200
     assert applied.json()["status"] == "applied"

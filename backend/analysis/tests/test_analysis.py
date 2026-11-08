@@ -103,6 +103,32 @@ def test_imports_static_calls_and_same_names(tmp_path):
     assert not graph.has_edge("a.C", "a.Common")
 
 
+def test_java_parser_resolves_local_types_service_locators_and_skips_tests(tmp_path):
+    source = tmp_path / "src" / "main" / "java" / "demo"
+    source.mkdir(parents=True)
+    tests = tmp_path / "src" / "test" / "java" / "demo"
+    tests.mkdir(parents=True)
+    (source / "A.java").write_text(
+        'package demo; class A { void run() { new B(); AppContext.getInstance().getC().run(); } }\n'
+    )
+    (source / "B.java").write_text("package demo; class B {}\n")
+    (source / "C.java").write_text("package demo; class C { void run() {} }\n")
+    (source / "AppContext.java").write_text(
+        "package demo; class AppContext { C getC() { return new C(); } }\n"
+    )
+    (source / "Logger.java").write_text(
+        'package demo; class Logger { void log() { StringBuilder sb = new StringBuilder(); sb.append("x").append(Constants.BANK_NAME); } }\n'
+    )
+    (tests / "A_Test.java").write_text("package demo; class A_Test {}\n")
+    graph = parse_repo(str(tmp_path))
+
+    assert "demo.A_Test" not in graph
+    assert graph.has_edge("demo.A", "demo.B")
+    assert graph.has_edge("demo.A", "demo.C")
+    assert not graph.has_edge("demo.A", "demo.AppContext")
+    assert not any("BANK_NAME" in node_id for node_id in graph)
+
+
 @pytest.mark.parametrize("values", [{"health": 101}, {"loc": -1}, {"centrality": float("nan")}, {"extra": 3}, {"loc": "5"}])
 def test_contract_rejects_invalid_values(values):
     with pytest.raises(ValidationError):

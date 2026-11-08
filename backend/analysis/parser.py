@@ -1,5 +1,7 @@
-"""ENG-1 Java parser: class-level dependencies, without Java type resolution."""
+"""Java parser: class-level dependencies with lightweight local type resolution."""
 import logging
+import re
+import subprocess
 from pathlib import Path
 from typing import Iterator
 
@@ -13,6 +15,12 @@ logger = logging.getLogger(__name__)
 DECLARATIONS = {"class_declaration", "interface_declaration", "enum_declaration", "record_declaration", "annotation_type_declaration"}
 DECISIONS = {"if_statement", "for_statement", "enhanced_for_statement", "while_statement", "do_statement", "catch_clause", "ternary_expression"}
 PRIORITY = {"imports": 0, "calls": 1, "implements": 2, "extends": 3}
+SENSITIVE_PATTERNS = (
+    re.compile(r'(?i)(?:select|insert|update|delete)\b[^;]*\+\s*'),
+    re.compile(r'(?i)MessageDigest\.getInstance\s*\(\s*"MD5"'),
+    re.compile(r'(?i)(?:password|passwd|secret|api[_-]?key)\s*=\s*"[^"]+"'),
+    re.compile(r'\b(?:Hashtable|Vector)\b'),
+)
 
 
 def walk(node: ASTNode) -> Iterator[ASTNode]:
@@ -53,7 +61,10 @@ def parse_repo(repo_path: str) -> nx.DiGraph:
     graph.graph["diagnostics"] = []
     records = []
     for path in sorted(root.rglob("*.java")):
-        if path.is_symlink() or any(p in {".git", "build", "target", "node_modules"} for p in path.relative_to(root).parts):
+        relative_parts = path.relative_to(root).parts
+        if path.is_symlink() or any(p in {".git", "build", "target", "node_modules"} for p in relative_parts):
+            continue
+        if len(relative_parts) >= 2 and relative_parts[:2] == ("src", "test"):
             continue
         relative = path.relative_to(root).as_posix()
         try:
@@ -67,6 +78,8 @@ def parse_repo(repo_path: str) -> nx.DiGraph:
             graph.graph["diagnostics"].append(diagnostic)
             logger.warning("Skipping %s: %s", relative, exc)
             continue
+        churn = _git_churn(root, relative)
+        vuln_count = min(5, sum(len(pattern.findall(source.decode("utf-8"))) for pattern in SENSITIVE_PATTERNS))
         package = ""
         imports = []
         for item in tree.root_node.named_children:
@@ -103,6 +116,7 @@ def parse_repo(repo_path: str) -> nx.DiGraph:
             complexity += sum(n.type == "switch_label" and not text(n).startswith("default") for n in contents)
             data = Node(id=node_id, name=names[-1], path=relative,
                         loc=declaration.end_point.row - declaration.start_point.row + 1,
+                        churn=churn, vuln_count=vuln_count,
                         complexity=complexity).model_dump()
             graph.add_node(node_id, **data, methods=methods, imports=imports)
             records.append((node_id, package, imports, declaration, contents))
@@ -143,8 +157,16 @@ def parse_repo(repo_path: str) -> nx.DiGraph:
             graph.add_edge(source, target, type=kind, weight=1.0)
 
     for owner, package, imports, declaration, contents in records:
+        uses_service_locator = any(
+            item.type == "method_invocation"
+            and item.child_by_field_name("name")
+            and text(item.child_by_field_name("name")).startswith("get")
+            and item.child_by_field_name("object")
+            and item.child_by_field_name("object").type == "method_invocation"
+            for item in contents
+        )
         for imported in imports:
-            if not imported.endswith(".*"):
+            if not imported.endswith(".*") and not (uses_service_locator and imported.endswith(".AppContext")):
                 connect(owner, imported, "imports")
         for child in declaration.named_children:
             if child.type in {"superclass", "super_interfaces", "extends_interfaces"}:
@@ -159,13 +181,52 @@ def parse_repo(repo_path: str) -> nx.DiGraph:
                     if target:
                         connect(owner, target, kind)
         for item in contents:
+            if item.type == "type_identifier":
+                if item.parent and item.parent.type in {
+                    "superclass", "super_interfaces", "extends_interfaces", "type_list"
+                }:
+                    continue
+                target = resolve(text(item), package, imports, owner)
+                if target:
+                    connect(owner, target, "calls")
+            elif item.type == "object_creation_expression":
+                created_type = item.child_by_field_name("type")
+                if created_type:
+                    target = resolve(text(created_type), package, imports, owner)
+                    if target:
+                        connect(owner, target, "calls")
             if item.type == "method_invocation":
+                method_name = item.child_by_field_name("name")
                 receiver = item.child_by_field_name("object")
+                if method_name and text(method_name).startswith("get") and receiver and receiver.type == "method_invocation":
+                    getter_target = resolve(text(method_name)[3:], package, imports, owner)
+                    if getter_target:
+                        connect(owner, getter_target, "calls")
+                if method_name and text(method_name) == "getInstance" and item.parent and item.parent.type == "method_invocation":
+                    continue
                 if receiver:
                     name = text(receiver)
-                    # Only class-qualified receivers; variable receivers need a symbol table.
-                    if name.rsplit(".", 1)[-1][:1].isupper():
+                    # Only simple class-qualified receivers; chained calls and fields
+                    # are handled by their own AST nodes.
+                    if receiver.type in {"identifier", "scoped_identifier"} and name.rsplit(".", 1)[-1][:1].isupper():
                         target = resolve(name, package, imports, owner)
                         if target:
                             connect(owner, target, "calls")
     return graph
+
+
+def _git_churn(root: Path, relative: str) -> int:
+    """Return file commit count when the uploaded checkout includes Git history."""
+    git_dir = root / ".git"
+    if not git_dir.exists():
+        return 0
+    result = subprocess.run(
+        ["git", "-C", str(root), "log", "--format=%H", "--", relative],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        logger.warning("Unable to read Git churn for %s: %s", relative, result.stderr.strip())
+        return 0
+    return len([line for line in result.stdout.splitlines() if line])

@@ -41,15 +41,14 @@ def resolve_blast_query(query: str, graph_summary: dict) -> BlastResult:
     )
 
 def generate_proposal(target_node_ids: list[str], graph_context: dict, source_code: dict[str, str]) -> Proposal:
-    """Return a hardcoded 'Wizard of Oz' modernization diff for the live demo."""
+    """Return the deterministic, source-backed modernization used by the demo."""
     graph = prepare_graph_summary(graph_context)
     targets = _targets(target_node_ids, graph)
     
     rationale = (
-        "Refactored SessionManager to eliminate the Singleton anti-pattern, "
-        "introduced Dependency Injection for better testability, replaced HashMap with ConcurrentHashMap "
-        "for thread safety, and updated validateSession to return an Optional<UserSession> "
-        "to prevent NullPointerExceptions in downstream services."
+        "Replaced the raw Hashtable in SessionManager with a typed, thread-safe "
+        "ConcurrentHashMap and made the shared collection final. This is a narrow "
+        "behavior-preserving modernization for the uploaded CrownBank source."
     )
     
     before_code = """package com.crownbank.legacy.auth;
@@ -73,33 +72,22 @@ public class SessionManager {
     }
 }"""
 
-    after_code = """package com.crownbank.legacy.auth;
-
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.Optional;
-
-public class SessionManager {
-    private final Map<String, UserSession> activeSessions;
-
-    public SessionManager() {
-        this.activeSessions = new ConcurrentHashMap<>();
-    }
-
-    public Optional<UserSession> validateSession(String token) {
-        if (token == null || token.trim().isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(activeSessions.get(token));
-    }
-}"""
-    
     source_path = next((path for path in source_code if path.endswith("SessionManager.java")), None)
-    if source_path:
+    if source_path and "private static Hashtable sessions = new Hashtable();" in source_code[source_path]:
         before_code = source_code[source_path]
         diff_path = source_path
+        after_code = before_code.replace(
+            "import java.util.Hashtable;",
+            "import java.util.Map;\nimport java.util.concurrent.ConcurrentHashMap;",
+        ).replace(
+            "private static Hashtable sessions = new Hashtable();",
+            "private static final Map<String, AuthToken> sessions = new ConcurrentHashMap<>();",
+        )
     else:
-        diff_path = "src/main/java/com/crownbank/legacy/auth/SessionManager.java"
+        if source_path:
+            before_code = source_code[source_path]
+        diff_path = source_path or "src/main/java/com/crownbank/legacy/auth/SessionManager.java"
+        after_code = before_code
     diffs = [Diff(path=diff_path, before=before_code, after=after_code)]
     health_before = round(graph["overall_health"])
     health_after = min(100, health_before + 20)

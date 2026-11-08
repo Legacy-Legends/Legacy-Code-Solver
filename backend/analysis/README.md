@@ -79,9 +79,10 @@ schema; this is not the frontend's `ImpactAnalysis` response.
 
 The five functions are working starter implementations, not a complete Java
 semantic analyzer. Tree-sitter extracts classes/interfaces/enums/records,
-method names, imports and inheritance. Explicit class-qualified calls are
-supported. Instance calls, dynamic dispatch, reflection, method overloads,
-external wildcard imports and full Java symbol resolution remain future work.
+method names, imports, inheritance, same-package type references, object
+creation, and common service-locator calls. Dynamic dispatch, reflection,
+method overloads, external wildcard imports and full Java symbol resolution
+remain future work.
 Import edges are file-level dependencies, not proof of actual use by each class.
 
 Methods and imports stay in NetworkX node metadata and are excluded from JSON.
@@ -95,7 +96,7 @@ The requested DiGraph keeps one edge per ordered pair. Repeated relationships
 increase weight; the retained type has precedence extends > implements > calls
 > imports. These weights are static evidence counts, never runtime call counts.
 
-Real churn and vulnerability collection are not implemented in ENG-1; their
-values default to zero, meaning unmeasured. Mock values are synthetic. Do not
-present zero as a security finding. No real demo repository was selected for
-this milestone; the platform teammate owns demo selection.
+Uploaded Git checkouts collect per-file commit counts for churn. The parser also
+flags common demo risks (SQL string concatenation, MD5, hard-coded secrets, and
+deprecated collections) in `vuln_count`; these are heuristic indicators, not a
+security audit. Files under `src/test` are excluded from production analysis.

@@ -59,7 +59,8 @@ def calculate_metrics(G: nx.DiGraph) -> nx.DiGraph:
                         centrality=float(ranks[node_id]), in_cycle=node_id in cyclic,
                         module_id=f"module-{index:03d}")
             data["health"] = compute_health_score(data)
-    G.graph["overall_health"] = round(sum(d["health"] for _, d in G.nodes(data=True)) / len(G)) if G else 100
+    measured = [d["health"] for _, d in G.nodes(data=True) if d.get("type") != "external"]
+    G.graph["overall_health"] = round(sum(measured) / len(measured)) if measured else 100
     return G
 
 
@@ -75,8 +76,9 @@ def graph_model(G: nx.DiGraph) -> Graph:
     modules = [Module(id=key, name=f"Module {i + 1}", node_ids=[n.id for n in group],
                       health=round(sum(n.health for n in group) / len(group)))
                for i, (key, group) in enumerate(sorted(groups.items()))]
+    measured = [node.health for node in nodes if node.type != "external"]
     return Graph(nodes=nodes, edges=edges, modules=modules,
-                 overall_health=round(sum(n.health for n in nodes) / len(nodes)) if nodes else 100)
+                 overall_health=round(sum(measured) / len(measured)) if measured else 100)
 
 
 def export_graph(G: nx.DiGraph, output_path: str) -> None:
