@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Sparkles, Send, Box, Target, FileDiff, X, RefreshCw } from 'lucide-react';
 import {
-  AgentConfig, BackendBlastResult, ChatResponse, DomainTag, PetResponse, Proposal,
-  createProposal, fetchAgentConfig, fetchChat, fetchDomains, fetchLiveBlast, fetchPet, rejectProposal, terminalUrl,
+  BackendBlastResult, Proposal,
+  createProposal, fetchChat, fetchLiveBlast,
 } from '../api/backendAdapter';
 import { GraphNode } from '../types';
 
@@ -10,12 +10,10 @@ interface Props {
   projectId: string;
   selectedNode: GraphNode | null;
   onBlast: (result: BackendBlastResult) => void;
-  onDomains: (tags: Record<string, DomainTag>) => void;
   hoveredProposalHealth: (delta: number | null) => void;
 }
 
-export function AgentPanel({ projectId, selectedNode, onBlast, onDomains, hoveredProposalHealth }: Props) {
-  const [config, setConfig] = useState<AgentConfig | null>(null);
+export function AgentPanel({ projectId, selectedNode, onBlast, hoveredProposalHealth }: Props) {
   const [chatQuery, setChatQuery] = useState('');
   
   // Initialize with a welcome message mimicking Copilot
@@ -26,12 +24,6 @@ export function AgentPanel({ projectId, selectedNode, onBlast, onDomains, hovere
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [busy, setBusy] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const abort = new AbortController();
-    fetchAgentConfig(abort.signal).then(setConfig).catch(() => {});
-    return () => abort.abort();
-  }, []);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
