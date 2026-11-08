@@ -353,21 +353,6 @@ export function App() {
     setRoute('investigate');
   };
 
-  const handleCustomUpload = async (files: FileList | null) => {
-    const file = files?.[0];
-    if (!file) return;
-    setBackendError(null);
-    try {
-      const project = await uploadProject(file);
-      syncClassToUrl(null);
-      setActiveProjectId(project.id);
-      setDataSource('live');
-      setRoute('investigate');
-    } catch (error) {
-      setBackendError(error instanceof Error ? error.message : String(error));
-    }
-  };
-
   // Open Source Evidence Drawer (preserving selectedNode and camera state)
   const handleOpenEvidence = useCallback(
     (evidence: SourceEvidence, pathList?: SourceEvidence[]) => {
