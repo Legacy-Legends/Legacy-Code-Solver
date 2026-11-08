@@ -6,13 +6,7 @@
       "framework": "vite",
       "installCommand": "npm ci",
       "buildCommand": "npm run build",
-      "outputDirectory": "dist",
-      "rewrites": [
-        {
-          "source": "/",
-          "destination": "/index.html"
-        }
-      ]
+      "outputDirectory": "dist"
     },
     "backend": {
       "root": ".",
@@ -45,6 +39,13 @@
       "source": "/openapi.json",
       "destination": {
         "service": "backend"
+      }
+    },
+    {
+      "source": "/",
+      "destination": {
+        "service": "frontend",
+        "path": "/index.html"
       }
     },
     {
