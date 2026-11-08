@@ -1,3 +1,4 @@
+param([switch]$Live)
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 
@@ -9,6 +10,10 @@ if (-not (Test-Path ".venv\Scripts\python.exe")) {
 if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed" }
 & .\.venv\Scripts\python.exe -c "import networkx"
 if ($LASTEXITCODE -ne 0) { throw "NetworkX is unavailable in the project virtual environment" }
-$env:USE_CACHED_DEMO = "true"
-$env:USE_MOCK_AGENT = "true"
-& .\.venv\Scripts\python.exe -m uvicorn backend.api.main:app --reload --host 127.0.0.1 --port 8000
+
+# Exported variables win over .env. -Live explicitly overrides an earlier demo run.
+if ($Live) { $env:USE_MOCK_AGENT = "false" }
+$serverArgs = @("-m", "uvicorn", "backend.api.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000")
+if (Test-Path ".env") { $serverArgs += @("--env-file", ".env") }
+& .\.venv\Scripts\python.exe @serverArgs
+if ($LASTEXITCODE -ne 0) { throw "API startup failed" }

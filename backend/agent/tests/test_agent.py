@@ -137,6 +137,7 @@ def test_live_domains_and_pet(monkeypatch, graph):
 
 
 def test_provider_missing_key_and_payload_budget(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "openai")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with pytest.raises(llm.AgentUnavailable):
         llm.structured_response(TargetSelection, "Select", {})
@@ -174,6 +175,7 @@ def test_official_sdk_structured_boundary(monkeypatch):
     from types import SimpleNamespace
     import openai
     from openai.lib._pydantic import to_strict_json_schema
+    monkeypatch.setenv("LLM_PROVIDER", "openai")
     monkeypatch.setenv("OPENAI_API_KEY", "unit-test-placeholder")
     class FakeClient:
         def __init__(self, **kwargs):

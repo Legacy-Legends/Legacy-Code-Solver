@@ -1,6 +1,6 @@
 # AI / agent layer — A1
 
-Python 3.11+, Pydantic v2, official OpenAI SDK. No background jobs, provider
+Python 3.11+, Pydantic v2, official Groq/OpenAI SDKs. No background jobs, provider
 calls on import, or filesystem writes. API and agent output share the same models.
 
 ## Run
@@ -25,13 +25,25 @@ Every function bypasses the SDK in mock mode, even if credentials are present.
 Mock prose, refactor fixture and pet lines are canned; IDs and impact counts
 are bound to the supplied graph so the demo never highlights nonexistent nodes.
 
-For live mode, set `USE_MOCK_AGENT=false`, provide `OPENAI_API_KEY` securely in
-the process environment, and optionally set `AGENT_MODEL` (default `gpt-4o-mini`).
-The environment must permit `api.openai.com`. No key is committed or needed for
-mock mode. Live requests use the official SDK's `chat.completions.parse` with
-Pydantic response schemas, a 20-second timeout, one retry, and a 3,000-token
-output cap. Refusal/provider failure raises `AgentUnavailable` (HTTP 503 in the
-adapter); it never silently disguises demo data as a live answer.
+For live Groq mode, set `LLM_PROVIDER=groq`, `USE_MOCK_AGENT=false`, and provide
+`GROQ_API_KEY` securely in the backend environment. Default model:
+`openai/gpt-oss-20b` (served by Groq). The environment must permit `api.groq.com`.
+Groq's official SDK sends `response_format: json_schema` with `strict: true`,
+followed by independent Pydantic validation. Requests use a 20-second timeout,
+one retry and a 4,096-completion-token cap. Models must support strict JSON Schema.
+
+To use OpenAI instead, explicitly set `LLM_PROVIDER=openai`, supply
+`OPENAI_API_KEY`, and set `AGENT_MODEL=gpt-4o-mini` (or leave the model unset).
+That path retains `chat.completions.parse`, with the same timeout/retry limits
+and a 3,000-token output cap. Changing providers never reuses another provider's
+key, and an unknown provider is rejected.
+
+No key is committed or needed for mock mode. Credential presence is checked
+without returning values. Refusal, truncation, malformed responses and provider
+errors raise `AgentUnavailable` (HTTP 503); no silent fallback to demo data occurs.
+Use `python -m backend.agent.check_provider --env-file .env` to inspect setup;
+add `--live` to make one small structured-output request. Exported variables
+win over `.env`. See the root README for Windows and macOS/Linux launch commands.
 
 ## Exact graph_summary format
 
@@ -123,7 +135,8 @@ routes through TestClient. Real provider responses require credentials and are
 not claimed as tested by this offline suite.
 
 
-The frontend's FastAPI mode now connects these functions through the agent
-workspace: blast questions, proposal preview/rejection, domain inference and
-pet chat. Server impact uses `/api/projects/{id}/impact`; provider errors remain
-visible. The full end-to-end browser checks are `npm run test:e2e` (see root README).
+The latest frontend redesign no longer mounts the existing AgentPanel. The
+HTTP adapter/routes still expose blast questions, preview/rejection, domain
+inference and pet chat; `/docs` can exercise them until the panel is restored.
+Server impact uses `/api/projects/{id}/impact`. The older browser checks target
+the previous layout and need to be updated with the UI integration.

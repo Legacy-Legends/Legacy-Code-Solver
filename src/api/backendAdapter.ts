@@ -22,6 +22,9 @@ export interface Proposal {
 }
 export interface AgentConfig {
   agent_mode: 'mock' | 'live';
+  provider: 'groq' | 'openai';
+  model: string;
+  credential_configured: boolean;
   graph_source: string;
   can_apply_proposals: boolean;
 }

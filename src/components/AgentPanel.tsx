@@ -60,7 +60,7 @@ export function AgentPanel({ selectedNode, onBlast, onDomains }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold">Agent workspace</h2>
         <span className="text-xs rounded-full bg-emerald-50 px-3 py-1 text-emerald-900">
-          {config ? `${config.agent_mode === 'mock' ? 'Mock agent · no LLM calls' : 'Live LLM'} · demo graph` : 'Checking agent mode…'}
+          {config ? `${config.agent_mode === 'mock' ? 'Mock agent · no LLM calls' : `Live ${config.provider} · ${config.model}`} · demo graph` : 'Checking agent mode…'}
         </span>
       </div>
       <form className="flex flex-wrap gap-2" onSubmit={e => {
