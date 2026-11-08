@@ -9,9 +9,10 @@ export default {
         mono: ['JetBrains Mono', 'Fira Code', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
-        canvas: '#F7F5F0',
-        surface: '#FFFFFF',
-        codeplum: '#0A101D', // replaced plum dark with midnight obsidian
+        canvas: 'var(--bg-canvas)',
+        surface: 'var(--bg-surface)',
+        border: 'var(--border-color)',
+        codeplum: '#0A101D', 
         ink: {
           950: '#090D16',
           900: '#0F172A',
@@ -66,6 +67,21 @@ export default {
         glass: '0 10px 30px -10px rgba(15, 23, 42, 0.05)',
         drawer: '-16px 0 48px rgba(0, 0, 0, 0.45)',
       },
+      animation: {
+        'pixel-bounce': 'pixel-bounce 1.5s steps(3, end) infinite',
+        'pixel-walk': 'pixel-walk 0.8s steps(2, end) infinite',
+      },
+      keyframes: {
+        'pixel-bounce': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-4px)' },
+        },
+        'pixel-walk': {
+          '0%': { transform: 'rotate(-5deg)' },
+          '50%': { transform: 'rotate(5deg)' },
+          '100%': { transform: 'rotate(-5deg)' },
+        }
+      }
     },
   },
   plugins: [],

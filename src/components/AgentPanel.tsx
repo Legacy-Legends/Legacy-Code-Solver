@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Sparkles, Send, Box, Target, FileDiff, X, RefreshCw } from 'lucide-react';
 import {
   AgentConfig, BackendBlastResult, ChatResponse, DomainTag, PetResponse, Proposal,
   createProposal, fetchAgentConfig, fetchChat, fetchDomains, fetchLiveBlast, fetchPet, rejectProposal, terminalUrl,
@@ -10,186 +11,196 @@ interface Props {
   selectedNode: GraphNode | null;
   onBlast: (result: BackendBlastResult) => void;
   onDomains: (tags: Record<string, DomainTag>) => void;
+  hoveredProposalHealth: (delta: number | null) => void;
 }
 
-/** Mounted only for a loaded server graph; cancellation prevents stale UI updates. */
-export function AgentPanel({ projectId, selectedNode, onBlast, onDomains }: Props) {
+export function AgentPanel({ projectId, selectedNode, onBlast, onDomains, hoveredProposalHealth }: Props) {
   const [config, setConfig] = useState<AgentConfig | null>(null);
-  const [query, setQuery] = useState('What breaks if BillingOrchestrator goes down?');
-  const [blast, setBlast] = useState<BackendBlastResult | null>(null);
-  const [proposal, setProposal] = useState<Proposal | null>(null);
-  const [pet, setPet] = useState<PetResponse | null>(null);
-  const [petQuery, setPetQuery] = useState('How are we doing?');
   const [chatQuery, setChatQuery] = useState('');
-  const [chat, setChat] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState('');
-  const [activity, setActivity] = useState<string[]>([]);
-  const controller = useRef<AbortController>();
-  const running = useRef(false);
+  
+  // Initialize with a welcome message mimicking Copilot
+  const [chat, setChat] = useState<{ role: 'user' | 'assistant'; content: string | React.ReactNode }[]>([
+    { role: 'assistant', content: 'Hi! I am your AI architecture assistant. Ask me to map dependencies, analyze blast radii, or propose safe refactors for legacy code.' }
+  ]);
+  
+  const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [busy, setBusy] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const abort = new AbortController();
-    controller.current = abort;
-    fetchAgentConfig(abort.signal).then(setConfig).catch(e => {
-      if (!abort.signal.aborted) setError(String(e.message));
-    });
-    const socket = new WebSocket(terminalUrl());
-    socket.onmessage = event => setActivity(items => [...items.slice(-7), String(event.data)]);
-    socket.onerror = () => setActivity(items => [...items.slice(-7), 'Terminal connection unavailable. HTTP actions are still available.']);
-    return () => { abort.abort(); socket.onmessage = null; socket.onerror = null; socket.close(); };
+    fetchAgentConfig(abort.signal).then(setConfig).catch(() => {});
+    return () => abort.abort();
   }, []);
 
-  async function run(label: string, operation: (signal: AbortSignal) => Promise<void>) {
-    if (running.current || !controller.current) return;
-    running.current = true;
-    setBusy(label);
-    setError(null);
-    const signal = controller.current.signal;
-    try {
-      await operation(signal);
-      if (!signal.aborted) setActivity(items => [...items.slice(-7), `${label} completed.`]);
-    } catch (e) {
-      if (!signal.aborted) setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      running.current = false;
-      if (!signal.aborted) setBusy('');
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
-  }
+  }, [chat]);
 
-  const button = 'rounded-xl bg-slate-900/90 dark:bg-indigo-600/90 hover:bg-slate-800 dark:hover:bg-indigo-500 backdrop-blur-md px-3.5 py-2 text-sm font-semibold text-white shadow-sm ring-1 ring-white/15 transition disabled:opacity-40 cursor-pointer';
-  const input = 'min-w-0 flex-1 rounded-xl border border-slate-300/80 dark:border-white/15 bg-white/60 dark:bg-slate-900/50 backdrop-blur-md px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white/90 dark:focus:bg-slate-900/80 transition';
+  const appendAssistant = (content: React.ReactNode) => {
+    setChat(prev => [...prev, { role: 'assistant', content }]);
+  };
 
-  const sendChat = () => {
-    const queryText = chatQuery.trim();
-    if (!queryText) return;
-    setChatQuery('');
-    setChat(items => [...items, { role: 'user', content: queryText }]);
-    void run('Agent response', async signal => {
-      const result: ChatResponse = await fetchChat(queryText, selectedNode?.id || null, chat, projectId, signal);
-      if (!signal.aborted) {
-        setChat(items => [...items, { role: 'assistant', content: result.message }]);
-        if (result.intent === 'propose' && result.target_node_ids.length > 0) {
-          setActivity(items => [...items.slice(-7), 'Agent identified a modernization proposal target.']);
-        }
+  const handleAction = async (action: 'blast' | 'propose') => {
+    if (busy || !selectedNode) return;
+    setBusy(true);
+    try {
+      if (action === 'blast') {
+        appendAssistant(`Analyzing blast radius for ${selectedNode.name}...`);
+        const res = await fetchLiveBlast(`What breaks if ${selectedNode.name} fails?`, projectId, new AbortController().signal);
+        onBlast(res);
+        appendAssistant(
+          <div className="space-y-1">
+            <div className="font-bold text-rose-600 dark:text-rose-400">Critical Path Identified</div>
+            <div>Found {res.blast_node_ids.length} affected components. {res.summary}</div>
+            {res.affected_domains.length > 0 && <div className="text-[11px] text-slate-500 mt-1">Domains: {res.affected_domains.join(', ')}</div>}
+          </div>
+        );
+      } else if (action === 'propose') {
+        appendAssistant(`Generating modernization diff for ${selectedNode.name}...`);
+        const res = await createProposal([selectedNode.id], projectId, new AbortController().signal);
+        setProposal(res);
+        appendAssistant(`Proposal ready for ${selectedNode.name}.`);
       }
-    });
+    } catch (e) {
+      appendAssistant(<span className="text-red-500">Operation failed.</span>);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = chatQuery.trim();
+    if (!query || busy) return;
+    
+    setChatQuery('');
+    setChat(prev => [...prev, { role: 'user', content: query }]);
+    setBusy(true);
+    
+    try {
+      // Clean chat history of ReactNodes before sending to API
+      const safeHistory = chat.map(c => ({ 
+        role: c.role, 
+        content: typeof c.content === 'string' ? c.content : '[System Action Executed]' 
+      }));
+      
+      const result = await fetchChat(query, selectedNode?.id || null, safeHistory, projectId, new AbortController().signal);
+      appendAssistant(result.message);
+    } catch {
+      appendAssistant(<span className="text-red-500">Failed to connect to agent.</span>);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <section aria-label="Backend agent workspace" className="glass-card rounded-2xl p-5 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Agent workspace</h2>
-        <span className="text-xs font-medium rounded-full border border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-950/50 backdrop-blur-md px-3 py-1 text-emerald-900 dark:text-emerald-300 shadow-2xs">
-          {config ? `${config.agent_mode === 'mock' ? 'Mock agent · no LLM calls' : `Live ${config.provider} · ${config.model}`} · ${projectId === 'demo' ? 'demo graph' : 'uploaded project'}` : 'Checking agent mode…'}
-        </span>
-      </div>
-
-      <form className="flex flex-wrap gap-2" onSubmit={e => {
-        e.preventDefault(); setBlast(null);
-        void run('Blast analysis', async signal => {
-          const result = await fetchLiveBlast(query, projectId, signal);
-          if (signal.aborted) return;
-          setBlast(result); onBlast(result);
-        });
-      }}>
-        <input aria-label="Impact question" className={input} value={query} maxLength={2000} onChange={e => setQuery(e.target.value)} required />
-        <button className={button} disabled={!!busy || !config || !query.trim()}>Ask impact</button>
-      </form>
-
-      <section aria-label="Agent chat" className="glass-panel rounded-xl p-3.5 space-y-2.5">
-        <p className="font-bold text-sm text-slate-900 dark:text-slate-100">Agent chat</p>
-        <div className="max-h-40 space-y-2 overflow-y-auto text-sm pr-1">
-          {chat.length === 0 && <p className="text-slate-600 dark:text-slate-400">Ask about this codebase, a class, or what to modernize next.</p>}
-          {chat.map((item, index) => (
-            <p key={`${item.role}-${index}`} className={item.role === 'user' ? 'text-slate-600 dark:text-slate-400' : 'font-medium text-slate-900 dark:text-slate-100'}>
-              <span className="mr-1 font-semibold">{item.role === 'user' ? 'You:' : 'Agent:'}</span>{item.content}
-            </p>
-          ))}
+    <section className="flex flex-col h-full bg-white dark:bg-[#090D16] border-t border-slate-200 dark:border-slate-800">
+      
+      {/* VS Code Copilot style Header */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <h2 className="text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-wide uppercase">Agent Chat</h2>
         </div>
-        <div className="flex gap-2">
-          <input aria-label="Agent chat message" className={input} value={chatQuery} maxLength={2000}
-            onChange={e => setChatQuery(e.target.value)} placeholder="What should I modernize first?" />
-          <button type="button" className={button} disabled={!!busy || !config || !chatQuery.trim()} onClick={sendChat}>Send</button>
-        </div>
-      </section>
-
-      {blast && (
-        <div role="status" className="glass-panel rounded-xl p-3.5 text-sm space-y-1 border-rose-300/60 dark:border-rose-500/30 bg-rose-50/50 dark:bg-rose-950/30">
-          <p className="font-bold text-rose-950 dark:text-rose-200">{blast.blast_node_ids.length} affected components · {blast.percent}% (including targets)</p>
-          <p className="text-slate-800 dark:text-slate-200">{blast.summary}</p>
-          {blast.affected_domains.length > 0 && <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Inferred domains: {blast.affected_domains.join(', ')}</p>}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center gap-2">
-        <button className={button} disabled={!!busy || !config || !selectedNode} onClick={() => {
-          if (!selectedNode) return;
-          setProposal(null);
-          void run('Proposal preview', async signal => {
-            const result = await createProposal([selectedNode.id], projectId, signal);
-            if (!signal.aborted) setProposal(result);
-          });
-        }}>Preview refactor</button>
-        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Target: {selectedNode?.name || 'Select a class'}</span>
-        <button className={button} disabled={!!busy || !config} onClick={() => void run('Domain inference', async signal => {
-          const tags = await fetchDomains(projectId, signal);
-          if (!signal.aborted) onDomains(tags);
-        })}>Infer domains</button>
-      </div>
-
-      {proposal && (
-        <article aria-label="Proposal preview" className="glass-panel rounded-xl p-4 space-y-3">
-          <p className="font-semibold text-slate-900 dark:text-white">Proposal · {proposal.status}</p>
-          <p className="text-xs text-slate-600 dark:text-slate-400">Proposal targets: {proposal.target_node_ids.join(', ')}</p>
-          <p className="text-sm text-slate-800 dark:text-slate-200">{proposal.rationale}</p>
-          <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">Health: {proposal.health_before} → {proposal.health_after}. No patch has been applied.</p>
-          {proposal.diffs.map(diff => (
-            <div key={diff.path}>
-              <h3 className="font-mono text-sm mb-2 text-slate-900 dark:text-slate-200">{diff.path}</h3>
-              <div className="grid md:grid-cols-2 gap-2">
-                <div>
-                  <p className="text-xs font-bold mb-1 text-rose-800 dark:text-rose-300">Before</p>
-                  <pre className="overflow-auto max-h-64 rounded-lg border border-rose-200/60 dark:border-rose-500/20 bg-rose-50/60 dark:bg-rose-950/40 backdrop-blur-sm p-3 text-xs whitespace-pre-wrap">{diff.before}</pre>
-                </div>
-                <div>
-                  <p className="text-xs font-bold mb-1 text-emerald-800 dark:text-emerald-300">After</p>
-                  <pre className="overflow-auto max-h-64 rounded-lg border border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50/60 dark:bg-emerald-950/40 backdrop-blur-sm p-3 text-xs whitespace-pre-wrap">{diff.after}</pre>
-                </div>
-              </div>
-            </div>
-          ))}
-          <div className="flex gap-2">
-            <button className={button} disabled title="Patch validation and application are not implemented yet">Apply unavailable</button>
-            <button className={button} disabled={!!busy || proposal.status !== 'pending'} onClick={() => void run('Proposal rejection', async signal => {
-              const result = await rejectProposal(proposal.id, signal);
-              if (!signal.aborted) setProposal(result);
-            })}>Reject proposal</button>
+        {selectedNode && (
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-200/50 dark:bg-slate-800 text-[10px] font-mono text-slate-600 dark:text-slate-400">
+            <Target className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+            {selectedNode.name}
           </div>
-        </article>
+        )}
+      </div>
+
+      {/* Main Chat Thread Window */}
+      <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-5 text-sm">
+        {chat.map((msg, i) => (
+          <div key={i} className={`flex gap-3 max-w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            {msg.role === 'assistant' && (
+              <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
+                <Sparkles className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+              </div>
+            )}
+            
+            <div className={`px-3.5 py-2.5 rounded-2xl ${
+              msg.role === 'user' 
+                ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-tr-sm max-w-[85%]'
+                : 'bg-transparent text-slate-800 dark:text-slate-200 w-full'
+            }`}>
+              {msg.content}
+              
+              {/* Inject Action Buttons directly into assistant flow if it's the latest welcome/context message */}
+              {msg.role === 'assistant' && i === 0 && selectedNode && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button 
+                    onClick={() => handleAction('blast')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium cursor-pointer transition-colors"
+                  >
+                    <Box className="w-3.5 h-3.5" /> Track Blast Radius
+                  </button>
+                  <button 
+                    onClick={() => handleAction('propose')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium cursor-pointer transition-colors"
+                  >
+                    <FileDiff className="w-3.5 h-3.5" /> Modernize Class
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        {busy && (
+          <div className="flex gap-3 items-center opacity-70">
+            <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
+              <RefreshCw className="w-3 h-3 text-indigo-600 dark:text-indigo-400 animate-spin" />
+            </div>
+            <span className="text-xs text-slate-500">Agent is thinking...</span>
+          </div>
+        )}
+      </div>
+
+      {/* Proposal Diff Viewer (Sliding Panel logic inside chat) */}
+      {proposal && (
+        <div className="mx-4 mb-4 rounded-xl border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-950/20 p-3 shadow-sm">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-xs font-bold text-indigo-900 dark:text-indigo-300">Modernization Diff</span>
+            <button onClick={() => setProposal(null)} className="text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>
+          </div>
+          <p className="text-xs text-slate-700 dark:text-slate-300 mb-3">{proposal.rationale}</p>
+          <div className="flex gap-2">
+            <button 
+              onMouseEnter={() => hoveredProposalHealth(proposal.health_after - proposal.health_before)}
+              onMouseLeave={() => hoveredProposalHealth(null)}
+              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold py-1.5 rounded-md cursor-pointer transition-colors"
+            >
+              Apply Refactor
+            </button>
+          </div>
+        </div>
       )}
 
-      <form className="rounded-xl border border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-50/55 dark:bg-emerald-950/35 backdrop-blur-md p-3.5 space-y-2 shadow-inner" onSubmit={e => {
-        e.preventDefault();
-        void run('Pet chat', async signal => {
-          const result = await fetchPet(petQuery, projectId, signal);
-          if (!signal.aborted) setPet(result);
-        });
-      }}>
-        <p className="font-bold text-sm text-emerald-950 dark:text-emerald-200">🐾 Code-health pet {pet && `· ${pet.mood}`}</p>
-        {pet && <p role="status" className="text-sm text-emerald-900 dark:text-emerald-100">{pet.message}</p>}
-        <div className="flex gap-2">
-          <input aria-label="Message to pet" className={input} value={petQuery} maxLength={2000} onChange={e => setPetQuery(e.target.value)} required />
-          <button className={button} disabled={!!busy || !config || !petQuery.trim()}>Chat with pet</button>
-        </div>
-      </form>
-
-      {busy && <p role="status" className="text-sm font-medium text-indigo-700 dark:text-indigo-300 animate-pulse">{busy}…</p>}
-      {error && <p role="alert" className="rounded-xl border border-rose-300/60 bg-rose-50/80 dark:bg-rose-950/60 backdrop-blur-md p-3 text-sm text-rose-800 dark:text-rose-200">{error}</p>}
-      <details className="pt-1">
-        <summary className="text-xs font-medium text-slate-600 dark:text-slate-400 cursor-pointer hover:text-slate-900 dark:hover:text-white transition">Connection and action log</summary>
-        <pre className="glass-panel rounded-lg p-2.5 text-xs whitespace-pre-wrap mt-2 text-slate-700 dark:text-slate-300">{activity.join('\n')}</pre>
-      </details>
+      {/* Bottom Input Area */}
+      <div className="p-4 pt-0 shrink-0">
+        <form onSubmit={sendChat} className="relative flex items-center">
+          <input
+            type="text"
+            value={chatQuery}
+            onChange={(e) => setChatQuery(e.target.value)}
+            disabled={busy}
+            placeholder={selectedNode ? `Ask about ${selectedNode.name}...` : "Ask a question..."}
+            className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-lg pl-4 pr-10 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all disabled:opacity-50"
+          />
+          <button 
+            type="submit" 
+            disabled={!chatQuery.trim() || busy}
+            className="absolute right-2 p-1.5 rounded-md text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 cursor-pointer transition-colors"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </form>
+      </div>
     </section>
   );
 }

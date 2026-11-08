@@ -33,7 +33,6 @@ export function loadSettings(): AccessibilitySettings {
     // Fallback to system preferences
   }
 
-  // Detect system preferences
   const systemPrefersReducedMotion =
     typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
@@ -57,7 +56,6 @@ export function saveSettings(settings: AccessibilitySettings): void {
   }
 }
 
-// Custom Hook to consume and manipulate accessibility settings
 export function useAccessibilitySettings() {
   const [settings, setSettings] = useState<AccessibilitySettings>(loadSettings);
 
@@ -77,50 +75,52 @@ export function useAccessibilitySettings() {
     saveSettings(DEFAULT_SETTINGS);
   }, []);
 
-  // Sync DOM classes whenever settings change
+  // System dark mode listener
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      // Only auto-update if the user hasn't explicitly set a preference in localStorage
+      if (!localStorage.getItem(STORAGE_KEY)) {
+        updateSetting('darkMode', e.matches);
+      }
+    };
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [updateSetting]);
+
   useEffect(() => {
     const root = document.documentElement;
 
-    // High Contrast
-    if (settings.highContrast) {
-      root.classList.add('high-contrast');
-    } else {
-      root.classList.remove('high-contrast');
-    }
+    if (settings.highContrast) root.classList.add('high-contrast');
+    else root.classList.remove('high-contrast');
 
-    // Reduced Motion
-    if (settings.reducedMotion) {
-      root.classList.add('reduced-motion');
-    } else {
-      root.classList.remove('reduced-motion');
-    }
+    if (settings.reducedMotion) root.classList.add('reduced-motion');
+    else root.classList.remove('reduced-motion');
 
-    // Text Scale
     root.classList.remove('text-scale-normal', 'text-scale-large', 'text-scale-xlarge');
     root.classList.add(`text-scale-${settings.textScale}`);
 
-    // Colorblind Mode
     root.classList.remove('cb-none', 'cb-protanopia', 'cb-tritanopia');
     root.classList.add(`cb-${settings.colorblindMode}`);
 
-    // Dark Mode
     if (settings.darkMode) {
       root.classList.add('dark');
       document.body?.classList.add('dark');
+      root.style.setProperty('--bg-canvas', '#090D16');
+      root.style.setProperty('--bg-surface', '#0F172A');
+      root.style.setProperty('--border-color', '#334155');
     } else {
       root.classList.remove('dark');
       document.body?.classList.remove('dark');
+      root.style.setProperty('--bg-canvas', '#F7F5F0');
+      root.style.setProperty('--bg-surface', '#FFFFFF');
+      root.style.setProperty('--border-color', '#E4E2DA');
     }
   }, [settings]);
 
-  return {
-    settings,
-    updateSetting,
-    resetSettings,
-  };
+  return { settings, updateSetting, resetSettings };
 }
 
-// Global screen reader announcer
 let globalAnnounce: ((message: string) => void) | null = null;
 
 export function registerAnnouncer(fn: (msg: string) => void) {

@@ -4,70 +4,76 @@ import { GraphNode } from '../types';
 interface PetCompanionProps {
   nodes: GraphNode[];
   overallHealth: number;
+  isOpen: boolean;
+  onToggle: () => void;
+  hoverDelta: number | null;
 }
 
-function moodForHealth(health: number): { label: string; emoji: string; className: string } {
-  if (health < 40) {
-    return {
-      label: 'Needs care',
-      emoji: '😟',
-      className:
-        'border-amber-400/60 dark:border-amber-500/40 bg-amber-50/75 dark:bg-amber-950/65 text-amber-950 dark:text-amber-200 shadow-[0_8px_30px_rgba(245,158,11,0.18)]',
-    };
-  }
-  if (health < 75) {
-    return {
-      label: 'Improving',
-      emoji: '🐾',
-      className:
-        'border-indigo-300/60 dark:border-indigo-500/40 bg-indigo-50/75 dark:bg-indigo-950/65 text-indigo-950 dark:text-indigo-200 shadow-[0_8px_30px_rgba(99,102,241,0.18)]',
-    };
-  }
-  return {
-    label: 'Thriving',
-    emoji: '😺',
-    className:
-      'border-emerald-300/60 dark:border-emerald-500/40 bg-emerald-50/75 dark:bg-emerald-950/65 text-emerald-950 dark:text-emerald-200 shadow-[0_8px_30px_rgba(16,185,129,0.18)]',
-  };
-}
-
-export const PetCompanion: React.FC<PetCompanionProps> = ({ nodes, overallHealth }) => {
+export const PetCompanion: React.FC<PetCompanionProps> = ({ nodes, overallHealth, isOpen, onToggle, hoverDelta }) => {
   const target = useMemo(
     () => [...nodes].sort((a, b) => a.health - b.health || a.name.localeCompare(b.name))[0],
     [nodes]
   );
-  const mood = moodForHealth(overallHealth);
-  const targetIndex = target ? nodes.findIndex((node) => node.id === target.id) : 0;
-  const left = nodes.length > 1 ? 12 + (targetIndex / (nodes.length - 1)) * 72 : 50;
+  
+  // Calculate projected health
+  const activeHealth = hoverDelta ? overallHealth + hoverDelta : overallHealth;
+
+  const moodConfig = useMemo(() => {
+    if (activeHealth < 40) return { label: 'Needs care', color: 'bg-amber-400', animation: 'animate-pixel-bounce', border: 'border-amber-500' };
+    if (activeHealth < 75) return { label: 'Improving', color: 'bg-indigo-400', animation: 'animate-pixel-walk', border: 'border-indigo-500' };
+    return { label: 'Thriving', color: 'bg-emerald-400', animation: 'animate-pixel-bounce', border: 'border-emerald-500' };
+  }, [activeHealth]);
 
   if (!target) return null;
 
   return (
-    <div
-      className="pointer-events-none absolute bottom-5 left-0 right-0 z-10 h-16"
-      aria-label={`Code health pet visiting ${target.name}`}
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label="Toggle Agent Workspace"
+      className="absolute bottom-6 right-6 z-30 group cursor-pointer"
     >
-      <div
-        className="absolute flex items-center gap-2.5 transition-all duration-700 ease-in-out"
-        style={{ left: `${left}%`, transform: 'translateX(-50%)' }}
-      >
-        <div
-          className={`rounded-2xl border backdrop-blur-xl backdrop-saturate-150 px-3.5 py-2 text-xs ring-1 ring-white/40 dark:ring-white/10 ${mood.className}`}
-        >
-          <div className="font-bold tracking-tight">
-            {mood.emoji} {mood.label}
+      <div className="flex items-center gap-3 transition-transform duration-300 ease-in-out hover:scale-105">
+        
+        {!isOpen && (
+          <div className={`rounded-xl border backdrop-blur-xl px-3 py-1.5 text-xs shadow-lg animate-in fade-in duration-300 ${
+            hoverDelta 
+              ? 'bg-emerald-500/20 border-emerald-400 text-emerald-950 dark:text-emerald-100'
+              : 'bg-white/70 dark:bg-slate-900/70 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200'
+          }`}>
+            <div className="font-bold">{hoverDelta ? '🎉 Refactor will help!' : moodConfig.label}</div>
           </div>
-          <div className="max-w-48 truncate opacity-90">
-            Watching {target.name} · {target.health}/100
+        )}
+        
+        {/* Pixel Art Container */}
+        <div className={`flex h-14 w-14 items-center justify-center rounded-2xl border-2 backdrop-blur-md shadow-xl transition-all ${
+          isOpen 
+            ? 'bg-slate-900/90 dark:bg-black/90 border-indigo-500' 
+            : `bg-white/80 dark:bg-slate-800/80 ${moodConfig.border}`
+        }`}>
+          {/* CSS Pixel Sprite */}
+          <div className={`relative w-6 h-6 ${moodConfig.animation}`}>
+             {/* Head */}
+             <div className={`absolute top-0 left-1 w-4 h-3 ${moodConfig.color} rounded-t-sm`}></div>
+             {/* Eyes */}
+             <div className="absolute top-1 left-2 w-0.5 h-0.5 bg-slate-900"></div>
+             <div className="absolute top-1 left-3.5 w-0.5 h-0.5 bg-slate-900"></div>
+             {/* Body */}
+             <div className={`absolute top-3 left-0 w-6 h-3 ${moodConfig.color} rounded-sm`}></div>
+             {/* Legs */}
+             <div className={`absolute top-6 left-1 w-1 h-1 ${moodConfig.color}`}></div>
+             <div className={`absolute top-6 left-4 w-1 h-1 ${moodConfig.color}`}></div>
+             
+             {/* Happy effects when thriving or hovered */}
+             {(activeHealth >= 75 || hoverDelta) && (
+               <>
+                 <div className="absolute -top-2 -left-1 w-1 h-1 bg-yellow-400 rounded-full animate-ping"></div>
+                 <div className="absolute -top-1 -right-1 w-1 h-1 bg-yellow-400 rounded-full animate-ping delay-75"></div>
+               </>
+             )}
           </div>
-        </div>
-        <div
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/60 dark:border-white/15 bg-white/65 dark:bg-slate-900/65 backdrop-blur-md text-xl shadow-md"
-          aria-hidden="true"
-        >
-          🐾
         </div>
       </div>
-    </div>
+    </button>
   );
 };

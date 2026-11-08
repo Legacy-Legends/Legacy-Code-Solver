@@ -49,7 +49,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const hasInitialFitRef = useRef(false);
 
-  // Drag state with threshold so clicking a node or background never starts an accidental pan
+  // Dragging State for Graph Panning
   const pointerStateRef = useRef<{
     isDown: boolean;
     didDrag: boolean;
@@ -65,9 +65,13 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     panStartX: 0,
     panStartY: 0,
   });
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
 
-  // Measure container dimensions
+  // Dragging State for Individual Node Placement
+  const [nodeOverrides, setNodeOverrides] = useState<Record<string, { x: number; y: number }>>({});
+  const dragNodeRef = useRef<{ id: string; startX: number; startY: number } | null>(null);
+  const [isDraggingNode, setIsDraggingNode] = useState(false);
+
   useEffect(() => {
     if (!containerRef.current) return;
     const updateSize = () => {
@@ -83,7 +87,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     return () => ro.disconnect();
   }, []);
 
-  // Compute stable logical world coordinates ONLY when `nodes` or `edges` change.
   const positionedNodes = useMemo(() => {
     if (nodes.length === 0) return [];
 
@@ -100,45 +103,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
       inDegree.set(t, (inDegree.get(t) || 0) + 1);
     });
 
-    // Small dataset (e.g. Sample project): arrange connected chain horizontally
-    if (nodes.length <= 6) {
-      const connected = nodes.filter(
-        (n) => (inDegree.get(n.id) || 0) > 0 || (outDegree.get(n.id) || 0) > 0
-      );
-      const isolated = nodes.filter(
-        (n) => (inDegree.get(n.id) || 0) === 0 && (outDegree.get(n.id) || 0) === 0
-      );
-
-      // Order connected chain from callers (in=0) -> middle -> callees (out=0)
-      const orderedConnected = [...connected].sort((a, b) => {
-        const scoreA = (inDegree.get(a.id) || 0) - (outDegree.get(a.id) || 0);
-        const scoreB = (inDegree.get(b.id) || 0) - (outDegree.get(b.id) || 0);
-        return scoreA - scoreB;
-      });
-
-      const spacingX = 330;
-      const chainY = isolated.length > 0 ? -52 : 0;
-      const isolatedY = 120;
-
-      const posMap = new Map<string, { x: number; y: number }>();
-      orderedConnected.forEach((n, idx) => {
-        const offset = (idx - (orderedConnected.length - 1) / 2) * spacingX;
-        posMap.set(n.id, { x: offset, y: chainY });
-      });
-
-      isolated.forEach((n, idx) => {
-        const offset = (idx - (isolated.length - 1) / 2) * spacingX;
-        posMap.set(n.id, { x: offset, y: isolatedY });
-      });
-
-      return nodes.map((n) => ({
-        ...n,
-        posX: posMap.get(n.id)?.x ?? 0,
-        posY: posMap.get(n.id)?.y ?? 0,
-      }));
-    }
-
-    // Larger datasets (e.g. Enterprise 40-node graph): group by cluster into aligned columns & rows
     const clusters = new Map<string, GraphNode[]>();
     nodes.forEach((n) => {
       const list = clusters.get(n.clusterId) || [];
@@ -149,6 +113,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     const clusterEntries = Array.from(clusters.entries());
     const posMap = new Map<string, { x: number; y: number }>();
 
+    // Apply deterministic procedural jitter to break up the perfect grid
     if (clusterEntries.length > 1) {
       const colSpacing = 520;
       const rowSpacing = 146;
@@ -156,7 +121,10 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
         const colX = (cIdx - (clusterEntries.length - 1) / 2) * colSpacing;
         clusterNodes.forEach((n, rIdx) => {
           const rowY = (rIdx - (clusterNodes.length - 1) / 2) * rowSpacing;
-          posMap.set(n.id, { x: colX, y: rowY });
+          const hash = n.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const jitterX = Math.sin(hash) * 45;
+          const jitterY = Math.cos(hash) * 35;
+          posMap.set(n.id, { x: colX + jitterX, y: rowY + jitterY });
         });
       });
     } else {
@@ -165,19 +133,26 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
       nodes.forEach((n, idx) => {
         const c = idx % cols;
         const r = Math.floor(idx / cols);
+        const hash = n.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const jitterX = Math.sin(hash) * 40;
+        const jitterY = Math.cos(hash) * 40;
         posMap.set(n.id, {
-          x: (c - (cols - 1) / 2) * 480,
-          y: (r - (rows - 1) / 2) * 146,
+          x: (c - (cols - 1) / 2) * 480 + jitterX,
+          y: (r - (rows - 1) / 2) * 146 + jitterY,
         });
       });
     }
 
-    return nodes.map((n) => ({
-      ...n,
-      posX: posMap.get(n.id)?.x ?? 0,
-      posY: posMap.get(n.id)?.y ?? 0,
-    }));
-  }, [nodes, edges]);
+    // Apply manual drag overrides (these take precedence over procedural positions)
+    return nodes.map((n) => {
+      const override = nodeOverrides[n.id];
+      return {
+        ...n,
+        posX: override ? override.x : (posMap.get(n.id)?.x ?? 0),
+        posY: override ? override.y : (posMap.get(n.id)?.y ?? 0),
+      };
+    });
+  }, [nodes, edges, nodeOverrides]);
 
   const positionedNodesById = useMemo(() => {
     const map = new Map<string, (typeof positionedNodes)[0]>();
@@ -185,7 +160,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     return map;
   }, [positionedNodes]);
 
-  // Architectural column headers for multi-cluster graphs
   const clusterColumns = useMemo(() => {
     if (nodes.length <= 6) return [];
     const clusters = new Map<string, GraphNode[]>();
@@ -217,7 +191,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     });
   }, [nodes]);
 
-  // Fit graph nicely to container
   const fitGraphToViewport = useCallback(() => {
     if (positionedNodes.length === 0 || dimensions.width === 0 || dimensions.height === 0) {
       setZoom(1);
@@ -244,7 +217,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     setPan({ x: 0, y: clusterColumns.length > 0 ? 20 : 0 });
   }, [positionedNodes, dimensions.width, dimensions.height, clusterColumns.length]);
 
-  // Auto-fit when container is first measured, dataset changes, or Fit Graph is triggered
   useEffect(() => {
     if (dimensions.width > 0 && dimensions.height > 0 && !hasInitialFitRef.current) {
       hasInitialFitRef.current = true;
@@ -256,10 +228,8 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     if (dimensions.width > 0 && dimensions.height > 0) {
       fitGraphToViewport();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes.length, fitSignal]);
+  }, [nodes.length, fitSignal, fitGraphToViewport]);
 
-  // Compute node visual status relative to active selection
   const nodeStatusMap = useMemo(() => {
     const map = new Map<
       string,
@@ -286,7 +256,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
 
     map.set(selectedNode.id, 'selected');
 
-    // If a specific path is highlighted, highlight nodes on that path
     if (selectedPathNodeIds && selectedPathNodeIds.length > 0) {
       selectedPathNodeIds.forEach((id, idx) => {
         if (id === selectedNode.id) {
@@ -310,7 +279,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     return map;
   }, [selectedNode, selectedEdge, impactAnalysis, showIndirect, selectedPathNodeIds, nodes]);
 
-  // Helper to check if an edge (sId -> tId) is part of the highlighted path
   const isEdgeInSelectedPath = useCallback(
     (sId: string, tId: string): boolean => {
       if (!selectedPathNodeIds || selectedPathNodeIds.length < 2) return false;
@@ -324,7 +292,9 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     [selectedPathNodeIds]
   );
 
-  // Pointer handlers for background drag-to-pan
+  const viewW = dimensions.width || 960;
+  const viewH = dimensions.height || 640;
+
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (e.button !== 0) return;
@@ -341,13 +311,29 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   );
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (dragNodeRef.current && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const worldX = (e.clientX - rect.left - (viewW / 2 + pan.x)) / zoom;
+      const worldY = (e.clientY - rect.top - (viewH / 2 + pan.y)) / zoom;
+
+      setNodeOverrides((prev) => ({
+        ...prev,
+        [dragNodeRef.current!.id]: {
+          x: worldX - dragNodeRef.current!.startX,
+          y: worldY - dragNodeRef.current!.startY,
+        },
+      }));
+      if (!isDraggingNode) setIsDraggingNode(true);
+      return; 
+    }
+
     const st = pointerStateRef.current;
     if (!st.isDown) return;
     const dx = e.clientX - st.startX;
     const dy = e.clientY - st.startY;
     if (!st.didDrag && Math.hypot(dx, dy) > 4) {
       st.didDrag = true;
-      setIsDragging(true);
+      setIsDraggingCanvas(true);
     }
     if (st.didDrag) {
       setPan({
@@ -355,11 +341,13 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
         y: st.panStartY + dy,
       });
     }
-  }, []);
+  }, [pan, zoom, viewW, viewH, isDraggingNode]);
 
   const handleMouseUp = useCallback(() => {
     pointerStateRef.current.isDown = false;
-    setIsDragging(false);
+    dragNodeRef.current = null;
+    setIsDraggingCanvas(false);
+    setTimeout(() => setIsDraggingNode(false), 50);
   }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -369,10 +357,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   }, []);
 
   const hasActiveFilter = Boolean(selectedNode || selectedEdge);
-  const viewW = dimensions.width || 960;
-  const viewH = dimensions.height || 640;
-
-  // Precompute sub-grid coordinates
   const subGridCoords = [0, 28, 56, 84, 112];
 
   return (
@@ -384,17 +368,14 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
       onMouseLeave={handleMouseUp}
       onWheel={handleWheel}
       onClick={() => {
-        if (!pointerStateRef.current.didDrag) {
+        if (!pointerStateRef.current.didDrag && !isDraggingNode) {
           onSelectNode(null);
           onSelectEdge(null);
         }
       }}
-      className={`relative h-full w-full overflow-hidden select-none transition-colors duration-200 ${
-        darkMode ? 'bg-[#090D16]' : 'bg-[#F7F5F0]'
-      }`}
-      style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+      className={`relative h-full w-full overflow-hidden select-none transition-colors duration-200 bg-[var(--bg-canvas)]`}
+      style={{ cursor: isDraggingCanvas ? 'grabbing' : 'grab' }}
     >
-      {/* Floating Interactive Guide Banner */}
       <div className="absolute top-3.5 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
         <div
           className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono shadow-md backdrop-blur-md border transition-colors ${
@@ -418,20 +399,14 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
           ) : (
             <>
               <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0"></span>
-              <span>Click any class to isolate its direct callers &amp; dependencies</span>
+              <span>Drag classes to reposition, click to isolate callers</span>
             </>
           )}
         </div>
       </div>
 
-      <svg
-        width="100%"
-        height="100%"
-        className="absolute inset-0"
-        viewBox={`0 0 ${viewW} ${viewH}`}
-      >
+      <svg width="100%" height="100%" className="absolute inset-0" viewBox={`0 0 ${viewW} ${viewH}`}>
         <defs>
-          {/* Deep-space parallax dot grid */}
           <pattern
             id="spatial-dots-parallax"
             width="24"
@@ -441,16 +416,9 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
               viewH / 2 + pan.y * 0.45
             }) scale(${0.65 + zoom * 0.35})`}
           >
-            <circle
-              cx="12"
-              cy="12"
-              r="1.0"
-              fill={darkMode ? '#1E293B' : '#CFCAC0'}
-              opacity={darkMode ? 0.6 : 0.7}
-            />
+            <circle cx="12" cy="12" r="1.0" fill={darkMode ? '#1E293B' : '#CFCAC0'} opacity={darkMode ? 0.6 : 0.7} />
           </pattern>
 
-          {/* Primary world-space dot grid */}
           <pattern
             id="spatial-dots-world"
             width="140"
@@ -477,136 +445,25 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             )}
           </pattern>
 
-          {/* Sleek, concise, perfectly centered arrowheads */}
-          <marker
-            id="arrow-default"
-            viewBox="0 0 8 8"
-            refX="6.5"
-            refY="4"
-            markerWidth="5.5"
-            markerHeight="5.5"
-            markerUnits="userSpaceOnUse"
-            orient="auto"
-          >
+          <marker id="arrow-default" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="5.5" markerHeight="5.5" markerUnits="userSpaceOnUse" orient="auto">
             <path d="M 1 1.6 L 6.5 4 L 1 6.4 z" fill={darkMode ? '#64748B' : '#94A3B8'} />
           </marker>
-
-          {/* Active Direct Cyan Arrowhead */}
-          <marker
-            id="arrow-active"
-            viewBox="0 0 8 8"
-            refX="6.5"
-            refY="4"
-            markerWidth="6.5"
-            markerHeight="6.5"
-            markerUnits="userSpaceOnUse"
-            orient="auto"
-          >
+          <marker id="arrow-active" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="6.5" markerHeight="6.5" markerUnits="userSpaceOnUse" orient="auto">
             <path d="M 1 1.2 L 6.5 4 L 1 6.8 z" fill={darkMode ? '#38BDF8' : '#0284C7'} />
           </marker>
-
-          {/* Indirect Purple Arrowhead */}
-          <marker
-            id="arrow-indirect"
-            viewBox="0 0 8 8"
-            refX="6.5"
-            refY="4"
-            markerWidth="5.5"
-            markerHeight="5.5"
-            markerUnits="userSpaceOnUse"
-            orient="auto"
-          >
+          <marker id="arrow-indirect" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="5.5" markerHeight="5.5" markerUnits="userSpaceOnUse" orient="auto">
             <path d="M 1 1.5 L 6.5 4 L 1 6.5 z" fill={darkMode ? '#A5B4FC' : '#6366F1'} />
           </marker>
-
-          {/* Hover Preview Arrowhead */}
-          <marker
-            id="arrow-hover"
-            viewBox="0 0 8 8"
-            refX="6.5"
-            refY="4"
-            markerWidth="6"
-            markerHeight="6"
-            markerUnits="userSpaceOnUse"
-            orient="auto"
-          >
+          <marker id="arrow-hover" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto">
             <path d="M 1 1.4 L 6.5 4 L 1 6.6 z" fill={darkMode ? '#60A5FA' : '#2563EB'} />
           </marker>
         </defs>
 
-        {/* Spatial Dot Grid Layers */}
-        <rect
-          width="100%"
-          height="100%"
-          fill="url(#spatial-dots-parallax)"
-          className="pointer-events-none"
-        />
-        <rect
-          width="100%"
-          height="100%"
-          fill="url(#spatial-dots-world)"
-          className="pointer-events-none"
-        />
+        <rect width="100%" height="100%" fill="url(#spatial-dots-parallax)" className="pointer-events-none" />
+        <rect width="100%" height="100%" fill="url(#spatial-dots-world)" className="pointer-events-none" />
 
-        <g
-          transform={`translate(${viewW / 2 + pan.x}, ${
-            viewH / 2 + pan.y
-          }) scale(${zoom})`}
-        >
-          {/* 1. Architectural Column/Tier Headers (Clean swimlanes) */}
-          {clusterColumns.map((col) => (
-            <g key={col.clusterId} transform={`translate(${col.colX}, ${col.headerY})`}>
-              <rect
-                x={-HALF_W}
-                y={-18}
-                width={CARD_W}
-                height={36}
-                rx={10}
-                fill={darkMode ? '#0F172A' : '#FFFFFF'}
-                stroke={darkMode ? '#334155' : '#E2E8F0'}
-                strokeWidth={1.5}
-                filter={darkMode ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' : 'drop-shadow(0 2px 6px rgba(0,0,0,0.06))'}
-              />
-              <circle
-                cx={-HALF_W + 16}
-                cy={0}
-                r={4}
-                fill={col.color}
-              />
-              <text
-                x={-HALF_W + 28}
-                y={3.5}
-                fill={darkMode ? '#F8FAFC' : '#0F172A'}
-                fontSize="11"
-                fontWeight="700"
-                fontFamily="Inter, system-ui, sans-serif"
-                letterSpacing="0.02em"
-              >
-                {col.name.length > 18 ? `${col.name.slice(0, 17)}…` : col.name}
-              </text>
-              <rect
-                x={HALF_W - 30}
-                y={-9}
-                width={22}
-                height={18}
-                rx={5}
-                fill={darkMode ? '#1E293B' : '#F1F5F9'}
-              />
-              <text
-                x={HALF_W - 19}
-                y={3.5}
-                fill={darkMode ? '#94A3B8' : '#64748B'}
-                fontSize="10"
-                fontWeight="700"
-                fontFamily="JetBrains Mono, monospace"
-                textAnchor="middle"
-              >
-                {col.count}
-              </text>
-            </g>
-          ))}
-
-          {/* 2. Directed Dependency Edges (Progressive disclosure: quiet when inactive, vivid when active) */}
+        <g transform={`translate(${viewW / 2 + pan.x}, ${viewH / 2 + pan.y}) scale(${zoom})`}>
+          
           {edges.map((edge) => {
             const sId = resolveId(edge.source);
             const tId = resolveId(edge.target);
@@ -616,20 +473,8 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
 
             const isEdgeSelected = selectedEdge?.id === edge.id;
             const inSelectedPath = isEdgeInSelectedPath(sId, tId);
-
-            const isDirectCallerEdge =
-              !selectedPathNodeIds &&
-              selectedNode !== null &&
-              tId === selectedNode.id &&
-              nodeStatusMap.get(sId) === 'direct';
-
-            const isIndirectCallerEdge =
-              !selectedPathNodeIds &&
-              selectedNode !== null &&
-              showIndirect &&
-              ((nodeStatusMap.get(sId) === 'indirect' &&
-                nodeStatusMap.get(tId) === 'direct') ||
-                (tId === selectedNode.id && nodeStatusMap.get(sId) === 'direct'));
+            const isDirectCallerEdge = !selectedPathNodeIds && selectedNode !== null && tId === selectedNode.id && nodeStatusMap.get(sId) === 'direct';
+            const isIndirectCallerEdge = !selectedPathNodeIds && selectedNode !== null && showIndirect && ((nodeStatusMap.get(sId) === 'indirect' && nodeStatusMap.get(tId) === 'direct') || (tId === selectedNode.id && nodeStatusMap.get(sId) === 'direct'));
 
             const isHovered = hoveredNodeId === sId || hoveredNodeId === tId;
             const isHoverPreview = !hasActiveFilter && hoveredNodeId !== null && isHovered;
@@ -659,88 +504,32 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
               opacity = 0.9;
             }
 
-            // Deterministic slotting offset to avoid overlapping curves
-            const edgeHash = edge.id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-            const yOffset = ((edgeHash % 5) - 2) * 4; // -8, -4, 0, 4, 8
+            const dx = tNode.posX - sNode.posX;
+            const dy = tNode.posY - sNode.posY;
+            const dist = Math.hypot(dx, dy);
 
             let pathD = '';
             let labelX = 0;
             let labelY = 0;
 
-            const isSameColumn = Math.abs(sNode.posX - tNode.posX) <= 24;
-
-            if (isSameColumn) {
-              if (tNode.posY > sNode.posY) {
-                // Downward in same column
-                const dy = tNode.posY - sNode.posY;
-                if (dy < 170) {
-                  // Direct vertical line to immediate neighbor below
-                  const startX = sNode.posX;
-                  const startY = sNode.posY + HALF_H;
-                  const endX = tNode.posX;
-                  const endY = tNode.posY - HALF_H;
-                  pathD = `M ${startX} ${startY} L ${endX} ${endY}`;
-                  labelX = startX + 16;
-                  labelY = (startY + endY) / 2;
-                } else {
-                  // Multi-row: gentle arc around the left edge
-                  // Leaves horizontally to left, arrives horizontally to right
-                  const startX = sNode.posX - HALF_W;
-                  const startY = sNode.posY;
-                  const endX = tNode.posX - HALF_W;
-                  const endY = tNode.posY;
-                  const loopX = sNode.posX - HALF_W - 38;
-                  pathD = `M ${startX} ${startY} C ${loopX} ${startY}, ${loopX} ${endY}, ${endX} ${endY}`;
-                  labelX = loopX - 12;
-                  labelY = (startY + endY) / 2;
-                }
-              } else {
-                // Upward in same column: gentle arc around the left edge
-                const startX = sNode.posX - HALF_W;
-                const startY = sNode.posY;
-                const endX = tNode.posX - HALF_W;
-                const endY = tNode.posY;
-                const loopX = sNode.posX - HALF_W - 46;
-                pathD = `M ${startX} ${startY} C ${loopX} ${startY}, ${loopX} ${endY}, ${endX} ${endY}`;
-                labelX = loopX - 12;
-                labelY = (startY + endY) / 2;
-              }
-            } else if (sNode.posX < tNode.posX) {
-              // Left-to-Right cross-column flow
-              const startX = sNode.posX + HALF_W;
-              const startY = sNode.posY + yOffset;
-              const endX = tNode.posX - HALF_W;
-              const endY = tNode.posY + yOffset * 0.4;
-              const dx = endX - startX;
-              const dy = endY - startY;
-
-              if (Math.abs(dy) < 3 && dx <= 560) {
-                pathD = `M ${startX} ${startY} L ${endX} ${endY}`;
-                labelX = (startX + endX) / 2;
-                labelY = startY - 12;
-              } else {
-                const curvature = Math.max(40, Math.min(180, dx * 0.38));
-                const ctrl1X = startX + curvature;
-                const ctrl1Y = startY;
-                const ctrl2X = endX - curvature;
-                const ctrl2Y = endY;
-                pathD = `M ${startX} ${startY} C ${ctrl1X} ${ctrl1Y}, ${ctrl2X} ${ctrl2Y}, ${endX} ${endY}`;
-                labelX = (startX + endX) / 2;
-                labelY = (startY + endY) / 2 - 12;
-              }
+            if (dist < 10) {
+              pathD = ''; 
+            } else if (Math.abs(dx) < CARD_W * 1.5) {
+              const startX = sNode.posX;
+              const startY = sNode.posY + (dy > 0 ? HALF_H : -HALF_H);
+              const endX = tNode.posX;
+              const endY = tNode.posY - (dy > 0 ? HALF_H : -HALF_H);
+              const curveDist = Math.abs(dy) * 0.4;
+              pathD = `M ${startX} ${startY} C ${startX} ${startY + (dy > 0 ? curveDist : -curveDist)}, ${endX} ${endY - (dy > 0 ? curveDist : -curveDist)}, ${endX} ${endY}`;
+              labelX = (startX + endX) / 2;
+              labelY = (startY + endY) / 2;
             } else {
-              // Right-to-Left cross-column flow
-              const startX = sNode.posX - HALF_W;
-              const startY = sNode.posY + yOffset;
-              const endX = tNode.posX + HALF_W;
-              const endY = tNode.posY + yOffset * 0.4;
-              const dx = startX - endX;
-              const curvature = Math.max(50, Math.min(160, dx * 0.3));
-              const ctrl1X = startX - curvature;
-              const ctrl1Y = startY;
-              const ctrl2X = endX + curvature;
-              const ctrl2Y = endY;
-              pathD = `M ${startX} ${startY} C ${ctrl1X} ${ctrl1Y}, ${ctrl2X} ${ctrl2Y}, ${endX} ${endY}`;
+              const startX = sNode.posX + (dx > 0 ? HALF_W : -HALF_W);
+              const startY = sNode.posY;
+              const endX = tNode.posX - (dx > 0 ? HALF_W : -HALF_W);
+              const endY = tNode.posY;
+              const curveDist = Math.abs(dx) * 0.3;
+              pathD = `M ${startX} ${startY} C ${startX + (dx > 0 ? curveDist : -curveDist)} ${startY}, ${endX - (dx > 0 ? curveDist : -curveDist)} ${endY}, ${endX} ${endY}`;
               labelX = (startX + endX) / 2;
               labelY = (startY + endY) / 2 - 12;
             }
@@ -760,47 +549,12 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                   }
                 }}
               >
-                {/* Wide invisible hit target for easy clicking */}
-                <path
-                  d={pathD}
-                  fill="none"
-                  stroke="transparent"
-                  strokeWidth={22}
-                />
-
-                {/* Visible connection line */}
-                <path
-                  d={pathD}
-                  fill="none"
-                  stroke={strokeColor}
-                  strokeWidth={strokeWidth}
-                  strokeOpacity={opacity}
-                  strokeDasharray={isActiveIndirect && !inSelectedPath ? '5,4' : undefined}
-                  markerEnd={marker}
-                />
-
-                {/* Call-site pill on active connections or small graphs */}
+                <path d={pathD} fill="none" stroke="transparent" strokeWidth={22} />
+                <path d={pathD} fill="none" stroke={strokeColor} strokeWidth={strokeWidth} strokeOpacity={opacity} strokeDasharray={isActiveIndirect && !inSelectedPath ? '5,4' : undefined} markerEnd={marker} />
                 {(isHighlighted || (!hasActiveFilter && nodes.length <= 6)) && (
                   <g transform={`translate(${labelX}, ${labelY})`}>
-                    <rect
-                      x="-34"
-                      y="-9"
-                      width="68"
-                      height="18"
-                      rx="5"
-                      fill={darkMode ? '#0A101D' : '#FFFFFF'}
-                      stroke={isHighlighted ? (isActiveIndirect ? '#818CF8' : '#38BDF8') : (darkMode ? '#334155' : '#D6D3CD')}
-                      strokeWidth={isHighlighted ? 1.5 : 1}
-                    />
-                    <text
-                      x="0"
-                      y="3.5"
-                      fill={isHighlighted ? (isActiveIndirect ? '#C7D2FE' : '#38BDF8') : (darkMode ? '#94A3B8' : '#4B5563')}
-                      fontSize="9.5"
-                      fontFamily="JetBrains Mono, monospace"
-                      fontWeight={isHighlighted ? '700' : '500'}
-                      textAnchor="middle"
-                    >
+                    <rect x="-34" y="-9" width="68" height="18" rx="5" fill={darkMode ? '#0A101D' : '#FFFFFF'} stroke={isHighlighted ? (isActiveIndirect ? '#818CF8' : '#38BDF8') : (darkMode ? '#334155' : '#D6D3CD')} strokeWidth={isHighlighted ? 1.5 : 1} />
+                    <text x="0" y="3.5" fill={isHighlighted ? (isActiveIndirect ? '#C7D2FE' : '#38BDF8') : (darkMode ? '#94A3B8' : '#4B5563')} fontSize="9.5" fontFamily="JetBrains Mono, monospace" fontWeight={isHighlighted ? '700' : '500'} textAnchor="middle">
                       {edge.callSiteLine ? `calls :${edge.callSiteLine}` : edge.type}
                     </text>
                   </g>
@@ -809,7 +563,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             );
           })}
 
-          {/* 3. Class Node Boxes */}
           {positionedNodes.map((node) => {
             const status = nodeStatusMap.get(node.id) || 'unrelated';
             const isSelected = status === 'selected';
@@ -856,8 +609,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
               borderWidth = 2;
             }
 
-            const displayName =
-              node.name.length > 21 ? `${node.name.slice(0, 20)}…` : node.name;
+            const displayName = node.name.length > 21 ? `${node.name.slice(0, 20)}…` : node.name;
 
             return (
               <g
@@ -870,19 +622,23 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                 className="cursor-pointer transition-opacity duration-200"
                 onMouseEnter={() => setHoveredNodeId(node.id)}
                 onMouseLeave={() => setHoveredNodeId(null)}
-                onMouseDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  const rect = containerRef.current?.getBoundingClientRect();
+                  if (!rect) return;
+                  const worldX = (e.clientX - rect.left - (viewW / 2 + pan.x)) / zoom;
+                  const worldY = (e.clientY - rect.top - (viewH / 2 + pan.y)) / zoom;
+                  dragNodeRef.current = {
+                    id: node.id,
+                    startX: worldX - node.posX,
+                    startY: worldY - node.posY,
+                  };
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onSelectNode(node);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onSelectNode(node);
-                  }
+                  if (!isDraggingNode) onSelectNode(node);
                 }}
               >
-                {/* Node Box */}
                 <rect
                   x={-HALF_W}
                   y={-HALF_H}
@@ -900,50 +656,14 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                       : (darkMode ? 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4))' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.04))')
                   }
                 />
-
-                {/* Left Accent Status Strip */}
                 {(isSelected || isDirect || isIndirect) && (
-                  <rect
-                    x={-HALF_W}
-                    y={-HALF_H + 4}
-                    width={4.5}
-                    height={CARD_H - 8}
-                    rx={2}
-                    fill={cardBorder}
-                  />
+                  <rect x={-HALF_W} y={-HALF_H + 4} width={4.5} height={CARD_H - 8} rx={2} fill={cardBorder} />
                 )}
-
-                {/* Class Name */}
-                <text
-                  x={-HALF_W + 14}
-                  y={-9}
-                  fill={titleColor}
-                  fontSize="12"
-                  fontFamily="JetBrains Mono, monospace"
-                  fontWeight="600"
-                  letterSpacing="-0.01em"
-                >
+                <text x={-HALF_W + 14} y={-9} fill={titleColor} fontSize="12" fontFamily="JetBrains Mono, monospace" fontWeight="600" letterSpacing="-0.01em">
                   {displayName}
                 </text>
-
-                {/* Role / Cluster Badge */}
-                <rect
-                  x={-HALF_W + 14}
-                  y={6}
-                  width={Math.min(CARD_W - 28, roleLabel.length * 6.5 + 14)}
-                  height={17}
-                  rx={4}
-                  fill={badgeBg}
-                />
-                <text
-                  x={-HALF_W + 21}
-                  y={18}
-                  fill={badgeText}
-                  fontSize="9"
-                  fontFamily="Inter, system-ui, sans-serif"
-                  fontWeight={isSelected || isDirect ? '700' : '600'}
-                  letterSpacing="0.03em"
-                >
+                <rect x={-HALF_W + 14} y={6} width={Math.min(CARD_W - 28, roleLabel.length * 6.5 + 14)} height={17} rx={4} fill={badgeBg} />
+                <text x={-HALF_W + 21} y={18} fill={badgeText} fontSize="9" fontFamily="Inter, system-ui, sans-serif" fontWeight={isSelected || isDirect ? '700' : '600'} letterSpacing="0.03em">
                   {roleLabel.toUpperCase()}
                 </text>
               </g>
@@ -952,61 +672,11 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
         </g>
       </svg>
 
-      {/* Floating Canvas Controls */}
-      <div
-        className={`absolute bottom-4 left-4 z-20 flex items-center gap-1 rounded-xl p-1 shadow-md backdrop-blur-md border ${
-          darkMode
-            ? 'bg-slate-900/90 border-slate-700/80 text-slate-300'
-            : 'bg-white/90 border-slate-200/90 text-slate-700'
-        }`}
-      >
-        <button
-          type="button"
-          onClick={() => setZoom((z) => Number(Math.min(2.2, z + 0.15).toFixed(2)))}
-          aria-label="Zoom in"
-          className={`rounded-lg p-1.5 transition cursor-pointer ${
-            darkMode ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-          }`}
-          title="Zoom in"
-        >
-          <ZoomIn className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setZoom((z) => Number(Math.max(0.3, z - 0.15).toFixed(2)))}
-          aria-label="Zoom out"
-          className={`rounded-lg p-1.5 transition cursor-pointer ${
-            darkMode ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-          }`}
-          title="Zoom out"
-        >
-          <ZoomOut className="h-4 w-4" />
-        </button>
+      <div className={`absolute bottom-4 left-4 z-20 flex items-center gap-1 rounded-xl p-1 shadow-md backdrop-blur-md border ${darkMode ? 'bg-slate-900/90 border-slate-700/80 text-slate-300' : 'bg-white/90 border-slate-200/90 text-slate-700'}`}>
+        <button type="button" onClick={() => setZoom((z) => Number(Math.min(2.2, z + 0.15).toFixed(2)))} aria-label="Zoom in" className={`rounded-lg p-1.5 transition cursor-pointer ${darkMode ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}><ZoomIn className="h-4 w-4" /></button>
+        <button type="button" onClick={() => setZoom((z) => Number(Math.max(0.3, z - 0.15).toFixed(2)))} aria-label="Zoom out" className={`rounded-lg p-1.5 transition cursor-pointer ${darkMode ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}><ZoomOut className="h-4 w-4" /></button>
         <div className={`h-4 w-px my-auto ${darkMode ? 'bg-slate-700' : 'bg-slate-200'}`} />
-        <button
-          type="button"
-          onClick={fitGraphToViewport}
-          aria-label="Fit graph"
-          className={`flex items-center gap-1 rounded-lg px-2 py-1.5 font-sans text-xs font-medium transition cursor-pointer ${
-            darkMode ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-          }`}
-          title="Center and fit entire graph"
-        >
-          <Maximize2 className="h-3.5 w-3.5" />
-          <span>Fit graph</span>
-        </button>
-      </div>
-
-      {/* Directed Graph Semantics Pill */}
-      <div
-        className={`absolute bottom-4 right-4 z-20 hidden sm:flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-mono shadow-xs backdrop-blur-md border ${
-          darkMode
-            ? 'bg-slate-900/80 border-slate-700/80 text-slate-400'
-            : 'bg-white/80 border-slate-200/90 text-slate-500'
-        }`}
-      >
-        <span className={darkMode ? 'text-slate-200 font-semibold' : 'text-slate-700 font-semibold'}>A → B</span>
-        <span>means A uses B</span>
+        <button type="button" onClick={fitGraphToViewport} aria-label="Fit graph" className={`flex items-center gap-1 rounded-lg px-2 py-1.5 font-sans text-xs font-medium transition cursor-pointer ${darkMode ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}`}><Maximize2 className="h-3.5 w-3.5" /><span>Fit graph</span></button>
       </div>
     </div>
   );

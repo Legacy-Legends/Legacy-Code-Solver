@@ -64,15 +64,12 @@ class WebGLErrorBoundary extends React.Component<
   }
 }
 
-// In-memory cache for billboard text sprites to prevent GPU texture thrashing
 const spriteCache = new Map<string, THREE.Sprite>();
 
 function getOrCreateTextSprite(text: string, color: string, bgColor: string, borderColor: string): THREE.Sprite {
   const key = `${text}_${color}_${bgColor}_${borderColor}`;
   const cached = spriteCache.get(key);
-  if (cached) {
-    return cached.clone();
-  }
+  if (cached) return cached.clone();
 
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -81,7 +78,6 @@ function getOrCreateTextSprite(text: string, color: string, bgColor: string, bor
   canvas.width = 512;
   canvas.height = 128;
 
-  // Background rounded box
   ctx.fillStyle = bgColor;
   ctx.strokeStyle = borderColor;
   ctx.lineWidth = 6;
@@ -106,7 +102,6 @@ function getOrCreateTextSprite(text: string, color: string, bgColor: string, bor
   ctx.fill();
   ctx.stroke();
 
-  // Typography
   ctx.fillStyle = color;
   ctx.font = 'bold 48px JetBrains Mono, monospace';
   ctx.textAlign = 'center';
@@ -145,7 +140,6 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
     height: typeof window !== 'undefined' ? Math.max(400, window.innerHeight - 56) : 600,
   }));
 
-  // Measure container size dynamically
   useEffect(() => {
     if (!containerRef.current) return;
     const updateSize = () => {
@@ -188,7 +182,7 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
     return map;
   }, [selectedNode, impactAnalysis, selectedPathNodeIds, nodes]);
 
-  // Robust Scene Initialization: adds Three.js lights and auto-fits graph
+  // Adds lights AND 3D spatial dots
   useEffect(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout>;
@@ -214,13 +208,48 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
           pointLight.position.set(0, 0, 120);
           scene.add(pointLight);
 
+          // 3D Spatial Dots System
+          const dotCount = 1200;
+          const geometry = new THREE.BufferGeometry();
+          const positions = new Float32Array(dotCount * 3);
+          
+          for(let i = 0; i < dotCount * 3; i++) {
+            // Distribute in a spherical volume
+            positions[i] = (Math.random() - 0.5) * 1200;
+          }
+          
+          geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+          
+          // Use circular sprite for dot
+          const circleCanvas = document.createElement('canvas');
+          circleCanvas.width = 16;
+          circleCanvas.height = 16;
+          const ctx = circleCanvas.getContext('2d');
+          if (ctx) {
+             ctx.beginPath();
+             ctx.arc(8, 8, 8, 0, 2 * Math.PI);
+             ctx.fillStyle = '#ffffff';
+             ctx.fill();
+          }
+          
+          const material = new THREE.PointsMaterial({
+             size: 2,
+             map: new THREE.CanvasTexture(circleCanvas),
+             transparent: true,
+             opacity: 0.15,
+             color: 0x475569, // Slate 600
+             alphaTest: 0.05
+          });
+
+          const dots = new THREE.Points(geometry, material);
+          scene.add(dots);
+
           (scene as unknown as { __lightsAdded?: boolean }).__lightsAdded = true;
         }
       } catch {
         // Graceful fallback
       }
 
-      // Initial auto-fit after graph simulation starts
       setTimeout(() => {
         if (active && fgRef.current) {
           fgRef.current.zoomToFit(reducedMotion ? 0 : 500, 50);
@@ -229,14 +258,12 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
     };
 
     initScene();
-
     return () => {
       active = false;
       clearTimeout(timer);
     };
   }, [reducedMotion]);
 
-  // Orbit camera toward selected node when selection changes
   useEffect(() => {
     if (!selectedNode || !fgRef.current) return;
     const fg = fgRef.current;
@@ -296,7 +323,6 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
     );
   }, [reducedMotion]);
 
-  // Build custom 3D sphere + glow halo + high-res label
   const renderNodeObject = useCallback(
     (rawNode: object) => {
       const node = rawNode as GraphNode;
@@ -315,20 +341,19 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
       let emissiveIntensity = 0.8;
 
       if (isSelected) {
-        coreColor = '#10b981'; // Precision emerald
+        coreColor = '#10b981';
         emissiveIntensity = 2.2;
       } else if (isDirect || isIsolated) {
         coreColor = '#34d399';
         emissiveIntensity = 1.6;
       } else if (isIndirect) {
-        coreColor = '#38bdf8'; // Sky blue
+        coreColor = '#38bdf8';
         emissiveIntensity = 1.4;
       } else if (isDimmed) {
         coreColor = '#475569';
         emissiveIntensity = 0.1;
       }
 
-      // 1. Core Sphere
       const coreGeo = new THREE.SphereGeometry(baseRadius, 24, 24);
       const coreMat = new THREE.MeshStandardMaterial({
         color: new THREE.Color(coreColor),
@@ -342,7 +367,6 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
       const coreMesh = new THREE.Mesh(coreGeo, coreMat);
       group.add(coreMesh);
 
-      // 2. Halo Glow
       if (!isDimmed) {
         const haloRadius = baseRadius * (isSelected ? 2.2 : 1.6);
         const haloGeo = new THREE.SphereGeometry(haloRadius, 16, 16);
@@ -357,7 +381,6 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
         group.add(haloMesh);
       }
 
-      // 3. Selection Ring
       if (isSelected) {
         const ringGeo = new THREE.TorusGeometry(baseRadius * 2.3, 0.6, 12, 48);
         const ringMat = new THREE.MeshBasicMaterial({
@@ -371,9 +394,7 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
         group.add(ringMesh);
       }
 
-      // 4. Crisp Billboard text label from cache
-      const shouldShowLabel =
-        nodes.length <= 8 || isSelected || isDirect || isIndirect || isIsolated;
+      const shouldShowLabel = nodes.length <= 8 || isSelected || isDirect || isIndirect || isIsolated;
 
       if (shouldShowLabel && !isDimmed) {
         let labelColor = '#f8fafc';
@@ -404,7 +425,6 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
     [selectedNode, nodeStatusMap, nodes.length]
   );
 
-  // Safe cloned graphData so D3 force simulation never receives stale object references or mutates parent data
   const graphData = useMemo(() => {
     return {
       nodes: nodes.map((n) => ({ ...n })),
@@ -417,12 +437,12 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
   }, [nodes, edges]);
 
   const fallbackUI = (
-    <div className="flex h-full w-full flex-col items-center justify-center bg-[#0A101D] p-6 text-center text-slate-200">
-      <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-4 shadow-lg">
+    <div className="flex h-full w-full flex-col items-center justify-center bg-[var(--bg-canvas)] p-6 text-center text-slate-800 dark:text-slate-200">
+      <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-500 dark:text-indigo-400 mb-4 shadow-lg">
         <Layers className="w-6 h-6" />
       </div>
-      <h3 className="text-base font-bold text-white mb-2">3D Force View Fallback</h3>
-      <p className="max-w-md text-xs text-slate-400 mb-5 leading-relaxed">
+      <h3 className="text-base font-bold mb-2">3D Force View Fallback</h3>
+      <p className="max-w-md text-xs text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">
         Hardware WebGL context could not be initialized in this browser session. The full dependency architecture and line-level caller tracing is fully interactive in the 2D Planar Map.
       </p>
       {onFallbackTo2D && (
@@ -442,17 +462,14 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="relative h-full w-full overflow-hidden bg-[#0A101D] select-none"
-    >
+    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-[var(--bg-canvas)] select-none">
       <WebGLErrorBoundary fallback={fallbackUI}>
         <ForceGraph3D
           ref={fgRef}
           width={dimensions.width}
           height={dimensions.height}
           graphData={graphData}
-          backgroundColor="#0A101D"
+          backgroundColor={window.document.documentElement.classList.contains('dark') ? '#090D16' : '#F7F5F0'}
           showNavInfo={false}
           enableNodeDrag={true}
           nodeThreeObject={renderNodeObject}
@@ -489,22 +506,22 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
             const link = rawLink as GraphEdge;
             const sId = resolveId(link.source);
             const tId = resolveId(link.target);
+            const isDark = window.document.documentElement.classList.contains('dark');
 
             if (selectedNode) {
               const isTraced = tId === selectedNode.id && nodeStatusMap.get(sId) === 'direct';
-              if (isTraced) return 'rgba(16, 185, 129, 0.95)';
+              if (isTraced) return isDark ? 'rgba(16, 185, 129, 0.95)' : 'rgba(5, 150, 105, 0.85)';
 
-              const isIndirect =
-                nodeStatusMap.get(sId) === 'indirect' || nodeStatusMap.get(tId) === 'direct';
-              if (isIndirect) return 'rgba(56, 189, 248, 0.85)';
+              const isIndirect = nodeStatusMap.get(sId) === 'indirect' || nodeStatusMap.get(tId) === 'direct';
+              if (isIndirect) return isDark ? 'rgba(56, 189, 248, 0.85)' : 'rgba(2, 132, 199, 0.75)';
 
-              return 'rgba(51, 65, 85, 0.15)';
+              return isDark ? 'rgba(51, 65, 85, 0.15)' : 'rgba(203, 213, 225, 0.4)';
             }
 
-            return 'rgba(100, 116, 139, 0.45)';
+            return isDark ? 'rgba(100, 116, 139, 0.45)' : 'rgba(148, 163, 184, 0.55)';
           }}
           linkDirectionalParticles={(rawLink) => {
-            if (reducedMotion) return 0; // Turn off particles in reduced motion mode
+            if (reducedMotion) return 0;
 
             const link = rawLink as GraphEdge;
             const sId = resolveId(link.source);
@@ -525,42 +542,10 @@ export const CommandGraph3D: React.FC<CommandGraph3DProps> = ({
         />
       </WebGLErrorBoundary>
 
-      {/* Floating Canvas Controls */}
-      <div className="absolute bottom-4 left-4 flex items-center gap-1 rounded-xl bg-slate-900/80 border border-slate-700/80 p-1 text-slate-300 shadow-xl backdrop-blur-md">
-        <button
-          type="button"
-          onClick={handleZoomIn}
-          aria-label="Zoom in 3D graph"
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition cursor-pointer"
-          title="Zoom in"
-        >
-          <ZoomIn className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={handleZoomOut}
-          aria-label="Zoom out 3D graph"
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition cursor-pointer"
-          title="Zoom out"
-        >
-          <ZoomOut className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={handleFitView}
-          aria-label="Fit view / center 3D graph"
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition cursor-pointer"
-          title="Center and fit 3D graph"
-        >
-          <Maximize2 className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* Legend Badge */}
-      <div className="absolute top-4 left-4 flex items-center gap-2 rounded-xl bg-slate-900/80 border border-slate-700/80 px-3 py-1.5 text-xs font-mono text-slate-300 shadow-md backdrop-blur-md">
-        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-        <span>3D AST Force View</span>
-        <span className="text-slate-500">· Click sphere to inspect callers</span>
+      <div className="absolute bottom-4 left-4 flex items-center gap-1 rounded-xl bg-white/90 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/80 p-1 text-slate-700 dark:text-slate-300 shadow-xl backdrop-blur-md">
+        <button onClick={handleZoomIn} className="rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"><ZoomIn className="h-4 w-4" /></button>
+        <button onClick={handleZoomOut} className="rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"><ZoomOut className="h-4 w-4" /></button>
+        <button onClick={handleFitView} className="rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"><Maximize2 className="h-4 w-4" /></button>
       </div>
     </div>
   );
