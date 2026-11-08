@@ -27,6 +27,17 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-api.ps1
 The script generates the demo caches, sets `USE_CACHED_DEMO=true`, and starts Uvicorn
 at `http://127.0.0.1:8000`.
 
+## Groq live agent
+
+1. Revoke any API key that was pasted into chat or committed anywhere.
+2. Copy `.env.example` to `.env`.
+3. Put the replacement key in `GROQ_API_KEY` inside `.env`.
+4. Restart the API with `.\scripts\run-api.cmd`.
+
+When `GROQ_API_KEY` is present, the agent uses Groq's OpenAI-compatible API.
+Without a provider key, it automatically uses the deterministic mock agent.
+The key is never sent to the frontend or written to source control.
+
 The equivalent commands are:
 
 ```powershell
