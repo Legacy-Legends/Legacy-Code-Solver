@@ -229,21 +229,21 @@ export const StartPage: React.FC<StartPageProps> = ({
   return (
     <div className="spatial-dot-canvas text-slate-900 font-sans min-h-screen flex flex-col antialiased selection:bg-emerald-200 selection:text-emerald-950 overflow-x-hidden">
       {/* Top Navigation */}
-      <header className="border-b border-[#E4E2DA] bg-white px-6 h-14 flex items-center justify-between sticky top-0 z-30">
+      <header className="border-b border-[#E4E2DA] dark:border-slate-800 bg-white/95 dark:bg-[#0D131F]/95 backdrop-blur-sm px-6 sm:px-8 h-16 flex items-center justify-between sticky top-0 z-30 transition-colors duration-200 shadow-xs">
         <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-lg bg-[#3730A3] flex items-center justify-center text-white shadow-xs">
+            <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-[#3730A3] to-[#4338CA] dark:from-indigo-600 dark:to-indigo-800 flex items-center justify-center text-white shadow-xs">
               <GitFork className="w-4 h-4 text-emerald-400" />
             </div>
-            <span className="text-base font-bold tracking-tight text-slate-900">
+            <span className="text-base font-bold tracking-tight text-slate-900 dark:text-slate-100">
               Legacy Code Solver
             </span>
           </div>
-          <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
-          <div className="hidden sm:flex items-center space-x-2 text-xs text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200/80">
-            <Box className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="font-medium text-slate-800">order-service</span>
-            <span className="text-[9px] uppercase tracking-wider font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
+          <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
+          <div className="hidden sm:flex items-center space-x-2 text-xs text-slate-600 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700">
+            <Box className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="font-medium text-slate-800 dark:text-slate-200">order-service</span>
+            <span className="text-[9px] uppercase tracking-wider font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded">
               Sample
             </span>
           </div>

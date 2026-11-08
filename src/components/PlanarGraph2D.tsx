@@ -150,8 +150,8 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     const posMap = new Map<string, { x: number; y: number }>();
 
     if (clusterEntries.length > 1) {
-      const colSpacing = 500;
-      const rowSpacing = 138;
+      const colSpacing = 520;
+      const rowSpacing = 146;
       clusterEntries.forEach(([, clusterNodes], cIdx) => {
         const colX = (cIdx - (clusterEntries.length - 1) / 2) * colSpacing;
         clusterNodes.forEach((n, rIdx) => {
@@ -166,8 +166,8 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
         const c = idx % cols;
         const r = Math.floor(idx / cols);
         posMap.set(n.id, {
-          x: (c - (cols - 1) / 2) * 460,
-          y: (r - (rows - 1) / 2) * 138,
+          x: (c - (cols - 1) / 2) * 480,
+          y: (r - (rows - 1) / 2) * 146,
         });
       });
     }
@@ -197,8 +197,8 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     const clusterEntries = Array.from(clusters.entries());
     if (clusterEntries.length <= 1) return [];
 
-    const colSpacing = 500;
-    const rowSpacing = 138;
+    const colSpacing = 520;
+    const rowSpacing = 146;
     const domainColors = ['#F59E0B', '#0EA5E9', '#10B981', '#8B5CF6', '#6366F1'];
 
     return clusterEntries.map(([clusterId, clusterNodes], cIdx) => {
@@ -477,69 +477,60 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             )}
           </pattern>
 
-          {/* Default subtle slate arrowhead */}
+          {/* Sleek, concise, perfectly centered arrowheads */}
           <marker
             id="arrow-default"
-            viewBox="0 0 10 10"
-            refX="9"
-            refY="5"
-            markerWidth="8"
-            markerHeight="8"
+            viewBox="0 0 8 8"
+            refX="6.5"
+            refY="4"
+            markerWidth="5.5"
+            markerHeight="5.5"
+            markerUnits="userSpaceOnUse"
             orient="auto"
           >
-            <path d="M 0 1.5 L 9.5 5 L 0 8.5 z" fill={darkMode ? '#475569' : '#94A3B8'} />
+            <path d="M 1 1.6 L 6.5 4 L 1 6.4 z" fill={darkMode ? '#64748B' : '#94A3B8'} />
           </marker>
 
           {/* Active Direct Cyan Arrowhead */}
           <marker
             id="arrow-active"
-            viewBox="0 0 10 10"
-            refX="9"
-            refY="5"
-            markerWidth="11"
-            markerHeight="11"
+            viewBox="0 0 8 8"
+            refX="6.5"
+            refY="4"
+            markerWidth="6.5"
+            markerHeight="6.5"
+            markerUnits="userSpaceOnUse"
             orient="auto"
           >
-            <path d="M 0 1 L 9.5 5 L 0 9 z" fill="#38BDF8" />
+            <path d="M 1 1.2 L 6.5 4 L 1 6.8 z" fill={darkMode ? '#38BDF8' : '#0284C7'} />
           </marker>
 
           {/* Indirect Purple Arrowhead */}
           <marker
             id="arrow-indirect"
-            viewBox="0 0 10 10"
-            refX="9"
-            refY="5"
-            markerWidth="10"
-            markerHeight="10"
+            viewBox="0 0 8 8"
+            refX="6.5"
+            refY="4"
+            markerWidth="5.5"
+            markerHeight="5.5"
+            markerUnits="userSpaceOnUse"
             orient="auto"
           >
-            <path d="M 0 1.2 L 9.5 5 L 0 8.8 z" fill="#818CF8" />
+            <path d="M 1 1.5 L 6.5 4 L 1 6.5 z" fill={darkMode ? '#A5B4FC' : '#6366F1'} />
           </marker>
 
-          {/* Vertical Downward Arrowhead for same-column links */}
+          {/* Hover Preview Arrowhead */}
           <marker
-            id="arrow-down"
-            viewBox="0 0 10 10"
-            refX="5"
-            refY="9"
-            markerWidth="8"
-            markerHeight="8"
+            id="arrow-hover"
+            viewBox="0 0 8 8"
+            refX="6.5"
+            refY="4"
+            markerWidth="6"
+            markerHeight="6"
+            markerUnits="userSpaceOnUse"
             orient="auto"
           >
-            <path d="M 1.5 0 L 5 9.5 L 8.5 0 z" fill={darkMode ? '#475569' : '#94A3B8'} />
-          </marker>
-
-          {/* Active Downward Arrowhead */}
-          <marker
-            id="arrow-down-active"
-            viewBox="0 0 10 10"
-            refX="5"
-            refY="9"
-            markerWidth="10"
-            markerHeight="10"
-            orient="auto"
-          >
-            <path d="M 1 0 L 5 9.5 L 9 0 z" fill="#38BDF8" />
+            <path d="M 1 1.4 L 6.5 4 L 1 6.6 z" fill={darkMode ? '#60A5FA' : '#2563EB'} />
           </marker>
         </defs>
 
@@ -647,86 +638,88 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             const isHighlighted = isActiveDirect || isActiveIndirect || isHoverPreview;
 
             let strokeColor = darkMode ? '#334155' : '#CBD5E1';
-            let strokeWidth = 1.4;
+            let strokeWidth = 1.2;
             let marker = 'url(#arrow-default)';
-            let opacity = hasActiveFilter ? 0.04 : 0.22;
+            let opacity = hasActiveFilter ? 0.03 : 0.18;
 
             if (isActiveDirect) {
-              strokeColor = '#38BDF8';
-              strokeWidth = 3.6;
+              strokeColor = darkMode ? '#38BDF8' : '#0284C7';
+              strokeWidth = 2.4;
               marker = 'url(#arrow-active)';
               opacity = 1;
             } else if (isActiveIndirect) {
-              strokeColor = '#818CF8';
-              strokeWidth = 2.8;
+              strokeColor = darkMode ? '#818CF8' : '#6366F1';
+              strokeWidth = 2.0;
               marker = 'url(#arrow-indirect)';
               opacity = 0.95;
             } else if (isHoverPreview) {
               strokeColor = darkMode ? '#60A5FA' : '#2563EB';
-              strokeWidth = 2.6;
-              marker = 'url(#arrow-active)';
+              strokeWidth = 2.0;
+              marker = 'url(#arrow-hover)';
               opacity = 0.9;
             }
 
-            // Deterministic slotting offset
+            // Deterministic slotting offset to avoid overlapping curves
             const edgeHash = edge.id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-            const yOffset = ((edgeHash % 5) - 2) * 5; // -10, -5, 0, 5, 10
+            const yOffset = ((edgeHash % 5) - 2) * 4; // -8, -4, 0, 4, 8
 
             let pathD = '';
             let labelX = 0;
             let labelY = 0;
 
-            const isSameColumn = Math.abs(sNode.posX - tNode.posX) <= 20;
+            const isSameColumn = Math.abs(sNode.posX - tNode.posX) <= 24;
 
             if (isSameColumn) {
-              // Within-column dependency: clean vertical line or tucked left-arc (NO side loops!)
               if (tNode.posY > sNode.posY) {
-                // Downward vertical link
-                const startX = sNode.posX;
-                const startY = sNode.posY + HALF_H;
-                const endX = tNode.posX;
-                const endY = tNode.posY - HALF_H - 3;
-                const dy = endY - startY;
-
-                if (dy < 120) {
-                  // Direct vertical line to card immediately below
+                // Downward in same column
+                const dy = tNode.posY - sNode.posY;
+                if (dy < 170) {
+                  // Direct vertical line to immediate neighbor below
+                  const startX = sNode.posX;
+                  const startY = sNode.posY + HALF_H;
+                  const endX = tNode.posX;
+                  const endY = tNode.posY - HALF_H;
                   pathD = `M ${startX} ${startY} L ${endX} ${endY}`;
                   labelX = startX + 16;
                   labelY = (startY + endY) / 2;
                 } else {
-                  // Multi-row: gentle arc on left side
-                  const arcX = sNode.posX - HALF_W - 18;
-                  pathD = `M ${sNode.posX - HALF_W} ${sNode.posY} C ${arcX} ${sNode.posY + 20}, ${arcX} ${tNode.posY - 20}, ${tNode.posX - HALF_W - 3} ${tNode.posY}`;
-                  labelX = arcX - 12;
-                  labelY = (sNode.posY + tNode.posY) / 2;
-                }
-                if (!isHighlighted) {
-                  marker = 'url(#arrow-down)';
-                } else if (isActiveDirect) {
-                  marker = dy < 120 ? 'url(#arrow-down-active)' : 'url(#arrow-active)';
+                  // Multi-row: gentle arc around the left edge
+                  // Leaves horizontally to left, arrives horizontally to right
+                  const startX = sNode.posX - HALF_W;
+                  const startY = sNode.posY;
+                  const endX = tNode.posX - HALF_W;
+                  const endY = tNode.posY;
+                  const loopX = sNode.posX - HALF_W - 38;
+                  pathD = `M ${startX} ${startY} C ${loopX} ${startY}, ${loopX} ${endY}, ${endX} ${endY}`;
+                  labelX = loopX - 12;
+                  labelY = (startY + endY) / 2;
                 }
               } else {
-                // Upward vertical link: tucked on left side
-                const arcX = sNode.posX - HALF_W - 22;
-                pathD = `M ${sNode.posX - HALF_W} ${sNode.posY} C ${arcX} ${sNode.posY - 20}, ${arcX} ${tNode.posY + 20}, ${tNode.posX - HALF_W - 3} ${tNode.posY}`;
-                labelX = arcX - 12;
-                labelY = (sNode.posY + tNode.posY) / 2;
+                // Upward in same column: gentle arc around the left edge
+                const startX = sNode.posX - HALF_W;
+                const startY = sNode.posY;
+                const endX = tNode.posX - HALF_W;
+                const endY = tNode.posY;
+                const loopX = sNode.posX - HALF_W - 46;
+                pathD = `M ${startX} ${startY} C ${loopX} ${startY}, ${loopX} ${endY}, ${endX} ${endY}`;
+                labelX = loopX - 12;
+                labelY = (startY + endY) / 2;
               }
             } else if (sNode.posX < tNode.posX) {
-              // Left-to-Right cross-tier flow
+              // Left-to-Right cross-column flow
               const startX = sNode.posX + HALF_W;
               const startY = sNode.posY + yOffset;
-              const endX = tNode.posX - HALF_W - 3;
-              const endY = tNode.posY + yOffset * 0.5;
+              const endX = tNode.posX - HALF_W;
+              const endY = tNode.posY + yOffset * 0.4;
               const dx = endX - startX;
               const dy = endY - startY;
 
-              if (Math.abs(dy) < 3 && dx <= 550) {
+              if (Math.abs(dy) < 3 && dx <= 560) {
                 pathD = `M ${startX} ${startY} L ${endX} ${endY}`;
                 labelX = (startX + endX) / 2;
-                labelY = (startY + endY) / 2 - 12;
+                labelY = startY - 12;
               } else {
-                const curvature = Math.max(48, Math.min(220, dx * 0.42));
+                const curvature = Math.max(40, Math.min(180, dx * 0.38));
                 const ctrl1X = startX + curvature;
                 const ctrl1Y = startY;
                 const ctrl2X = endX - curvature;
@@ -736,15 +729,20 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                 labelY = (startY + endY) / 2 - 12;
               }
             } else {
-              // Right-to-Left cross-tier flow
+              // Right-to-Left cross-column flow
               const startX = sNode.posX - HALF_W;
               const startY = sNode.posY + yOffset;
-              const endX = tNode.posX + HALF_W + 3;
-              const endY = tNode.posY + yOffset * 0.5;
-              const arcY = Math.min(startY, endY) - 52;
-              pathD = `M ${startX} ${startY} C ${startX - 48} ${arcY}, ${endX + 48} ${arcY}, ${endX} ${endY}`;
+              const endX = tNode.posX + HALF_W;
+              const endY = tNode.posY + yOffset * 0.4;
+              const dx = startX - endX;
+              const curvature = Math.max(50, Math.min(160, dx * 0.3));
+              const ctrl1X = startX - curvature;
+              const ctrl1Y = startY;
+              const ctrl2X = endX + curvature;
+              const ctrl2Y = endY;
+              pathD = `M ${startX} ${startY} C ${ctrl1X} ${ctrl1Y}, ${ctrl2X} ${ctrl2Y}, ${endX} ${endY}`;
               labelX = (startX + endX) / 2;
-              labelY = arcY - 10;
+              labelY = (startY + endY) / 2 - 12;
             }
 
             const evidence = resolveEvidenceForEdge ? resolveEvidenceForEdge(edge) : undefined;

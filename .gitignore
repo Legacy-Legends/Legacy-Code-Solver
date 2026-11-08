@@ -27,3 +27,4 @@ logs/
 /playwright-report/
 !.env.example
 Legacy-Code-Solver/
+Other than code/
