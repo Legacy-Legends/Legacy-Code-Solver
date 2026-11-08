@@ -77,26 +77,43 @@ future PowerShell terminals, add the first command to your PowerShell profile
 
 ## Render deployment with Groq
 
-`render.yaml` configures a single Python web service that serves the built React
-app and FastAPI from the same HTTPS origin. For the existing Render web service,
-use these settings (repository root directory):
+Your Render deployment uses **separate frontend and backend services**.
+`render.yaml` is a reference blueprint for that layout; for existing services,
+copy the matching settings into their dashboards rather than creating duplicates.
+Both services use the repository root directory.
 
-- **Build command:** `npm ci && npm run build && pip install -r backend/requirements.txt`
-- **Start command:** `python -m uvicorn backend.web:app --host 0.0.0.0 --port $PORT`
-- **Health check:** `/health`
-- **Environment:** `LLM_PROVIDER=groq`, `AGENT_MODEL=openai/gpt-oss-20b`,
-  `USE_MOCK_AGENT=false`, `USE_CACHED_DEMO=true`.
-- Set **`GROQ_API_KEY` privately in Render → Environment**. It is a server secret;
-  never use a `VITE_` prefix or put it in Git. Redeploy after changing settings.
-- Leave `VITE_API_URL` unset for this single-service setup. Remove any old
-  localhost value and rebuild; production requests use `/api` on the site origin.
+| Setting | Frontend (Static Site) | Backend (Python Web Service) |
+| --- | --- | --- |
+| Build command | `npm ci && npm run build` | `pip install -r backend/requirements.txt` |
+| Publish directory | `dist` | — |
+| Start command | — | `python -m uvicorn backend.api.main:app --host 0.0.0.0 --port $PORT` |
+| Health check | — | `/health` |
 
-If the current site is a **Render Static Site**, it cannot execute Python. Either
-use the web service above, or keep the static site and deploy FastAPI separately,
-setting `VITE_API_URL` to that backend's HTTPS origin before building. The current backend permits cross-origin requests.
+On the **frontend service**, set `VITE_API_URL` to the backend's **public HTTPS
+origin**, for example `https://YOUR-BACKEND-SERVICE.onrender.com`. Use the actual
+URL shown on the backend's Render dashboard. Do not append `/api`, `/docs` or
+`/backend`; the client adds API paths. Do not use the frontend URL, localhost,
+or Render's internal hostname. **Rebuild/redeploy the frontend after saving:**
+Vite embeds this value during the build, so restarting alone is insufficient.
 
-After deploying, check `/health`, `/api/config`, and **Open mock graph → pet →
-chat**. `/api/config` should report `agent_mode: live`, `provider: groq`, and
+On the **backend service**, set:
+
+```text
+LLM_PROVIDER=groq
+AGENT_MODEL=openai/gpt-oss-20b
+USE_MOCK_AGENT=false
+USE_CACHED_DEMO=true
+```
+
+Set **`GROQ_API_KEY` privately in the backend's Render → Environment** and redeploy
+that service. Never put it on the frontend, prefix it with `VITE_`, or commit it.
+The current backend permits cross-origin requests from the separate frontend.
+
+The optional combined-service entry point `backend.web:app` remains available
+for local production tests; it is not needed for this separate-service setup.
+
+After deploying, check `/health` and `/api/config` on the **backend URL**, then
+**Open mock graph → pet → chat** on the **frontend URL**. `/api/config` should report `agent_mode: live`, `provider: groq`, and
 `credential_configured: true`. A successful chat verifies the key actually works.
 No LLM credential is required for graph rendering or theme changes.
 
@@ -223,9 +240,12 @@ $env:TEST_PYTHON = (Resolve-Path .\.venv\Scripts\python.exe).Path
 npm run test:e2e
 ```
 
-Production smoke test (builds the app and serves it on port 8013 without Vite):
+Production smoke tests (build the app and serve it without Vite):
 
 ```sh
+# Separate frontend on 8013 and API on 8014, matching Render
+TEST_SPLIT_DEPLOYMENT=true TEST_PYTHON="$PWD/.venv/bin/python" npx playwright test --config playwright.production.config.ts
+# Optional combined service on 8013
 TEST_PYTHON="$PWD/.venv/bin/python" npx playwright test --config playwright.production.config.ts
 ```
 

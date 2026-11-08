@@ -1,15 +1,26 @@
+# Reference blueprint for separate services. For existing services, copy the
+# matching settings in Render; use your actual service names and backend URL.
 services:
   - type: web
     name: legacy-code-solver
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: VITE_API_URL
+        sync: false
+
+  - type: web
+    name: legacy-code-solver-api
     runtime: python
-    buildCommand: npm ci && npm run build && pip install -r backend/requirements.txt
-    startCommand: python -m uvicorn backend.web:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: python -m uvicorn backend.api.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
-      - key: NODE_VERSION
-        value: 22.16.0
       - key: LLM_PROVIDER
         value: groq
       - key: AGENT_MODEL

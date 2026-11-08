@@ -1,6 +1,7 @@
 import { GraphData, ImpactAnalysis } from '../types/index';
 
-// Production uses the same Render origin; only development needs Vite's proxy.
+// Separate Render services set VITE_API_URL to the public backend origin at build time.
+// Otherwise production uses the same origin; development uses Vite's proxy.
 export const BACKEND_URL = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : '/backend')).replace(/\/$/, '');
 export interface BackendBlastResult {
   matched_node_ids: string[];
