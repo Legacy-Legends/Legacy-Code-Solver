@@ -13,7 +13,6 @@ import { SettingsModal } from './components/SettingsModal';
 import { useAccessibilitySettings, registerAnnouncer, announceToScreenReader } from './lib/accessibilityStore';
 import { AgentPanel } from './components/AgentPanel';
 import { PetCompanion } from './components/PetCompanion';
-import { DomainTag } from './api/backendAdapter';
 
 type RouteView = 'start' | 'investigate';
 
@@ -61,9 +60,10 @@ export function App() {
   const [pathEvidenceList, setPathEvidenceList] = useState<SourceEvidence[]>([]);
   const [activeEvidenceIndex, setActiveEvidenceIndex] = useState(0);
   const [isAgentOpen, setIsAgentOpen] = useState(false);
+  const [hoveredProposalHealth, setHoveredProposalHealth] = useState<number | null>(null);
 
   // Force single mock dataset as requested
-  const [activeGraphData, setActiveGraphData] = useState<GraphData>(() => JSON.parse(JSON.stringify(rawGraphData)));
+  const [activeGraphData] = useState<GraphData>(() => JSON.parse(JSON.stringify(rawGraphData)));
 
   const nodesById = useMemo(() => {
     const map = new Map<string, GraphNode>();
@@ -183,16 +183,6 @@ export function App() {
     }, 1500);
   };
 
-  const handleDomains = useCallback((tags: Record<string, DomainTag>) => {
-    setActiveGraphData((current) => ({
-      ...current,
-      nodes: current.nodes.map((node) => {
-        const tag = tags[node.id];
-        return tag ? { ...node, domain_tag: tag.domain_tag, domain_inferred: tag.domain_inferred } : node;
-      }),
-    }));
-  }, []);
-
   if (route === 'start') {
     return (
       <div className="min-h-screen w-full overflow-y-auto bg-[#F7F5F0] dark:bg-[#090D16]">
@@ -272,6 +262,7 @@ export function App() {
             overallHealth={activeGraphData.overallHealth}
             isOpen={isAgentOpen}
             onToggle={() => setIsAgentOpen((v) => !v)}
+            hoverDelta={hoveredProposalHealth}
           />
         </div>
 
@@ -318,7 +309,7 @@ export function App() {
                         projectId="demo"
                         selectedNode={selectedNode}
                         onBlast={(result) => setSelectedPathNodeIds(result.blast_node_ids)}
-                        onDomains={handleDomains}
+                        hoveredProposalHealth={setHoveredProposalHealth}
                       />
                     </div>
                   )}

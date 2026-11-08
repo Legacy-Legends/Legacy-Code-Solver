@@ -117,8 +117,8 @@ is computed from backend health; inferred domain tags persist in memory until re
 
 ## Analyze your own Java checkout
 
-The current UI/API serves demo fixtures. Project creation registers metadata;
-it does not yet upload, clone or analyze a repository. To analyze Java locally:
+The UI/API can upload a Java ZIP, analyze it into a project-specific graph, and
+serve that graph to the agent workspace. To analyze Java locally:
 
 ```sh
 # Windows: replace .venv/bin/python with .\.venv\Scripts\python.exe
@@ -131,18 +131,18 @@ churn and vulnerability scanning remain future work.
 
 ## What is still missing for the full product?
 
-The **connected 2D/3D fixture-based demo is working**. The complete upload → analyze → AI refactor
-→ apply → re-score workflow is **not implemented yet**:
+The connected upload → analyze → AI refactor → apply → re-score workflow is
+implemented for uploaded Java ZIP projects:
 
 | Capability | Current state / missing work |
 | --- | --- |
-| Upload or clone a Java project | Project creation stores metadata only. No ZIP/Git ingestion, authorized checkout, or per-project analysis pipeline. |
-| Real graphs in the UI | Java analysis works via CLI. API graph routes still return the same demo graph for registered projects; CLI exports are not automatically loaded. |
+| Upload or clone a Java project | Safe ZIP ingestion and per-project in-memory analysis are implemented. Git clone and durable storage remain future work. |
+| Real graphs in the UI | Uploaded Java projects are parsed and served as project-specific graphs. |
 | Complete Java dependencies | Parser handles imports, inheritance and class-qualified calls. Instance dispatch and full symbol resolution remain incomplete. |
-| Agent UI | The live workspace mounts AgentPanel with blast analysis, proposal previews, domain inference and pet chat. It is still demo-backed and not a full project chat history. |
-| Apply and validate proposals | `/apply` deliberately returns 409. Need source loading, patch application, Java validation, re-analysis and measured health deltas. Mock diffs are illustrative fixtures. |
-| Live LLM | Groq support is implemented. Set `GROQ_API_KEY` securely and select live mode. Live proposals still require a project-aware source loader; paid-provider access has not been verified here. |
-| Pet evolution | The live graph shows a pet companion whose mood and target follow graph health, and the workspace supports pet chat. Persistent progression, movement history and reactions to validated changes remain. |
+| Agent UI | The pet is the project-aware chat agent. It answers graph questions, creates proposals, and exposes explicit apply/reject actions. |
+| Apply and validate proposals | Uploaded-project proposals verify exact source contents, write only proposed files, re-analyze Java, and update health. |
+| Live LLM | Groq support is implemented. Configure `GROQ_API_KEY`, `LLM_PROVIDER=groq`, and `USE_MOCK_AGENT=false` on the backend. |
+| Pet evolution | The pet identity and modernization status are in the agent panel. Durable progression and movement history remain. |
 | Measured risk signals | Churn and vulnerability scanning are not implemented. Demo scores/signals are synthetic. |
 | Persistence and terminal progress | Projects/proposals are in-memory and reset on restart. WebSocket currently sends startup text, not analysis/agent job progress. |
 
@@ -209,6 +209,24 @@ outputs. The default model is `openai/gpt-oss-20b`, hosted on Groq; this model n
    in a `VITE_` variable; those values can become public browser assets.
 3. Keep `LLM_PROVIDER=groq`, `AGENT_MODEL=openai/gpt-oss-20b`, and
    `USE_MOCK_AGENT=false`. Do not use a model lacking strict JSON Schema support.
+   Live mode is the default; set `USE_MOCK_AGENT=true` only for an intentional
+   offline demo.
+
+### Render agent configuration
+
+For the deployed backend, add these environment variables in Render:
+
+```text
+LLM_PROVIDER=groq
+AGENT_MODEL=openai/gpt-oss-20b
+USE_MOCK_AGENT=false
+GROQ_API_KEY=<your private Groq key>
+```
+
+The pet chat uses the live provider, and modernization requests create a
+validated proposal. Upload a Java ZIP before applying a proposal; the backend
+writes only the exact proposed files, re-analyzes the project, and updates the
+knowledge graph health.
 4. Reinstall Python requirements and restart the API with `.env` loaded.
 
 Windows PowerShell (copy only when `.env` does not already exist):

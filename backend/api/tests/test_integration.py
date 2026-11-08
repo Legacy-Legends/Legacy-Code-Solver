@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from backend.api import main
 from backend.api.integration import impact_for_node
 from backend.agent.llm import AgentUnavailable
+from backend.agent.models import Diff, Proposal
 
 
 @pytest.fixture
@@ -95,3 +96,32 @@ def test_upload_creates_project_graph_and_chat(client):
     assert chat.status_code == 200
     assert chat.json()["intent"] == "propose"
     assert chat.json()["target_node_ids"]
+
+
+def test_apply_proposal_updates_uploaded_project(client):
+    archive = io.BytesIO()
+    before = "package com.example; public class Account { public void open() {} }\n"
+    after = "package com.example; public class Account { public void open() { System.out.println(\"open\"); } }\n"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("bank/src/main/java/com/example/Account.java", before)
+    project_id = client.post(
+        "/api/projects/upload",
+        files={"file": ("bank.zip", archive.getvalue(), "application/zip")},
+    ).json()["id"]
+    node_id = client.get(f"/api/projects/{project_id}/graph").json()["nodes"][0]["id"]
+    proposal = Proposal(
+        id="proposal-test-apply",
+        target_node_ids=[node_id],
+        rationale="Add a harmless implementation.",
+        diffs=[Diff(path="bank/src/main/java/com/example/Account.java", before=before, after=after)],
+        health_before=90,
+        health_after=90,
+        change_blast_node_ids=[node_id],
+        status="pending",
+    )
+    main.PROPOSALS[proposal.id] = proposal
+    main.PROPOSAL_PROJECTS[proposal.id] = project_id
+    applied = client.post(f"/api/proposals/{proposal.id}/apply")
+    assert applied.status_code == 200
+    assert applied.json()["status"] == "applied"
+    assert "System.out.println" in (main.PROJECT_ROOTS[project_id] / "bank/src/main/java/com/example/Account.java").read_text()

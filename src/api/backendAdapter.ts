@@ -34,6 +34,7 @@ export interface ChatResponse {
   message: string;
   intent: 'answer' | 'explain' | 'propose';
   target_node_ids: string[];
+  proposal_id?: string | null;
 }
 
 async function request<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
@@ -80,6 +81,10 @@ export const createProposal = (ids: string[], projectId = 'demo', signal?: Abort
   request<Proposal>(`/api/projects/${encodeURIComponent(projectId)}/proposals`, { target_node_ids: ids }, signal);
 export const rejectProposal = (id: string, signal?: AbortSignal) =>
   request<Proposal>(`/api/proposals/${encodeURIComponent(id)}/reject`, {}, signal);
+export const applyProposal = (id: string, signal?: AbortSignal) =>
+  request<Proposal>(`/api/proposals/${encodeURIComponent(id)}/apply`, {}, signal);
+export const fetchProposal = (id: string, signal?: AbortSignal) =>
+  request<Proposal>(`/api/proposals/${encodeURIComponent(id)}`, undefined, signal);
 export const fetchPet = (query: string, projectId = 'demo', signal?: AbortSignal) =>
   request<PetResponse>(`/api/projects/${encodeURIComponent(projectId)}/pet`, { query, recent_action: 'Reviewed dependency graph' }, signal);
 export const fetchDomains = (projectId = 'demo', signal?: AbortSignal) =>

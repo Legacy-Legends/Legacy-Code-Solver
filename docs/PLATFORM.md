@@ -65,7 +65,8 @@ FastAPI's generated API reference is available at `/docs`.
 
 The blast and proposal routes receive an `Agent` through `Depends(get_agent)`.
 The default `AgentAdapter` connects `backend.agent` to these routes.
-`USE_MOCK_AGENT=true` (the default) bypasses the LLM for every agent function.
+`USE_MOCK_AGENT=false` is the default. Set it to `true` only when an offline
+demo is intentional; mock mode bypasses the LLM for every agent function.
 `USE_CACHED_DEMO` selects the graph fixture independently; old cached agent
 responses are no longer read. Proposal diffs are now objects with `path`,
 `before`, and `after` fields. Live proposals require a project-aware source loader.

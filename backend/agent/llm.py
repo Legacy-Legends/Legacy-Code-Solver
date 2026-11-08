@@ -42,7 +42,7 @@ def provider_config() -> ProviderConfig:
 
 
 def use_mock_agent() -> bool:
-    value = os.getenv("USE_MOCK_AGENT", "true").strip().lower()
+    value = os.getenv("USE_MOCK_AGENT", "false").strip().lower()
     if value in {"1", "true", "yes", "on"}:
         return True
     if value in {"0", "false", "no", "off"}:
