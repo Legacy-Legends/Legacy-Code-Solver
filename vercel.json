@@ -1,0 +1,40 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "legacy-code-solver-api": {
+      "root": ".",
+      "framework": "vite",
+      "buildCommand": "pip install -r backend/requirements.txt"
+    },
+    "backend": {
+      "root": "backend",
+      "framework": "fastapi",
+      "bindings": [
+        { "type": "service", "service": "agent", "format": "url", "env": "AGENT_URL" },
+        { "type": "service", "service": "analysis", "format": "url", "env": "ANALYSIS_URL" }
+      ]
+    },
+    "agent": {
+      "root": "backend/agent",
+      "runtime": "python"
+    },
+    "analysis": {
+      "root": "backend/analysis",
+      "runtime": "python"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "legacy-code-solver-api"
+      }
+    }
+  ]
+}
