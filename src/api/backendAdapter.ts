@@ -30,6 +30,11 @@ export interface AgentConfig {
 }
 export interface PetResponse { mood: 'sick' | 'okay' | 'thriving'; message: string }
 export interface DomainTag { domain_tag: string; domain_inferred: true }
+export interface ChatResponse {
+  message: string;
+  intent: 'answer' | 'explain' | 'propose';
+  target_node_ids: string[];
+}
 
 async function request<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const controller = new AbortController();
@@ -71,14 +76,51 @@ export const fetchLiveBlast = (query: string, projectId = 'demo', signal?: Abort
   request<BackendBlastResult>(`/api/projects/${encodeURIComponent(projectId)}/blast`, { query }, signal);
 export const fetchLiveImpact = (nodeId: string, projectId = 'demo', signal?: AbortSignal) =>
   request<ImpactAnalysis>(`/api/projects/${encodeURIComponent(projectId)}/impact?class_id=${encodeURIComponent(nodeId)}`, undefined, signal);
-export const createProposal = (ids: string[], signal?: AbortSignal) =>
-  request<Proposal>('/api/projects/demo/proposals', { target_node_ids: ids }, signal);
+export const createProposal = (ids: string[], projectId = 'demo', signal?: AbortSignal) =>
+  request<Proposal>(`/api/projects/${encodeURIComponent(projectId)}/proposals`, { target_node_ids: ids }, signal);
 export const rejectProposal = (id: string, signal?: AbortSignal) =>
   request<Proposal>(`/api/proposals/${encodeURIComponent(id)}/reject`, {}, signal);
-export const fetchPet = (query: string, signal?: AbortSignal) =>
-  request<PetResponse>('/api/projects/demo/pet', { query, recent_action: 'Reviewed dependency graph' }, signal);
-export const fetchDomains = (signal?: AbortSignal) =>
-  request<Record<string, DomainTag>>('/api/projects/demo/domains', {}, signal);
+export const fetchPet = (query: string, projectId = 'demo', signal?: AbortSignal) =>
+  request<PetResponse>(`/api/projects/${encodeURIComponent(projectId)}/pet`, { query, recent_action: 'Reviewed dependency graph' }, signal);
+export const fetchDomains = (projectId = 'demo', signal?: AbortSignal) =>
+  request<Record<string, DomainTag>>(`/api/projects/${encodeURIComponent(projectId)}/domains`, {}, signal);
+export const fetchChat = (
+  query: string,
+  selectedNodeId: string | null,
+  history: { role: 'user' | 'assistant'; content: string }[],
+  projectId = 'demo',
+  signal?: AbortSignal
+) => request<ChatResponse>(`/api/projects/${encodeURIComponent(projectId)}/chat`, {
+  query,
+  selected_node_id: selectedNodeId,
+  history,
+}, signal);
+
+export async function uploadProject(file: File, signal?: AbortSignal): Promise<{ id: string; name: string }> {
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  signal?.addEventListener('abort', cancel, { once: true });
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/projects/upload`, {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+      body: (() => {
+        const form = new FormData();
+        form.append('file', file);
+        return form;
+      })(),
+      signal: controller.signal,
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      const detail = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail || data);
+      throw new Error(`Backend ${response.status}: ${detail}`);
+    }
+    return data as { id: string; name: string };
+  } finally {
+    signal?.removeEventListener('abort', cancel);
+  }
+}
 
 export function terminalUrl(): string {
   const url = new URL(`${BACKEND_URL}/ws/terminal`, window.location.href);

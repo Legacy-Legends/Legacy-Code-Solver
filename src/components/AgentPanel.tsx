@@ -1,24 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  AgentConfig, BackendBlastResult, DomainTag, PetResponse, Proposal,
-  createProposal, fetchAgentConfig, fetchDomains, fetchLiveBlast, fetchPet, rejectProposal, terminalUrl,
+  AgentConfig, BackendBlastResult, ChatResponse, DomainTag, PetResponse, Proposal,
+  createProposal, fetchAgentConfig, fetchChat, fetchDomains, fetchLiveBlast, fetchPet, rejectProposal, terminalUrl,
 } from '../api/backendAdapter';
 import { GraphNode } from '../types';
 
 interface Props {
+  projectId: string;
   selectedNode: GraphNode | null;
   onBlast: (result: BackendBlastResult) => void;
   onDomains: (tags: Record<string, DomainTag>) => void;
 }
 
 /** Mounted only for a loaded server graph; cancellation prevents stale UI updates. */
-export function AgentPanel({ selectedNode, onBlast, onDomains }: Props) {
+export function AgentPanel({ projectId, selectedNode, onBlast, onDomains }: Props) {
   const [config, setConfig] = useState<AgentConfig | null>(null);
   const [query, setQuery] = useState('What breaks if BillingOrchestrator goes down?');
   const [blast, setBlast] = useState<BackendBlastResult | null>(null);
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [pet, setPet] = useState<PetResponse | null>(null);
   const [petQuery, setPetQuery] = useState('How are we doing?');
+  const [chatQuery, setChatQuery] = useState('');
+  const [chat, setChat] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState('');
   const [activity, setActivity] = useState<string[]>([]);
@@ -55,18 +58,33 @@ export function AgentPanel({ selectedNode, onBlast, onDomains }: Props) {
   }
   const button = 'rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40';
   const input = 'min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm';
+  const sendChat = () => {
+    const queryText = chatQuery.trim();
+    if (!queryText) return;
+    setChatQuery('');
+    setChat(items => [...items, { role: 'user', content: queryText }]);
+    void run('Agent response', async signal => {
+      const result: ChatResponse = await fetchChat(queryText, selectedNode?.id || null, chat, projectId, signal);
+      if (!signal.aborted) {
+        setChat(items => [...items, { role: 'assistant', content: result.message }]);
+        if (result.intent === 'propose' && result.target_node_ids.length > 0) {
+          setActivity(items => [...items.slice(-7), 'Agent identified a modernization proposal target.']);
+        }
+      }
+    });
+  };
   return (
     <section aria-label="Backend agent workspace" className="rounded-2xl border border-emerald-200 bg-white p-5 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold">Agent workspace</h2>
         <span className="text-xs rounded-full bg-emerald-50 px-3 py-1 text-emerald-900">
-          {config ? `${config.agent_mode === 'mock' ? 'Mock agent · no LLM calls' : `Live ${config.provider} · ${config.model}`} · demo graph` : 'Checking agent mode…'}
+          {config ? `${config.agent_mode === 'mock' ? 'Mock agent · no LLM calls' : `Live ${config.provider} · ${config.model}`} · ${projectId === 'demo' ? 'demo graph' : 'uploaded project'}` : 'Checking agent mode…'}
         </span>
       </div>
       <form className="flex flex-wrap gap-2" onSubmit={e => {
         e.preventDefault(); setBlast(null);
         void run('Blast analysis', async signal => {
-          const result = await fetchLiveBlast(query, 'demo', signal);
+          const result = await fetchLiveBlast(query, projectId, signal);
           if (signal.aborted) return;
           setBlast(result); onBlast(result);
         });
@@ -74,6 +92,22 @@ export function AgentPanel({ selectedNode, onBlast, onDomains }: Props) {
         <input aria-label="Impact question" className={input} value={query} maxLength={2000} onChange={e => setQuery(e.target.value)} required />
         <button className={button} disabled={!!busy || !config || !query.trim()}>Ask impact</button>
       </form>
+      <section aria-label="Agent chat" className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+        <p className="font-bold">Agent chat</p>
+        <div className="max-h-40 space-y-2 overflow-y-auto text-sm">
+          {chat.length === 0 && <p className="text-slate-600">Ask about this codebase, a class, or what to modernize next.</p>}
+          {chat.map((item, index) => (
+            <p key={`${item.role}-${index}`} className={item.role === 'user' ? 'text-slate-600' : 'font-medium text-slate-900'}>
+              <span className="mr-1 font-semibold">{item.role === 'user' ? 'You:' : 'Agent:'}</span>{item.content}
+            </p>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input aria-label="Agent chat message" className={input} value={chatQuery} maxLength={2000}
+            onChange={e => setChatQuery(e.target.value)} placeholder="What should I modernize first?" />
+          <button type="button" className={button} disabled={!!busy || !config || !chatQuery.trim()} onClick={sendChat}>Send</button>
+        </div>
+      </section>
       {blast && <div role="status" className="rounded-lg bg-slate-50 p-3 text-sm space-y-1">
         <p className="font-bold">{blast.blast_node_ids.length} affected components · {blast.percent}% (including targets)</p>
         <p>{blast.summary}</p>
@@ -84,13 +118,13 @@ export function AgentPanel({ selectedNode, onBlast, onDomains }: Props) {
           if (!selectedNode) return;
           setProposal(null);
           void run('Proposal preview', async signal => {
-            const result = await createProposal([selectedNode.id], signal);
+            const result = await createProposal([selectedNode.id], projectId, signal);
             if (!signal.aborted) setProposal(result);
           });
         }}>Preview refactor</button>
         <span className="text-xs text-slate-600">Target: {selectedNode?.name || 'Select a class'}</span>
         <button className={button} disabled={!!busy || !config} onClick={() => void run('Domain inference', async signal => {
-          const tags = await fetchDomains(signal);
+          const tags = await fetchDomains(projectId, signal);
           if (!signal.aborted) onDomains(tags);
         })}>Infer domains</button>
       </div>
@@ -117,7 +151,7 @@ export function AgentPanel({ selectedNode, onBlast, onDomains }: Props) {
       <form className="rounded-lg bg-emerald-50 p-3 space-y-2" onSubmit={e => {
         e.preventDefault();
         void run('Pet chat', async signal => {
-          const result = await fetchPet(petQuery, signal);
+          const result = await fetchPet(petQuery, projectId, signal);
           if (!signal.aborted) setPet(result);
         });
       }}>

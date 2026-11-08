@@ -11,7 +11,7 @@ import {
 import { SAMPLE_GRAPH_DATA, SAMPLE_EVIDENCE_MAP } from './data/sampleProject';
 import { getEnterpriseSourceEvidence } from './data/enterpriseSourceSnippets';
 import { computeImpactAnalysis } from './lib/impactAnalysis';
-import { fetchLiveGraphData, checkBackendHealth } from './api/backendAdapter';
+import { fetchLiveGraphData, checkBackendHealth, uploadProject } from './api/backendAdapter';
 import { StartPage } from './components/StartPage';
 import { TopBar } from './components/TopBar';
 import { PlanarGraph2D } from './components/PlanarGraph2D';
@@ -21,6 +21,9 @@ import { SourceDrawer } from './components/SourceDrawer';
 import { BackendErrorBanner } from './components/BackendErrorBanner';
 import { SettingsModal } from './components/SettingsModal';
 import { useAccessibilitySettings, registerAnnouncer, announceToScreenReader } from './lib/accessibilityStore';
+import { AgentPanel } from './components/AgentPanel';
+import { PetCompanion } from './components/PetCompanion';
+import { DomainTag } from './api/backendAdapter';
 
 type RouteView = 'start' | 'investigate';
 
@@ -81,6 +84,7 @@ export function App() {
   const [liveGraphData, setLiveGraphData] = useState<GraphData | null>(null);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState('demo');
 
   // Canvas Mode: starts in stable, well-framed 2D layout
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
@@ -263,7 +267,7 @@ export function App() {
     setIsBackendConnected(health.ok);
     if (health.ok) {
       try {
-        const live = await fetchLiveGraphData();
+        const live = await fetchLiveGraphData(activeProjectId);
         setLiveGraphData(live);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -276,7 +280,7 @@ export function App() {
       setBackendError(health.message || 'FastAPI backend connection refused');
       setIsBackendConnected(false);
     }
-  }, []);
+  }, [activeProjectId]);
 
   useEffect(() => {
     if (dataSource === 'live') {
@@ -310,8 +314,27 @@ export function App() {
     syncClassToUrl(null);
   };
 
+  const handleDomains = useCallback(
+    (tags: Record<string, DomainTag>) => {
+      setLiveGraphData((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          nodes: current.nodes.map((node) => {
+            const tag = tags[node.id];
+            return tag
+              ? { ...node, domain_tag: tag.domain_tag, domain_inferred: tag.domain_inferred }
+              : node;
+          }),
+        };
+      });
+    },
+    []
+  );
+
   // Open workspace from StartPage
   const handleExploreSample = (className?: string) => {
+    setActiveProjectId('demo');
     setDataSource('sample');
     const targetName = className || 'SessionManager';
     const target =
@@ -328,6 +351,21 @@ export function App() {
       syncClassToUrl(target);
     }
     setRoute('investigate');
+  };
+
+  const handleCustomUpload = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    setBackendError(null);
+    try {
+      const project = await uploadProject(file);
+      syncClassToUrl(null);
+      setActiveProjectId(project.id);
+      setDataSource('live');
+      setRoute('investigate');
+    } catch (error) {
+      setBackendError(error instanceof Error ? error.message : String(error));
+    }
   };
 
   // Open Source Evidence Drawer (preserving selectedNode and camera state)
@@ -354,9 +392,19 @@ export function App() {
     }
   };
 
-  const handleCustomUpload = (files: FileList | null) => {
-    if (files && files.length > 0) {
-      announceToScreenReader(`Uploaded codebase archive: ${files[0].name}. Parsing AST.`);
+  const handleCustomUpload = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    announceToScreenReader(`Uploaded codebase archive: ${file.name}. Parsing AST.`);
+    setBackendError(null);
+    try {
+      const project = await uploadProject(file);
+      syncClassToUrl(null);
+      setActiveProjectId(project.id);
+      setDataSource('live');
+      setRoute('investigate');
+    } catch (error) {
+      setBackendError(error instanceof Error ? error.message : String(error));
     }
   };
 
@@ -547,6 +595,9 @@ export function App() {
               </button>
             </div>
           )}
+          {!isLiveOffline && dataSource === 'live' && (
+            <PetCompanion nodes={activeGraphData.nodes} overallHealth={activeGraphData.overallHealth} />
+          )}
         </div>
 
         {/* 3. Single Contextual Detail Panel */}
@@ -564,22 +615,38 @@ export function App() {
               mobileView === 'graph' ? 'hidden md:block' : 'block'
             }`}
           >
-            <DetailPanel
-              nodes={activeGraphData.nodes}
-              edges={activeGraphData.edges}
-              nodesById={nodesById}
-              selectedNode={selectedNode}
-              selectedEdge={selectedEdge}
-              impactAnalysis={impactAnalysis}
-              showIndirect={showIndirect}
-              onToggleIndirect={setShowIndirect}
-              selectedPathNodeIds={selectedPathNodeIds}
-              onSelectPath={setSelectedPathNodeIds}
-              onSelectNode={handleSelectNode}
-              onSelectEdge={setSelectedEdge}
-              onOpenEvidence={handleOpenEvidence}
-              resolveEvidenceForEdge={resolveEvidenceForEdge}
-            />
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="min-h-0 flex-1">
+                <DetailPanel
+                  nodes={activeGraphData.nodes}
+                  edges={activeGraphData.edges}
+                  nodesById={nodesById}
+                  selectedNode={selectedNode}
+                  selectedEdge={selectedEdge}
+                  impactAnalysis={impactAnalysis}
+                  showIndirect={showIndirect}
+                  onToggleIndirect={setShowIndirect}
+                  selectedPathNodeIds={selectedPathNodeIds}
+                  onSelectPath={setSelectedPathNodeIds}
+                  onSelectNode={handleSelectNode}
+                  onSelectEdge={setSelectedEdge}
+                  onOpenEvidence={handleOpenEvidence}
+                  resolveEvidenceForEdge={resolveEvidenceForEdge}
+                />
+              </div>
+              {!isLiveOffline && dataSource === 'live' && (
+                <div className="max-h-[48%] shrink-0 overflow-y-auto border-t border-[#E4E2DA]">
+                  <AgentPanel
+                    projectId={activeProjectId}
+                    selectedNode={selectedNode}
+                    onBlast={(result) => {
+                      setSelectedPathNodeIds(result.blast_node_ids);
+                    }}
+                    onDomains={handleDomains}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>

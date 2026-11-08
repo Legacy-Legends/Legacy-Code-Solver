@@ -47,6 +47,12 @@ class PetResponse(StrictModel):
     message: str
 
 
+class ChatResponse(StrictModel):
+    message: str
+    intent: Literal["answer", "explain", "propose"]
+    target_node_ids: list[str]
+
+
 class DomainTag(StrictModel):
     domain_tag: str
     domain_inferred: Literal[True] = True

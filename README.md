@@ -139,10 +139,10 @@ The **connected 2D/3D fixture-based demo is working**. The complete upload → a
 | Upload or clone a Java project | Project creation stores metadata only. No ZIP/Git ingestion, authorized checkout, or per-project analysis pipeline. |
 | Real graphs in the UI | Java analysis works via CLI. API graph routes still return the same demo graph for registered projects; CLI exports are not automatically loaded. |
 | Complete Java dependencies | Parser handles imports, inheritance and class-qualified calls. Instance dispatch and full symbol resolution remain incomplete. |
-| Agent UI | Backend routes and AgentPanel exist, but the latest redesign no longer mounts the panel. Restore it and update the browser tests. |
+| Agent UI | The live workspace mounts AgentPanel with blast analysis, proposal previews, domain inference and pet chat. It is still demo-backed and not a full project chat history. |
 | Apply and validate proposals | `/apply` deliberately returns 409. Need source loading, patch application, Java validation, re-analysis and measured health deltas. Mock diffs are illustrative fixtures. |
 | Live LLM | Groq support is implemented. Set `GROQ_API_KEY` securely and select live mode. Live proposals still require a project-aware source loader; paid-provider access has not been verified here. |
-| Pet evolution | Backend mood/chat exist. Restore the UI, add persistent progression and evolving visuals, and react to validated health changes. |
+| Pet evolution | The live graph shows a pet companion whose mood and target follow graph health, and the workspace supports pet chat. Persistent progression, movement history and reactions to validated changes remain. |
 | Measured risk signals | Churn and vulnerability scanning are not implemented. Demo scores/signals are synthetic. |
 | Persistence and terminal progress | Projects/proposals are in-memory and reset on restart. WebSocket currently sends startup text, not analysis/agent job progress. |
 
@@ -248,9 +248,10 @@ truncated output and invalid JSON failures are surfaced as errors, not fake demo
 successes. No live credential check was performed during this integration;
 the provider tests use the real Groq SDK with an in-memory HTTP transport.
 
-The latest workspace redesign no longer mounts `AgentPanel.tsx`. Until that UI
-is restored, exercise live pet/blast/domain routes in `/docs`. Setting a key
-alone does not implement uploads: all graph routes still serve the demo graph.
+The live workspace mounts `AgentPanel.tsx` in FastAPI mode. Pet, blast and
+domain actions can be exercised directly in the Details view; proposals remain
+preview-only. Setting a key alone does not implement uploads: all graph routes
+still serve the demo graph.
 `USE_CACHED_DEMO=false` only changes which fixture is loaded.
 
 For this managed cloud environment, enter the replacement `GROQ_API_KEY` through

@@ -3,24 +3,31 @@
 from __future__ import annotations
 
 import json
+import io
 import os
+import shutil
+import zipfile
 from pathlib import Path
 from typing import Annotated, Literal, Protocol
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.agent.api_adapter import AgentAdapter
 from backend.agent.models import BlastResult, Proposal, PetResponse, DomainTag
-from backend.agent import chat_with_pet, infer_domains
+from backend.agent import ChatResponse, chat_with_agent, chat_with_pet, infer_domains
 from backend.agent.llm import AgentUnavailable, use_mock_agent, provider_config
 from backend.api.integration import impact_for_node
+from backend.analysis import calculate_metrics, graph_model, parse_repo, to_frontend_graph
 
 ROOT = Path(__file__).resolve().parents[2]
 CACHE_GRAPH = ROOT / "demo-repos" / "cache" / "graph.json"
 FRONTEND_GRAPH = ROOT / "src" / "mocks" / "graph.json"
+UPLOAD_ROOT = ROOT / "demo-repos" / "uploads"
+MAX_ARCHIVE_BYTES = 25 * 1024 * 1024
+MAX_EXTRACTED_BYTES = 100 * 1024 * 1024
 USE_CACHED_DEMO = os.getenv("USE_CACHED_DEMO", "").lower() in {"1", "true", "yes"}
 
 
@@ -85,6 +92,17 @@ class PetRequest(BaseModel):
     recent_action: str = Field(default="Viewed graph", max_length=2000)
 
 
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class ChatRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=2000)
+    selected_node_id: str | None = None
+    history: list[ChatTurn] = Field(default_factory=list, max_length=8)
+
+
 class BlastRequest(BaseModel):
     query: str = Field(min_length=1)
 
@@ -124,6 +142,27 @@ def clone_graph(graph: GraphData) -> GraphData:
     return GraphData.model_validate(graph.model_dump())
 
 
+def source_loader(project_id: str):
+    root = PROJECT_ROOTS.get(project_id)
+    graph = PROJECT_GRAPHS.get(project_id)
+
+    def load(paths: list[str]) -> dict[str, str]:
+        if root is None or graph is None:
+            return {}
+        allowed = {node.path for node in graph.nodes if node.path}
+        result: dict[str, str] = {}
+        for path in paths:
+            if path not in allowed:
+                raise ValueError("Requested source path is not part of this project graph")
+            candidate = (root / Path(path)).resolve()
+            if root not in candidate.parents or not candidate.is_file():
+                raise ValueError("Requested source path is outside the project")
+            result[path] = candidate.read_text(encoding="utf-8")
+        return result
+
+    return load
+
+
 def get_agent() -> Agent:
     return AgentAdapter()
 
@@ -146,6 +185,8 @@ PROJECTS: dict[str, ProjectInfo] = {
         cached=USE_CACHED_DEMO,
     )
 }
+PROJECT_GRAPHS: dict[str, GraphData] = {}
+PROJECT_ROOTS: dict[str, Path] = {}
 PROPOSALS: dict[str, Proposal] = {}
 GRAPH_STATE = load_graph()
 
@@ -193,7 +234,65 @@ def create_project(request: ProjectCreate) -> ProjectInfo:
 def get_graph(project_id: str) -> GraphData:
     if project_id not in PROJECTS:
         raise HTTPException(status_code=404, detail=f"Unknown project: {project_id}")
-    return clone_graph(GRAPH_STATE)
+    return clone_graph(GRAPH_STATE if project_id == "demo" else PROJECT_GRAPHS[project_id])
+
+
+def _safe_extract_archive(payload: bytes, destination: Path) -> int:
+    if len(payload) > MAX_ARCHIVE_BYTES:
+        raise HTTPException(status_code=413, detail="Archive exceeds the 25 MB upload limit")
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(payload))
+    except zipfile.BadZipFile as exc:
+        raise HTTPException(status_code=422, detail="Upload must be a valid ZIP archive") from exc
+    total = 0
+    java_files = 0
+    destination.mkdir(parents=True, exist_ok=False)
+    try:
+        for entry in archive.infolist():
+            path = Path(entry.filename)
+            if path.is_absolute() or ".." in path.parts or "\\" in entry.filename:
+                raise HTTPException(status_code=422, detail="Archive contains an unsafe path")
+            if entry.is_dir():
+                continue
+            total += entry.file_size
+            if total > MAX_EXTRACTED_BYTES:
+                raise HTTPException(status_code=413, detail="Expanded archive exceeds the 100 MB limit")
+            target = destination.joinpath(*path.parts)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(entry) as source, target.open("wb") as output:
+                shutil.copyfileobj(source, output)
+            java_files += entry.filename.lower().endswith(".java")
+    except Exception:
+        shutil.rmtree(destination, ignore_errors=True)
+        raise
+    finally:
+        archive.close()
+    if java_files == 0:
+        shutil.rmtree(destination, ignore_errors=True)
+        raise HTTPException(status_code=422, detail="Archive does not contain any Java source files")
+    return java_files
+
+
+@app.post("/api/projects/upload", response_model=ProjectInfo, status_code=201)
+async def upload_project(file: UploadFile = File(...)) -> ProjectInfo:
+    filename = file.filename or ""
+    if not filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=415, detail="Upload a .zip Java project archive")
+    payload = await file.read(MAX_ARCHIVE_BYTES + 1)
+    project_id = f"project-{uuid4().hex[:8]}"
+    destination = UPLOAD_ROOT / project_id
+    _safe_extract_archive(payload, destination)
+    try:
+        graph = calculate_metrics(parse_repo(str(destination)))
+        model = GraphData.model_validate(to_frontend_graph(graph_model(graph)))
+    except (OSError, ValueError) as exc:
+        shutil.rmtree(destination, ignore_errors=True)
+        raise HTTPException(status_code=422, detail=f"Java analysis failed: {exc}") from exc
+    project = ProjectInfo(id=project_id, name=Path(filename).stem, source=filename, cached=False)
+    PROJECTS[project_id] = project
+    PROJECT_GRAPHS[project_id] = model
+    PROJECT_ROOTS[project_id] = destination
+    return project
 
 
 @app.get("/api/config")
@@ -217,6 +316,22 @@ def impact(project_id: str, class_id: str) -> dict:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@app.post("/api/projects/{project_id}/chat", response_model=ChatResponse)
+def chat(project_id: str, request: ChatRequest) -> ChatResponse:
+    graph = get_graph(project_id)
+    try:
+        return chat_with_agent(
+            request.query,
+            graph.model_dump(),
+            request.selected_node_id,
+            [turn.model_dump() for turn in request.history],
+        )
+    except AgentUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @app.post("/api/projects/{project_id}/pet", response_model=PetResponse)
 def pet(project_id: str, request: PetRequest) -> PetResponse:
     graph = get_graph(project_id)
@@ -233,7 +348,8 @@ def domains(project_id: str) -> dict[str, DomainTag]:
     graph = get_graph(project_id)
     try:
         tags = infer_domains([node.model_dump() for node in graph.nodes])
-        for node in GRAPH_STATE.nodes:
+        target_graph = GRAPH_STATE if project_id == "demo" else PROJECT_GRAPHS[project_id]
+        for node in target_graph.nodes:
             if node.id in tags:
                 node.domain_tag = tags[node.id].domain_tag
                 node.domain_inferred = True
@@ -248,7 +364,7 @@ def domains(project_id: str) -> dict[str, DomainTag]:
 def blast(project_id: str, request: BlastRequest, agent: AgentDependency) -> BlastResult:
     if project_id not in PROJECTS:
         raise HTTPException(status_code=404, detail=f"Unknown project: {project_id}")
-    return agent.blast(request.query, GRAPH_STATE)
+    return agent.blast(request.query, get_graph(project_id))
 
 
 @app.post("/api/projects/{project_id}/proposals", response_model=Proposal)
@@ -257,11 +373,12 @@ def create_proposal(
 ) -> Proposal:
     if project_id not in PROJECTS:
         raise HTTPException(status_code=404, detail=f"Unknown project: {project_id}")
-    graph = GRAPH_STATE
+    graph = get_graph(project_id)
     unknown_ids = set(request.target_node_ids) - {node.id for node in graph.nodes}
     if unknown_ids:
         raise HTTPException(status_code=404, detail=f"Unknown node IDs: {sorted(unknown_ids)}")
-    proposal = agent.proposal(request.target_node_ids, graph)
+    project_agent = AgentAdapter(source_loader=source_loader(project_id))
+    proposal = project_agent.proposal(request.target_node_ids, graph)
     PROPOSALS[proposal.id] = proposal
     return proposal
 

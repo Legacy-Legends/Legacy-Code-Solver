@@ -6,7 +6,10 @@ from uuid import uuid4
 from backend.analysis import calculate_blast_radius
 from .graph import dependency_graph, prepare_graph_summary
 from .llm import structured_response, use_mock_agent
-from .models import BlastResult, Diff, DomainBatch, DomainTag, PetLine, PetResponse, Proposal, RefactorDraft, TargetSelection
+from .models import (
+    BlastResult, ChatResponse, Diff, DomainBatch, DomainTag, PetLine, PetResponse,
+    Proposal, RefactorDraft, TargetSelection,
+)
 
 
 def _targets(ids: list[str], graph: dict) -> list[str]:
@@ -130,3 +133,67 @@ def chat_with_pet(query: str, health_score: int, recent_action: str) -> PetRespo
             "Use the supplied mood; do not claim any code was fixed or tests passed.",
             {"query": query, "health_score": health_score, "mood": mood, "recent_action": recent_action}).message
     return PetResponse(mood=mood, message=message)
+
+
+def chat_with_agent(
+    query: str,
+    graph_context: dict,
+    selected_node_id: str | None = None,
+    history: list[dict[str, str]] | None = None,
+) -> ChatResponse:
+    """Answer a project-aware question and identify an optional next action.
+
+    The provider can suggest a proposal target, but it never mutates source
+    code. Applying a change remains an explicit, validated API operation.
+    """
+    _bounded_text(query, "query")
+    if not query.strip():
+        raise ValueError("Query must not be empty")
+    graph = prepare_graph_summary(graph_context)
+    node_ids = {node["id"] for node in graph["nodes"]}
+    if selected_node_id and selected_node_id not in node_ids:
+        raise ValueError("Selected node does not exist in the supplied graph")
+    safe_history = [
+        {"role": item.get("role", ""), "content": item.get("content", "")[:2000]}
+        for item in (history or [])[-8:]
+        if item.get("role") in {"user", "assistant"} and isinstance(item.get("content"), str)
+    ]
+    if use_mock_agent():
+        target_ids = [selected_node_id] if selected_node_id else []
+        lowered = query.lower()
+        intent = "propose" if any(word in lowered for word in ("modernize", "refactor", "fix", "change")) else (
+            "explain" if target_ids else "answer"
+        )
+        if intent == "propose" and not target_ids and graph["nodes"]:
+            target_ids = [min(graph["nodes"], key=lambda node: (node["health"], node["id"]))["id"]]
+        target = next((node for node in graph["nodes"] if node["id"] in target_ids), None)
+        if target:
+            fan_out = sum(edge["source"] == target["id"] for edge in graph["edges"])
+            message = (
+                f"{target['name']} has health {target['health']}/100 and "
+                f"{fan_out} outgoing dependencies. I can prepare a small, "
+                "behavior-preserving modernization proposal for your review."
+            )
+        else:
+            message = (
+                f"I found {len(graph['nodes'])} analyzed components at "
+                f"{graph['overall_health']}/100 overall health. Select a class or "
+                "ask what should be modernized first."
+            )
+        return ChatResponse(message=message, intent=intent, target_node_ids=target_ids)
+    response = structured_response(
+        ChatResponse,
+        "Act as a software modernization assistant. Answer the user's question "
+        "using only the supplied graph context and conversation. If a small "
+        "behavior-preserving refactor would help, set intent to propose and "
+        "return only existing target node IDs. Never claim code was changed.",
+        {
+            "query": query,
+            "selected_node_id": selected_node_id,
+            "history": safe_history,
+            "graph": graph,
+        },
+    )
+    if not set(response.target_node_ids) <= node_ids:
+        raise ValueError("Agent returned an unknown target node")
+    return response

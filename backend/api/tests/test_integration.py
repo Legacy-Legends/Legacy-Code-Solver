@@ -1,3 +1,6 @@
+import io
+import zipfile
+
 import pytest
 from fastapi.testclient import TestClient
 from backend.api import main
@@ -68,3 +71,27 @@ def test_provider_failure_is_visible(client, monkeypatch):
     monkeypatch.setattr(main, 'infer_domains', unavailable)
     assert client.post('/api/projects/demo/pet', json={'query':'hi'}).status_code == 503
     assert client.post('/api/projects/demo/domains').status_code == 503
+
+
+def test_upload_creates_project_graph_and_chat(client):
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr(
+            "bank/src/main/java/com/example/Account.java",
+            "package com.example; public class Account { public void open() {} }\n",
+        )
+    response = client.post(
+        "/api/projects/upload",
+        files={"file": ("bank.zip", archive.getvalue(), "application/zip")},
+    )
+    assert response.status_code == 201
+    project_id = response.json()["id"]
+    graph = client.get(f"/api/projects/{project_id}/graph").json()
+    assert len(graph["nodes"]) == 1
+    chat = client.post(
+        f"/api/projects/{project_id}/chat",
+        json={"query": "What should I modernize first?"},
+    )
+    assert chat.status_code == 200
+    assert chat.json()["intent"] == "propose"
+    assert chat.json()["target_node_ids"]
