@@ -10,8 +10,6 @@ import {
   ArrowRight,
   FolderOpen,
   Loader2,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import { GraphNode } from '../types/index';
 import { AccessibleDropdown, DropdownItem } from './AccessibleDropdown';
@@ -22,8 +20,6 @@ interface StartPageProps {
   onOpenWorkspace: () => void;
   onOpenSettings?: () => void;
   onCustomUpload?: (files: FileList | null) => void;
-  darkMode?: boolean;
-  onToggleDarkMode?: () => void;
 }
 
 export const StartPage: React.FC<StartPageProps> = ({
@@ -32,8 +28,6 @@ export const StartPage: React.FC<StartPageProps> = ({
   onOpenWorkspace,
   onOpenSettings,
   onCustomUpload,
-  darkMode = false,
-  onToggleDarkMode,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -317,23 +311,6 @@ export const StartPage: React.FC<StartPageProps> = ({
                 </div>
               )}
             </div>
-          )}
-
-          {/* Dark Mode Quick Toggle */}
-          {onToggleDarkMode && (
-            <button
-              type="button"
-              onClick={onToggleDarkMode}
-              className="flex items-center justify-center w-8 h-8 rounded-lg border border-[#DCD9D0] bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition cursor-pointer"
-              title={darkMode ? 'Switch to Light mode' : 'Switch to Dark mode'}
-              aria-label={darkMode ? 'Switch to Light mode' : 'Switch to Dark mode'}
-            >
-              {darkMode ? (
-                <Sun className="w-3.5 h-3.5 text-amber-500" />
-              ) : (
-                <Moon className="w-3.5 h-3.5 text-indigo-700" />
-              )}
-            </button>
           )}
 
           {/* Settings & Accessibility Button */}

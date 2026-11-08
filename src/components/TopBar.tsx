@@ -10,8 +10,6 @@ import {
   Home,
   Sliders,
   Server,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import { GraphNode, DataSourceMode } from '../types/index';
 import { SearchBar } from './SearchBar';
@@ -29,8 +27,6 @@ interface TopBarProps {
   onToggleViewMode: (mode?: '2d' | '3d') => void;
   onBackToStart: () => void;
   onOpenSettings?: () => void;
-  darkMode?: boolean;
-  onToggleDarkMode?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -46,8 +42,6 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleViewMode,
   onBackToStart,
   onOpenSettings,
-  darkMode = false,
-  onToggleDarkMode,
 }) => {
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const viewMenuRef = useRef<HTMLDivElement>(null);
@@ -266,23 +260,6 @@ export const TopBar: React.FC<TopBarProps> = ({
               <span>Start overview</span>
             </button>
           </div>
-        )}
-
-        {/* Dark Mode Quick Toggle */}
-        {onToggleDarkMode && (
-          <button
-            type="button"
-            onClick={onToggleDarkMode}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#DCD9D0] bg-white text-slate-700 hover:bg-[#FAF9F5] transition shadow-2xs cursor-pointer"
-            title={darkMode ? 'Switch to Light mode' : 'Switch to Dark mode'}
-            aria-label={darkMode ? 'Switch to Light mode' : 'Switch to Dark mode'}
-          >
-            {darkMode ? (
-              <Sun className="h-3.5 w-3.5 text-amber-500" />
-            ) : (
-              <Moon className="h-3.5 w-3.5 text-indigo-700" />
-            )}
-          </button>
         )}
 
         {/* Accessibility & Settings Button */}

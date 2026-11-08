@@ -15,6 +15,7 @@ interface PlanarGraph2DProps {
   onSelectEdge: (edge: GraphEdge | null) => void;
   onOpenEvidence?: (evidence: SourceEvidence, pathList?: SourceEvidence[]) => void;
   resolveEvidenceForEdge?: (edge: GraphEdge) => SourceEvidence | undefined;
+  darkMode?: boolean;
 }
 
 function resolveId(endpoint: string | GraphNode): string {
@@ -39,11 +40,13 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   onSelectEdge,
   onOpenEvidence,
   resolveEvidenceForEdge,
+  darkMode = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const hasInitialFitRef = useRef(false);
 
   // Drag state with threshold so clicking a node or background never starts an accidental pan
@@ -81,7 +84,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
   }, []);
 
   // Compute stable logical world coordinates ONLY when `nodes` or `edges` change.
-  // Never recomputes on selection or drawer toggle.
   const positionedNodes = useMemo(() => {
     if (nodes.length === 0) return [];
 
@@ -98,7 +100,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
       inDegree.set(t, (inDegree.get(t) || 0) + 1);
     });
 
-    // Small dataset (e.g. Sample project): arrange connected chain horizontally, isolated classes below
+    // Small dataset (e.g. Sample project): arrange connected chain horizontally
     if (nodes.length <= 6) {
       const connected = nodes.filter(
         (n) => (inDegree.get(n.id) || 0) > 0 || (outDegree.get(n.id) || 0) > 0
@@ -114,9 +116,9 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
         return scoreA - scoreB;
       });
 
-      const spacingX = 316;
-      const chainY = isolated.length > 0 ? -48 : 0;
-      const isolatedY = 112;
+      const spacingX = 330;
+      const chainY = isolated.length > 0 ? -52 : 0;
+      const isolatedY = 120;
 
       const posMap = new Map<string, { x: number; y: number }>();
       orderedConnected.forEach((n, idx) => {
@@ -183,6 +185,38 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     return map;
   }, [positionedNodes]);
 
+  // Architectural column headers for multi-cluster graphs
+  const clusterColumns = useMemo(() => {
+    if (nodes.length <= 6) return [];
+    const clusters = new Map<string, GraphNode[]>();
+    nodes.forEach((n) => {
+      const list = clusters.get(n.clusterId) || [];
+      list.push(n);
+      clusters.set(n.clusterId, list);
+    });
+    const clusterEntries = Array.from(clusters.entries());
+    if (clusterEntries.length <= 1) return [];
+
+    const colSpacing = 500;
+    const rowSpacing = 138;
+    const domainColors = ['#F59E0B', '#0EA5E9', '#10B981', '#8B5CF6', '#6366F1'];
+
+    return clusterEntries.map(([clusterId, clusterNodes], cIdx) => {
+      const colX = (cIdx - (clusterEntries.length - 1) / 2) * colSpacing;
+      const topNodeY = (0 - (clusterNodes.length - 1) / 2) * rowSpacing;
+      const headerY = topNodeY - HALF_H - 46;
+      const color = domainColors[cIdx % domainColors.length];
+      return {
+        clusterId,
+        name: clusterNodes[0]?.clusterName || 'Domain',
+        count: clusterNodes.length,
+        colX,
+        headerY,
+        color,
+      };
+    });
+  }, [nodes]);
+
   // Fit graph nicely to container
   const fitGraphToViewport = useCallback(() => {
     if (positionedNodes.length === 0 || dimensions.width === 0 || dimensions.height === 0) {
@@ -192,23 +226,23 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
     }
     const xs = positionedNodes.map((n) => n.posX);
     const ys = positionedNodes.map((n) => n.posY);
-    const minX = Math.min(...xs) - HALF_W - 28;
-    const maxX = Math.max(...xs) + HALF_W + 28;
-    const minY = Math.min(...ys) - HALF_H - 36;
+    const minX = Math.min(...xs) - HALF_W - 32;
+    const maxX = Math.max(...xs) + HALF_W + 32;
+    const minY = Math.min(...ys) - HALF_H - (clusterColumns.length > 0 ? 84 : 36);
     const maxY = Math.max(...ys) + HALF_H + 36;
 
     const contentW = Math.max(1, maxX - minX);
     const contentH = Math.max(1, maxY - minY);
 
-    const padX = dimensions.width < 500 ? 20 : 48;
-    const padY = dimensions.height < 500 ? 32 : 64;
+    const padX = dimensions.width < 500 ? 20 : 56;
+    const padY = dimensions.height < 500 ? 32 : 72;
     const scaleX = (dimensions.width - padX) / contentW;
     const scaleY = (dimensions.height - padY) / contentH;
-    const idealZoom = Math.max(0.34, Math.min(1.05, Math.min(scaleX, scaleY)));
+    const idealZoom = Math.max(0.3, Math.min(1.0, Math.min(scaleX, scaleY)));
 
     setZoom(Number(idealZoom.toFixed(2)));
-    setPan({ x: 0, y: 0 });
-  }, [positionedNodes, dimensions.width, dimensions.height]);
+    setPan({ x: 0, y: clusterColumns.length > 0 ? 20 : 0 });
+  }, [positionedNodes, dimensions.width, dimensions.height, clusterColumns.length]);
 
   // Auto-fit when container is first measured, dataset changes, or Fit Graph is triggered
   useEffect(() => {
@@ -330,15 +364,15 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY < 0 ? 0.1 : -0.1;
-    setZoom((z) => Number(Math.max(0.4, Math.min(2.2, z + delta)).toFixed(2)));
+    const delta = e.deltaY < 0 ? 0.08 : -0.08;
+    setZoom((z) => Number(Math.max(0.3, Math.min(2.2, z + delta)).toFixed(2)));
   }, []);
 
   const hasActiveFilter = Boolean(selectedNode || selectedEdge);
   const viewW = dimensions.width || 960;
   const viewH = dimensions.height || 640;
 
-  // Precompute 5x5 sub-grid coordinates for the 140x140 world-space dot tile (28px spacing)
+  // Precompute sub-grid coordinates
   const subGridCoords = [0, 28, 56, 84, 112];
 
   return (
@@ -355,9 +389,41 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
           onSelectEdge(null);
         }
       }}
-      className="relative h-full w-full overflow-hidden select-none bg-[#F7F5F0]"
+      className={`relative h-full w-full overflow-hidden select-none transition-colors duration-200 ${
+        darkMode ? 'bg-[#090D16]' : 'bg-[#F7F5F0]'
+      }`}
       style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
     >
+      {/* Floating Interactive Guide Banner */}
+      <div className="absolute top-3.5 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+        <div
+          className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono shadow-md backdrop-blur-md border transition-colors ${
+            darkMode
+              ? 'bg-slate-900/90 border-slate-700/80 text-slate-300'
+              : 'bg-white/95 border-slate-200/90 text-slate-700'
+          }`}
+        >
+          {selectedNode ? (
+            <>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+              <span className="truncate max-w-xs">
+                Class: <strong className={darkMode ? 'text-emerald-400' : 'text-emerald-700'}>{selectedNode.name}</strong>
+              </span>
+              <span className="text-slate-400">·</span>
+              <span className="font-sans font-medium text-[11px]">
+                {impactAnalysis?.directDependents.length || 0} direct caller{impactAnalysis?.directDependents.length === 1 ? '' : 's'}
+              </span>
+              <span className="text-slate-400 hidden sm:inline">· Click background to reset</span>
+            </>
+          ) : (
+            <>
+              <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0"></span>
+              <span>Click any class to isolate its direct callers &amp; dependencies</span>
+            </>
+          )}
+        </div>
+      </div>
+
       <svg
         width="100%"
         height="100%"
@@ -365,7 +431,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
         viewBox={`0 0 ${viewW} ${viewH}`}
       >
         <defs>
-          {/* Deep-space parallax dot grid (moves at 0.45x pan speed for spatial depth) */}
+          {/* Deep-space parallax dot grid */}
           <pattern
             id="spatial-dots-parallax"
             width="24"
@@ -375,10 +441,16 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
               viewH / 2 + pan.y * 0.45
             }) scale(${0.65 + zoom * 0.35})`}
           >
-            <circle cx="12" cy="12" r="1.05" fill="#CFCAC0" opacity="0.7" />
+            <circle
+              cx="12"
+              cy="12"
+              r="1.0"
+              fill={darkMode ? '#1E293B' : '#CFCAC0'}
+              opacity={darkMode ? 0.6 : 0.7}
+            />
           </pattern>
 
-          {/* Primary world-space dot grid (28px minor dots + 140px major spatial coordinate dots) */}
+          {/* Primary world-space dot grid */}
           <pattern
             id="spatial-dots-world"
             width="140"
@@ -396,26 +468,26 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                     key={`${gx}-${gy}`}
                     cx={gx}
                     cy={gy}
-                    r={isMajor ? 2.15 : 1.35}
-                    fill={isMajor ? '#8A8375' : '#BDB7AA'}
-                    opacity={isMajor ? 0.85 : 0.75}
+                    r={isMajor ? 2.1 : 1.3}
+                    fill={darkMode ? (isMajor ? '#475569' : '#1E293B') : (isMajor ? '#8A8375' : '#BDB7AA')}
+                    opacity={darkMode ? (isMajor ? 0.9 : 0.7) : (isMajor ? 0.85 : 0.75)}
                   />
                 );
               })
             )}
           </pattern>
 
-          {/* Default visible slate arrowhead */}
+          {/* Default subtle slate arrowhead */}
           <marker
             id="arrow-default"
             viewBox="0 0 10 10"
             refX="9"
             refY="5"
-            markerWidth="9.5"
-            markerHeight="9.5"
+            markerWidth="8"
+            markerHeight="8"
             orient="auto"
           >
-            <path d="M 0 1.5 L 9.5 5 L 0 8.5 z" fill="#94A3B8" />
+            <path d="M 0 1.5 L 9.5 5 L 0 8.5 z" fill={darkMode ? '#475569' : '#94A3B8'} />
           </marker>
 
           {/* Active Direct Cyan Arrowhead */}
@@ -443,6 +515,32 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
           >
             <path d="M 0 1.2 L 9.5 5 L 0 8.8 z" fill="#818CF8" />
           </marker>
+
+          {/* Vertical Downward Arrowhead for same-column links */}
+          <marker
+            id="arrow-down"
+            viewBox="0 0 10 10"
+            refX="5"
+            refY="9"
+            markerWidth="8"
+            markerHeight="8"
+            orient="auto"
+          >
+            <path d="M 1.5 0 L 5 9.5 L 8.5 0 z" fill={darkMode ? '#475569' : '#94A3B8'} />
+          </marker>
+
+          {/* Active Downward Arrowhead */}
+          <marker
+            id="arrow-down-active"
+            viewBox="0 0 10 10"
+            refX="5"
+            refY="9"
+            markerWidth="10"
+            markerHeight="10"
+            orient="auto"
+          >
+            <path d="M 1 0 L 5 9.5 L 9 0 z" fill="#38BDF8" />
+          </marker>
         </defs>
 
         {/* Spatial Dot Grid Layers */}
@@ -464,7 +562,60 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             viewH / 2 + pan.y
           }) scale(${zoom})`}
         >
-          {/* 1. Directed Dependency Edges */}
+          {/* 1. Architectural Column/Tier Headers (Clean swimlanes) */}
+          {clusterColumns.map((col) => (
+            <g key={col.clusterId} transform={`translate(${col.colX}, ${col.headerY})`}>
+              <rect
+                x={-HALF_W}
+                y={-18}
+                width={CARD_W}
+                height={36}
+                rx={10}
+                fill={darkMode ? '#0F172A' : '#FFFFFF'}
+                stroke={darkMode ? '#334155' : '#E2E8F0'}
+                strokeWidth={1.5}
+                filter={darkMode ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' : 'drop-shadow(0 2px 6px rgba(0,0,0,0.06))'}
+              />
+              <circle
+                cx={-HALF_W + 16}
+                cy={0}
+                r={4}
+                fill={col.color}
+              />
+              <text
+                x={-HALF_W + 28}
+                y={3.5}
+                fill={darkMode ? '#F8FAFC' : '#0F172A'}
+                fontSize="11"
+                fontWeight="700"
+                fontFamily="Inter, system-ui, sans-serif"
+                letterSpacing="0.02em"
+              >
+                {col.name.length > 18 ? `${col.name.slice(0, 17)}…` : col.name}
+              </text>
+              <rect
+                x={HALF_W - 30}
+                y={-9}
+                width={22}
+                height={18}
+                rx={5}
+                fill={darkMode ? '#1E293B' : '#F1F5F9'}
+              />
+              <text
+                x={HALF_W - 19}
+                y={3.5}
+                fill={darkMode ? '#94A3B8' : '#64748B'}
+                fontSize="10"
+                fontWeight="700"
+                fontFamily="JetBrains Mono, monospace"
+                textAnchor="middle"
+              >
+                {col.count}
+              </text>
+            </g>
+          ))}
+
+          {/* 2. Directed Dependency Edges (Progressive disclosure: quiet when inactive, vivid when active) */}
           {edges.map((edge) => {
             const sId = resolveId(edge.source);
             const tId = resolveId(edge.target);
@@ -489,14 +640,16 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                 nodeStatusMap.get(tId) === 'direct') ||
                 (tId === selectedNode.id && nodeStatusMap.get(sId) === 'direct'));
 
+            const isHovered = hoveredNodeId === sId || hoveredNodeId === tId;
+            const isHoverPreview = !hasActiveFilter && hoveredNodeId !== null && isHovered;
             const isActiveDirect = isEdgeSelected || inSelectedPath || isDirectCallerEdge;
             const isActiveIndirect = !isActiveDirect && isIndirectCallerEdge;
-            const isHighlighted = isActiveDirect || isActiveIndirect;
+            const isHighlighted = isActiveDirect || isActiveIndirect || isHoverPreview;
 
-            let strokeColor = '#94A3B8';
-            let strokeWidth = 2.2;
+            let strokeColor = darkMode ? '#334155' : '#CBD5E1';
+            let strokeWidth = 1.4;
             let marker = 'url(#arrow-default)';
-            let opacity = 0.85;
+            let opacity = hasActiveFilter ? 0.04 : 0.22;
 
             if (isActiveDirect) {
               strokeColor = '#38BDF8';
@@ -505,14 +658,17 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
               opacity = 1;
             } else if (isActiveIndirect) {
               strokeColor = '#818CF8';
-              strokeWidth = 3.0;
+              strokeWidth = 2.8;
               marker = 'url(#arrow-indirect)';
               opacity = 0.95;
-            } else if (hasActiveFilter) {
-              opacity = 0.12;
+            } else if (isHoverPreview) {
+              strokeColor = darkMode ? '#60A5FA' : '#2563EB';
+              strokeWidth = 2.6;
+              marker = 'url(#arrow-active)';
+              opacity = 0.9;
             }
 
-            // Compute deterministic vertical slotting offset based on edge id hash
+            // Deterministic slotting offset
             const edgeHash = edge.id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
             const yOffset = ((edgeHash % 5) - 2) * 5; // -10, -5, 0, 5, 10
 
@@ -520,10 +676,44 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             let labelX = 0;
             let labelY = 0;
 
-            const isLeftToRight = sNode.posX < tNode.posX - 20;
-            const isRightToLeft = sNode.posX > tNode.posX + 20;
+            const isSameColumn = Math.abs(sNode.posX - tNode.posX) <= 20;
 
-            if (isLeftToRight) {
+            if (isSameColumn) {
+              // Within-column dependency: clean vertical line or tucked left-arc (NO side loops!)
+              if (tNode.posY > sNode.posY) {
+                // Downward vertical link
+                const startX = sNode.posX;
+                const startY = sNode.posY + HALF_H;
+                const endX = tNode.posX;
+                const endY = tNode.posY - HALF_H - 3;
+                const dy = endY - startY;
+
+                if (dy < 120) {
+                  // Direct vertical line to card immediately below
+                  pathD = `M ${startX} ${startY} L ${endX} ${endY}`;
+                  labelX = startX + 16;
+                  labelY = (startY + endY) / 2;
+                } else {
+                  // Multi-row: gentle arc on left side
+                  const arcX = sNode.posX - HALF_W - 18;
+                  pathD = `M ${sNode.posX - HALF_W} ${sNode.posY} C ${arcX} ${sNode.posY + 20}, ${arcX} ${tNode.posY - 20}, ${tNode.posX - HALF_W - 3} ${tNode.posY}`;
+                  labelX = arcX - 12;
+                  labelY = (sNode.posY + tNode.posY) / 2;
+                }
+                if (!isHighlighted) {
+                  marker = 'url(#arrow-down)';
+                } else if (isActiveDirect) {
+                  marker = dy < 120 ? 'url(#arrow-down-active)' : 'url(#arrow-active)';
+                }
+              } else {
+                // Upward vertical link: tucked on left side
+                const arcX = sNode.posX - HALF_W - 22;
+                pathD = `M ${sNode.posX - HALF_W} ${sNode.posY} C ${arcX} ${sNode.posY - 20}, ${arcX} ${tNode.posY + 20}, ${tNode.posX - HALF_W - 3} ${tNode.posY}`;
+                labelX = arcX - 12;
+                labelY = (sNode.posY + tNode.posY) / 2;
+              }
+            } else if (sNode.posX < tNode.posX) {
+              // Left-to-Right cross-tier flow
               const startX = sNode.posX + HALF_W;
               const startY = sNode.posY + yOffset;
               const endX = tNode.posX - HALF_W - 3;
@@ -536,16 +726,17 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                 labelX = (startX + endX) / 2;
                 labelY = (startY + endY) / 2 - 12;
               } else {
-                const curvature = Math.max(50, Math.min(220, dx * 0.45));
+                const curvature = Math.max(48, Math.min(220, dx * 0.42));
                 const ctrl1X = startX + curvature;
                 const ctrl1Y = startY;
                 const ctrl2X = endX - curvature;
                 const ctrl2Y = endY;
                 pathD = `M ${startX} ${startY} C ${ctrl1X} ${ctrl1Y}, ${ctrl2X} ${ctrl2Y}, ${endX} ${endY}`;
                 labelX = (startX + endX) / 2;
-                labelY = (startY + endY) / 2 - 14;
+                labelY = (startY + endY) / 2 - 12;
               }
-            } else if (isRightToLeft) {
+            } else {
+              // Right-to-Left cross-tier flow
               const startX = sNode.posX - HALF_W;
               const startY = sNode.posY + yOffset;
               const endX = tNode.posX + HALF_W + 3;
@@ -554,17 +745,6 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
               pathD = `M ${startX} ${startY} C ${startX - 48} ${arcY}, ${endX + 48} ${arcY}, ${endX} ${endY}`;
               labelX = (startX + endX) / 2;
               labelY = arcY - 10;
-            } else {
-              // Same column (vertical link)
-              const isGoingDown = tNode.posY > sNode.posY;
-              const startX = sNode.posX + HALF_W;
-              const startY = sNode.posY;
-              const endX = tNode.posX + HALF_W + 3;
-              const endY = tNode.posY;
-              const bulgeX = startX + 48;
-              pathD = `M ${startX} ${startY} C ${bulgeX} ${startY + (isGoingDown ? 18 : -18)}, ${bulgeX} ${endY + (isGoingDown ? -18 : 18)}, ${endX} ${endY}`;
-              labelX = bulgeX + 8;
-              labelY = (startY + endY) / 2;
             }
 
             const evidence = resolveEvidenceForEdge ? resolveEvidenceForEdge(edge) : undefined;
@@ -582,7 +762,7 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                   }
                 }}
               >
-                {/* Wide 22px invisible hit target for effortless clicking */}
+                {/* Wide invisible hit target for easy clicking */}
                 <path
                   d={pathD}
                   fill="none"
@@ -610,17 +790,17 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                       width="68"
                       height="18"
                       rx="5"
-                      fill="#FFFFFF"
-                      stroke={isHighlighted ? '#3730A3' : '#D6D3CD'}
-                      strokeWidth={isHighlighted ? 1.3 : 1}
+                      fill={darkMode ? '#0A101D' : '#FFFFFF'}
+                      stroke={isHighlighted ? (isActiveIndirect ? '#818CF8' : '#38BDF8') : (darkMode ? '#334155' : '#D6D3CD')}
+                      strokeWidth={isHighlighted ? 1.5 : 1}
                     />
                     <text
                       x="0"
-                      y="3"
-                      fill={isHighlighted ? '#312E81' : '#4B5563'}
+                      y="3.5"
+                      fill={isHighlighted ? (isActiveIndirect ? '#C7D2FE' : '#38BDF8') : (darkMode ? '#94A3B8' : '#4B5563')}
                       fontSize="9.5"
                       fontFamily="JetBrains Mono, monospace"
-                      fontWeight={isHighlighted ? '600' : '500'}
+                      fontWeight={isHighlighted ? '700' : '500'}
                       textAnchor="middle"
                     >
                       {edge.callSiteLine ? `calls :${edge.callSiteLine}` : edge.type}
@@ -631,41 +811,51 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
             );
           })}
 
-          {/* 2. Class Node Boxes */}
+          {/* 3. Class Node Boxes */}
           {positionedNodes.map((node) => {
             const status = nodeStatusMap.get(node.id) || 'unrelated';
             const isSelected = status === 'selected';
             const isDirect = status === 'direct';
             const isIndirect = status === 'indirect';
             const isDimmed = hasActiveFilter && status === 'unrelated';
+            const isHovered = hoveredNodeId === node.id;
 
-            let cardBg = '#FFFFFF';
-            let cardBorder = '#D6D3CD';
+            let cardBg = darkMode ? '#111827' : '#FFFFFF';
+            let cardBorder = darkMode ? '#334155' : '#D6D3CD';
             let borderWidth = 1.5;
-            let titleColor = '#111827';
+            let titleColor = darkMode ? '#F8FAFC' : '#0F172A';
             let roleLabel = node.clusterName;
-            let roleColor = '#6B7280';
+            let badgeBg = darkMode ? '#1E293B' : '#F1F5F9';
+            let badgeText = darkMode ? '#94A3B8' : '#475569';
+
             if (isSelected) {
-              cardBg = '#FFFFFF';
-              cardBorder = '#3730A3';
+              cardBg = darkMode ? '#064E3B' : '#ECFDF5';
+              cardBorder = darkMode ? '#10B981' : '#059669';
               borderWidth = 2.5;
-              titleColor = '#1E1B4B';
-              roleLabel = 'Selected class';
-              roleColor = '#3730A3';
+              titleColor = darkMode ? '#6EE7B7' : '#065F46';
+              roleLabel = 'TARGET CLASS';
+              badgeBg = darkMode ? 'rgba(16, 185, 129, 0.25)' : '#D1FAE5';
+              badgeText = darkMode ? '#6EE7B7' : '#065F46';
             } else if (isDirect) {
-              cardBg = '#F5F7FF';
-              cardBorder = '#4338CA';
-              borderWidth = 2;
-              titleColor = '#1E1B4B';
-              roleLabel = 'Direct caller';
-              roleColor = '#4338CA';
+              cardBg = darkMode ? '#082F49' : '#F0F9FF';
+              cardBorder = darkMode ? '#38BDF8' : '#0284C7';
+              borderWidth = 2.0;
+              titleColor = darkMode ? '#7DD3FC' : '#0369A1';
+              roleLabel = 'DIRECT CALLER';
+              badgeBg = darkMode ? 'rgba(56, 189, 248, 0.25)' : '#E0F2FE';
+              badgeText = darkMode ? '#7DD3FC' : '#0369A1';
             } else if (isIndirect) {
-              cardBg = '#FAF9FF';
-              cardBorder = '#6366F1';
+              cardBg = darkMode ? '#1E1B4B' : '#EEF2FF';
+              cardBorder = darkMode ? '#818CF8' : '#6366F1';
               borderWidth = 1.75;
-              titleColor = '#312E81';
-              roleLabel = 'Indirect caller';
-              roleColor = '#4F46E5';
+              titleColor = darkMode ? '#C7D2FE' : '#4338CA';
+              roleLabel = 'INDIRECT CALLER';
+              badgeBg = darkMode ? 'rgba(129, 140, 248, 0.25)' : '#E0E7FF';
+              badgeText = darkMode ? '#C7D2FE' : '#4338CA';
+            } else if (isHovered && !hasActiveFilter) {
+              cardBg = darkMode ? '#1E293B' : '#F8FAFC';
+              cardBorder = darkMode ? '#38BDF8' : '#0284C7';
+              borderWidth = 2;
             }
 
             const displayName =
@@ -678,83 +868,85 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
                 tabIndex={0}
                 aria-label={`Class ${node.name}, ${roleLabel}`}
                 transform={`translate(${node.posX}, ${node.posY})`}
+                opacity={isDimmed ? 0.22 : 1.0}
+                className="cursor-pointer transition-opacity duration-200"
+                onMouseEnter={() => setHoveredNodeId(node.id)}
+                onMouseLeave={() => setHoveredNodeId(null)}
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onSelectEdge(null);
                   onSelectNode(node);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    e.stopPropagation();
-                    onSelectEdge(null);
                     onSelectNode(node);
                   }
                 }}
-                className="cursor-pointer focus:outline-none"
-                opacity={isDimmed ? 0.3 : 1}
               >
-                {/* Distinct selection outline halo */}
-                {isSelected && (
-                  <rect
-                    x={-HALF_W - 4}
-                    y={-HALF_H - 4}
-                    width={CARD_W + 8}
-                    height={CARD_H + 8}
-                    rx="14"
-                    fill="none"
-                    stroke="#4338CA"
-                    strokeWidth="2"
-                    strokeOpacity="0.35"
-                  />
-                )}
-
-                {/* Opaque High-Contrast Node Box */}
+                {/* Node Box */}
                 <rect
                   x={-HALF_W}
                   y={-HALF_H}
                   width={CARD_W}
                   height={CARD_H}
-                  rx="11"
+                  rx={10}
                   fill={cardBg}
                   stroke={cardBorder}
                   strokeWidth={borderWidth}
+                  filter={
+                    isSelected
+                      ? (darkMode ? 'drop-shadow(0 0 16px rgba(16, 185, 129, 0.4))' : 'drop-shadow(0 4px 12px rgba(5, 150, 105, 0.2))')
+                      : isDirect
+                      ? (darkMode ? 'drop-shadow(0 0 14px rgba(56, 189, 248, 0.35))' : 'drop-shadow(0 3px 10px rgba(2, 132, 199, 0.15))')
+                      : (darkMode ? 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4))' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.04))')
+                  }
                 />
 
-                {/* Left Accent Pill inside Card */}
-                <rect
-                  x={-HALF_W + 12}
-                  y={-HALF_H + 14}
-                  width="4"
-                  height={CARD_H - 28}
-                  rx="2"
-                  fill={isSelected || isDirect || isIndirect ? cardBorder : '#CBD5E1'}
-                />
+                {/* Left Accent Status Strip */}
+                {(isSelected || isDirect || isIndirect) && (
+                  <rect
+                    x={-HALF_W}
+                    y={-HALF_H + 4}
+                    width={4.5}
+                    height={CARD_H - 8}
+                    rx={2}
+                    fill={cardBorder}
+                  />
+                )}
 
-                {/* Class Name (Monospace, high contrast) */}
+                {/* Class Name */}
                 <text
-                  x={-HALF_W + 24}
-                  y={-HALF_H + 26}
+                  x={-HALF_W + 14}
+                  y={-9}
                   fill={titleColor}
-                  fontSize="12.5"
-                  fontWeight="600"
+                  fontSize="12"
                   fontFamily="JetBrains Mono, monospace"
+                  fontWeight="600"
+                  letterSpacing="-0.01em"
                 >
-                  <title>{node.name}</title>
                   {displayName}
                 </text>
 
-                {/* Role or Cluster Subtitle (Clean Sans-Serif) */}
+                {/* Role / Cluster Badge */}
+                <rect
+                  x={-HALF_W + 14}
+                  y={6}
+                  width={Math.min(CARD_W - 28, roleLabel.length * 6.5 + 14)}
+                  height={17}
+                  rx={4}
+                  fill={badgeBg}
+                />
                 <text
-                  x={-HALF_W + 24}
-                  y={-HALF_H + 45}
-                  fill={roleColor}
-                  fontSize="11"
-                  fontWeight={isSelected || isDirect || isIndirect ? '600' : '400'}
+                  x={-HALF_W + 21}
+                  y={18}
+                  fill={badgeText}
+                  fontSize="9"
                   fontFamily="Inter, system-ui, sans-serif"
+                  fontWeight={isSelected || isDirect ? '700' : '600'}
+                  letterSpacing="0.03em"
                 >
-                  {roleLabel.length > 25 ? `${roleLabel.slice(0, 24)}…` : roleLabel}
+                  {roleLabel.toUpperCase()}
                 </text>
               </g>
             );
@@ -762,50 +954,60 @@ export const PlanarGraph2D: React.FC<PlanarGraph2DProps> = ({
         </g>
       </svg>
 
-      {/* Restrained Frosted Controls: Zoom & Fit */}
+      {/* Floating Canvas Controls */}
       <div
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
-        className="glass-card absolute bottom-4 left-4 flex items-center gap-1 rounded-xl p-1"
+        className={`absolute bottom-4 left-4 z-20 flex items-center gap-1 rounded-xl p-1 shadow-md backdrop-blur-md border ${
+          darkMode
+            ? 'bg-slate-900/90 border-slate-700/80 text-slate-300'
+            : 'bg-white/90 border-slate-200/90 text-slate-700'
+        }`}
       >
         <button
           type="button"
           onClick={() => setZoom((z) => Number(Math.min(2.2, z + 0.15).toFixed(2)))}
           aria-label="Zoom in"
-          className="rounded-lg p-1.5 text-slate-700 hover:bg-slate-100 hover:text-slate-950 transition cursor-pointer"
+          className={`rounded-lg p-1.5 transition cursor-pointer ${
+            darkMode ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+          }`}
           title="Zoom in"
         >
           <ZoomIn className="h-4 w-4" />
         </button>
         <button
           type="button"
-          onClick={() => setZoom((z) => Number(Math.max(0.4, z - 0.15).toFixed(2)))}
+          onClick={() => setZoom((z) => Number(Math.max(0.3, z - 0.15).toFixed(2)))}
           aria-label="Zoom out"
-          className="rounded-lg p-1.5 text-slate-700 hover:bg-slate-100 hover:text-slate-950 transition cursor-pointer"
+          className={`rounded-lg p-1.5 transition cursor-pointer ${
+            darkMode ? 'text-slate-400 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+          }`}
           title="Zoom out"
         >
           <ZoomOut className="h-4 w-4" />
         </button>
-        <div className="h-4 w-px bg-[#E4E2DA] mx-0.5" />
+        <div className={`h-4 w-px my-auto ${darkMode ? 'bg-slate-700' : 'bg-slate-200'}`} />
         <button
           type="button"
           onClick={fitGraphToViewport}
           aria-label="Fit graph"
-          className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950 transition cursor-pointer"
-          title="Fit graph to view"
+          className={`flex items-center gap-1 rounded-lg px-2 py-1.5 font-sans text-xs font-medium transition cursor-pointer ${
+            darkMode ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+          title="Center and fit entire graph"
         >
           <Maximize2 className="h-3.5 w-3.5" />
           <span>Fit graph</span>
         </button>
       </div>
 
-      {/* Honest Direction Note */}
+      {/* Directed Graph Semantics Pill */}
       <div
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
-        className="glass-card absolute bottom-4 right-4 hidden sm:flex items-center gap-2 rounded-xl px-3 py-1.5 font-sans text-xs text-slate-700"
+        className={`absolute bottom-4 right-4 z-20 hidden sm:flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-mono shadow-xs backdrop-blur-md border ${
+          darkMode
+            ? 'bg-slate-900/80 border-slate-700/80 text-slate-400'
+            : 'bg-white/80 border-slate-200/90 text-slate-500'
+        }`}
       >
-        <span className="font-mono font-semibold text-slate-900">A → B</span>
+        <span className={darkMode ? 'text-slate-200 font-semibold' : 'text-slate-700 font-semibold'}>A → B</span>
         <span>means A uses B</span>
       </div>
     </div>

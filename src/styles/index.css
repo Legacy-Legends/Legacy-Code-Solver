@@ -225,3 +225,59 @@ html.dark input {
 html.dark .shadow-soft {
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5) !important;
 }
+
+/* Luminous domain callout and badge overrides in dark mode */
+html.dark .bg-indigo-50,
+html.dark .bg-indigo-100,
+html.dark .bg-indigo-50\/60 {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  color: #C7D2FE !important;
+}
+
+html.dark .text-indigo-900,
+html.dark .text-indigo-950,
+html.dark .text-indigo-800,
+html.dark .text-indigo-700 {
+  color: #A5B4FC !important;
+}
+
+html.dark .border-indigo-200,
+html.dark .border-indigo-300 {
+  border-color: rgba(99, 102, 241, 0.35) !important;
+}
+
+html.dark .bg-emerald-50,
+html.dark .bg-emerald-100 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #6EE7B7 !important;
+}
+
+html.dark .text-emerald-950,
+html.dark .text-emerald-900,
+html.dark .text-emerald-800,
+html.dark .text-emerald-700 {
+  color: #34D399 !important;
+}
+
+html.dark .border-emerald-200,
+html.dark .border-emerald-300 {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+html.dark .bg-sky-50,
+html.dark .bg-sky-100 {
+  background-color: rgba(56, 189, 248, 0.15) !important;
+  color: #7DD3FC !important;
+}
+
+html.dark .text-sky-950,
+html.dark .text-sky-900,
+html.dark .text-sky-800,
+html.dark .text-sky-700 {
+  color: #38BDF8 !important;
+}
+
+html.dark .border-sky-200,
+html.dark .border-sky-300 {
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}

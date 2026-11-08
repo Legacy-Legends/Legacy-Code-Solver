@@ -70,10 +70,10 @@ export function App() {
     });
   }, []);
 
-  // Start in 'investigate' by default (or 'start' if #/start is explicitly requested)
+  // Start in 'start' (landing page) by default unless #/investigate is explicitly in URL
   const [route, setRoute] = useState<RouteView>(() => {
-    if (window.location.hash === '#/start') return 'start';
-    return 'investigate';
+    if (window.location.hash.startsWith('#/investigate')) return 'investigate';
+    return 'start';
   });
 
   // Data source mode: 'sample' | 'enterprise' | 'live'
@@ -167,9 +167,12 @@ export function App() {
   // Restore class from URL on mount and on hashchange
   useEffect(() => {
     const applyUrlState = () => {
-      if (window.location.hash === '#/start') {
+      if (!window.location.hash || window.location.hash === '#/start') {
         setRoute('start');
         return;
+      }
+      if (window.location.hash.startsWith('#/investigate')) {
+        setRoute('investigate');
       }
       const params = getUrlParams();
       const modeParam = params.get('source') as DataSourceMode | null;
@@ -360,10 +363,6 @@ export function App() {
     }
   };
 
-  const toggleDarkMode = () => {
-    updateSetting('darkMode', !settings.darkMode);
-  };
-
   if (route === 'start') {
     return (
       <div className="min-h-screen w-full overflow-y-auto bg-[#F7F5F0] dark:bg-[#090D16]">
@@ -376,8 +375,6 @@ export function App() {
           onOpenWorkspace={() => handleExploreSample('SessionManager')}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onCustomUpload={handleCustomUpload}
-          darkMode={settings.darkMode}
-          onToggleDarkMode={toggleDarkMode}
         />
         <SettingsModal
           isOpen={isSettingsOpen}
@@ -413,8 +410,6 @@ export function App() {
           setRoute('start');
         }}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        darkMode={settings.darkMode}
-        onToggleDarkMode={toggleDarkMode}
       />
 
       {/* Backend Error Banner when Live API is unreachable */}
@@ -504,6 +499,7 @@ export function App() {
               onSelectEdge={setSelectedEdge}
               onOpenEvidence={handleOpenEvidence}
               resolveEvidenceForEdge={resolveEvidenceForEdge}
+              darkMode={settings.darkMode}
             />
           ) : (
             <CommandGraph3D
